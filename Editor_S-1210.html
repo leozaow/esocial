@@ -1192,6 +1192,324 @@
     });
 
     // ============================================================================
+
+    // ============================================================================
+    // Script: Sincronizar Dependentes (s1210InfoDep) por base (cpfTrab;cpfDep;depIRRF;dtNascto;nome;tpDep.codigo)
+    // ============================================================================
+    // Base: depBaseMap.get(cpfTrab11).get(cpfDep11) => { depIRRF, dtNascto, nome, tpDepCodigo }
+    let depBaseMap = new Map();
+    let depPlan = null;
+
+    function depClean(v, fallback) {
+      const s = (v === null || v === undefined) ? "" : String(v).trim();
+      if (!s) return fallback;
+      return s.replace(/^["']|["']$/g, "");
+    }
+
+    function depParseLine(line) {
+      const raw = String(line || "").trim();
+      if (!raw) return null;
+
+      const low = raw.toLowerCase();
+      if (low.includes("cpftrab") && low.includes("cpfdep")) return null;
+
+      let parts = raw.split(";");
+      if (parts.length < 2) parts = raw.split(",");
+      if (parts.length < 2) return null;
+
+      const cpfTrab = normalizeCpf(parts[0]);
+      const cpfDep  = normalizeCpf(parts[1]);
+      if (!cpfTrab || !cpfDep) return null;
+
+      const depIRRF = depClean(parts[2], "*vazio*");
+      const dtNascto = depClean(parts[3], "*datavazia*");
+      const nome = depClean(parts[4], "*vazio*");
+      const tpDepCodigo = depClean(parts[5], "*vazio*");
+
+      return { cpfTrab, cpfDep, depIRRF, dtNascto, nome, tpDepCodigo };
+    }
+
+    function depIngestText(text) {
+      const lines = String(text || "").split(/?
+/);
+      for (const line of lines) {
+        const rec = depParseLine(line);
+        if (!rec) continue;
+
+        if (!depBaseMap.has(rec.cpfTrab)) depBaseMap.set(rec.cpfTrab, new Map());
+        depBaseMap.get(rec.cpfTrab).set(rec.cpfDep, {
+          depIRRF: rec.depIRRF,
+          dtNascto: rec.dtNascto,
+          nome: rec.nome,
+          tpDepCodigo: rec.tpDepCodigo
+        });
+      }
+    }
+
+    function depPreviewUpdate() {
+      const rows = [];
+      let totalPairs = 0;
+      depBaseMap.forEach((inner, cpfTrab) => {
+        inner.forEach((v, cpfDep) => {
+          totalPairs += 1;
+          if (rows.length < 20) rows.push(`${cpfTrab};${cpfDep};${v.depIRRF};${v.dtNascto};${v.nome};${v.tpDepCodigo}`);
+        });
+      });
+      document.getElementById("depPreview").textContent = rows.length ? rows.join("
+") : "(nenhuma linha válida carregada)";
+      document.getElementById("depStats").textContent = `cpfTrab distintos: ${depBaseMap.size} | pares cpfTrab+cpfDep: ${totalPairs}`;
+    }
+
+    function depGetReferencedCpfs(ircr) {
+      const set = new Set();
+      const ded = Array.isArray(ircr?.s1210DedDepen) ? ircr.s1210DedDepen : [];
+      const pen = Array.isArray(ircr?.s1210PenAlim) ? ircr.s1210PenAlim : [];
+      for (const row of ded) {
+        const n = normalizeCpf(row?.cpfDep);
+        if (n) set.add(n);
+      }
+      for (const row of pen) {
+        const n = normalizeCpf(row?.cpfDep);
+        if (n) set.add(n);
+      }
+      return set;
+    }
+
+    function depAnalyze() {
+      const events = getEventos();
+      const plan = {
+        toAdd: [],
+        missingInBase: [],
+        duplicates: [],
+        stats: { totalReferenced: 0, totalMissing: 0, totalToAdd: 0, totalEventsImpacted: 0, totalBlocksImpacted: 0 }
+      };
+
+      const impactedEvents = new Set();
+      const impactedBlocks = new Set();
+
+      for (const evt of events) {
+        const cpfTrab = normalizeCpf(evt?.trabalhador?.cpfTrab);
+        if (!cpfTrab) continue;
+
+        const ordem = evt?.ordemRegistro ?? "";
+        const complemArr = Array.isArray(evt?.s1210InfoIRComplem) ? evt.s1210InfoIRComplem : [];
+        if (!complemArr.length) continue;
+
+        complemArr.forEach((blk, blkIndex) => {
+          const ircrArr = Array.isArray(blk?.s1210InfoIRCR) ? blk.s1210InfoIRCR : [];
+          if (!ircrArr.length) return;
+
+          const infoDepArr = Array.isArray(blk?.s1210InfoDep) ? blk.s1210InfoDep : [];
+          const seen = new Set();
+          const existing = new Set();
+
+          for (const dep of infoDepArr) {
+            const c = normalizeCpf(dep?.cpfDep);
+            if (!c) continue;
+            if (seen.has(c)) plan.duplicates.push({ cpfTrab, ordemRegistro: ordem, blkIndex, cpfDep: c });
+            else seen.add(c);
+            existing.add(c);
+          }
+
+          const referenced = new Set();
+          ircrArr.forEach((ircr) => depGetReferencedCpfs(ircr).forEach(x => referenced.add(x)));
+
+          referenced.forEach((cpfDep) => {
+            plan.stats.totalReferenced += 1;
+            if (existing.has(cpfDep)) return;
+
+            const data = depBaseMap.get(cpfTrab)?.get(cpfDep);
+            if (data) {
+              plan.toAdd.push({ blkRef: blk, cpfTrab, cpfDep, data, ordemRegistro: ordem, blkIndex });
+              impactedEvents.add(cpfTrab + "|" + ordem);
+              impactedBlocks.add(cpfTrab + "|" + ordem + "|" + blkIndex);
+            } else {
+              plan.missingInBase.push({ cpfTrab, cpfDep, ordemRegistro: ordem, blkIndex });
+            }
+          });
+        });
+      }
+
+      plan.stats.totalMissing = plan.missingInBase.length;
+      plan.stats.totalToAdd = plan.toAdd.length;
+      plan.stats.totalEventsImpacted = impactedEvents.size;
+      plan.stats.totalBlocksImpacted = impactedBlocks.size;
+
+      depPlan = plan;
+      return plan;
+    }
+
+    function depReportText(plan) {
+      const lines = [];
+      lines.push("Resumo");
+      lines.push(`- Referências (cpfDep em Ded/Pensão): ${plan.stats.totalReferenced}`);
+      lines.push(`- Inclusões necessárias (base disponível): ${plan.stats.totalToAdd}`);
+      lines.push(`- Eventos impactados: ${plan.stats.totalEventsImpacted}`);
+      lines.push(`- Blocos IR Complem impactados: ${plan.stats.totalBlocksImpacted}`);
+      lines.push(`- Pendências (sem base): ${plan.stats.totalMissing}`);
+      lines.push(`- Duplicidades detectadas (s1210InfoDep): ${plan.duplicates.length}`);
+      lines.push("");
+
+      if (plan.stats.totalMissing) {
+        lines.push("Pendências (cpfDep referenciado sem cadastro em InfoDep e sem linha na base):");
+        const grp = new Map();
+        for (const it of plan.missingInBase) {
+          const key = `${it.cpfTrab} (ordemRegistro ${it.ordemRegistro}, bloco ${it.blkIndex})`;
+          if (!grp.has(key)) grp.set(key, new Set());
+          grp.get(key).add(it.cpfDep);
+        }
+        let shown = 0;
+        grp.forEach((set, key) => {
+          if (shown >= 60) return;
+          lines.push(`- ${key}: ${Array.from(set).join(", ")}`);
+          shown += 1;
+        });
+        if (grp.size > 60) lines.push(`... (${grp.size-60} grupos adicionais omitidos no preview)`);
+        lines.push("");
+      }
+
+      if (plan.duplicates.length) {
+        lines.push("Duplicidades detectadas em s1210InfoDep:");
+        plan.duplicates.slice(0, 60).forEach(d => {
+          lines.push(`- cpfTrab ${d.cpfTrab} (ordemRegistro ${d.ordemRegistro}, bloco ${d.blkIndex}): cpfDep ${d.cpfDep}`);
+        });
+        if (plan.duplicates.length > 60) lines.push(`... (${plan.duplicates.length-60} linhas adicionais omitidas no preview)`);
+      }
+
+      return lines.join("
+");
+    }
+
+    function depBuildInfoDepObj(cpfDep, data) {
+      return {
+        cpfDep: cpfDep,
+        depIRRF: data?.depIRRF ?? "*vazio*",
+        dtNascto: data?.dtNascto ?? "*datavazia*",
+        nome: data?.nome ?? "*vazio*",
+        tpDep: { codigo: data?.tpDepCodigo ?? "*vazio*" }
+      };
+    }
+
+    function depDedupInfoDepArr(arr) {
+      const out = [];
+      const seen = new Set();
+      let removed = 0;
+      for (const dep of arr) {
+        const c = normalizeCpf(dep?.cpfDep);
+        if (!c) { out.push(dep); continue; }
+        if (seen.has(c)) { removed += 1; continue; }
+        seen.add(c);
+        out.push(dep);
+      }
+      return { out, removed };
+    }
+
+    function depApplyFixes() {
+      const plan = depPlan || depAnalyze();
+      const doDedup = !!document.getElementById("depDedupCheckbox")?.checked;
+
+      const addedKey = new Set();
+      let addedCount = 0;
+
+      for (const item of plan.toAdd) {
+        const blk = item.blkRef;
+        if (!blk) continue;
+
+        const key = (item.ordemRegistro ?? "") + "|" + (item.blkIndex ?? "") + "|" + item.cpfDep;
+        if (addedKey.has(key)) continue;
+        addedKey.add(key);
+
+        if (!Array.isArray(blk.s1210InfoDep)) blk.s1210InfoDep = [];
+        const exists = blk.s1210InfoDep.some(d => normalizeCpf(d?.cpfDep) === item.cpfDep);
+        if (exists) continue;
+
+        blk.s1210InfoDep.push(depBuildInfoDepObj(item.cpfDep, item.data));
+        addedCount += 1;
+      }
+
+      let dedupRemoved = 0;
+      if (doDedup) {
+        const events = getEventos();
+        for (const evt of events) {
+          const complemArr = Array.isArray(evt?.s1210InfoIRComplem) ? evt.s1210InfoIRComplem : [];
+          for (const blk of complemArr) {
+            if (!Array.isArray(blk?.s1210InfoDep)) continue;
+            const r = depDedupInfoDepArr(blk.s1210InfoDep);
+            if (r.removed) {
+              blk.s1210InfoDep = r.out;
+              dedupRemoved += r.removed;
+            }
+          }
+        }
+      }
+
+      renderEventosTable();
+
+      const rep = [];
+      rep.push("Aplicação concluída");
+      rep.push(`- Dependentes adicionados: ${addedCount}`);
+      rep.push(`- Duplicidades removidas (opcional): ${dedupRemoved}`);
+      rep.push(`- Pendências sem base (não corrigidas): ${plan.missingInBase.length}`);
+      rep.push("");
+      rep.push(depReportText(plan));
+
+      document.getElementById("depReport").textContent = rep.join("
+");
+
+      setStatus(`<div class="alert alert-success mb-0">
+        Dependentes adicionados: <strong>${addedCount}</strong> |
+        Pendências sem base: <strong>${plan.missingInBase.length}</strong> |
+        Duplicidades removidas: <strong>${dedupRemoved}</strong>
+      </div>`);
+    }
+
+    // UI bindings
+    $('#depSyncModal').on('shown.bs.modal', function () {
+      depBaseMap = new Map();
+      depPlan = null;
+      document.getElementById("depCsvInput").value = "";
+      document.getElementById("depTextarea").value = "";
+      document.getElementById("depPreview").textContent = "(nenhuma linha válida carregada)";
+      document.getElementById("depStats").textContent = "";
+      document.getElementById("depReport").textContent = "";
+      document.getElementById("depDedupCheckbox").checked = false;
+    });
+
+    document.getElementById("depCsvInput").addEventListener("change", function () {
+      const file = this.files && this.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function (e) {
+        depIngestText(e.target.result || "");
+        depPreviewUpdate();
+        document.getElementById("depReport").textContent = "Base carregada. Clique em 'Analisar' para gerar o relatório.";
+      };
+      reader.readAsText(file);
+    });
+
+    document.getElementById("depAnalyzeBtn").addEventListener("click", () => {
+      depIngestText(document.getElementById("depTextarea").value || "");
+      depPreviewUpdate();
+      const plan = depAnalyze();
+      document.getElementById("depReport").textContent = depReportText(plan);
+      setStatus(`<div class="alert alert-info mb-0">
+        Análise concluída: Inclusões necessárias: <strong>${plan.stats.totalToAdd}</strong> |
+        Pendências sem base: <strong>${plan.stats.totalMissing}</strong> |
+        Duplicidades: <strong>${plan.duplicates.length}</strong>
+      </div>`);
+    });
+
+    document.getElementById("depApplyBtn").addEventListener("click", () => {
+      depIngestText(document.getElementById("depTextarea").value || "");
+      depPreviewUpdate();
+      const plan = depAnalyze();
+      if (plan.stats.totalToAdd === 0 && plan.stats.totalMissing === 0 && plan.duplicates.length === 0) {
+        document.getElementById("depReport").textContent = "Nenhuma ação necessária. Não há pendências detectadas.";
+        return;
+      }
+      depApplyFixes();
+    });
+
     // Init
     // ============================================================================
     renderEventosTable();
