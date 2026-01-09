@@ -1230,8 +1230,7 @@
     }
 
     function depIngestText(text) {
-      const lines = String(text || "").split(/?
-/);
+      const lines = String(text || "").split(/\r?\n/);
       for (const line of lines) {
         const rec = depParseLine(line);
         if (!rec) continue;
@@ -1255,8 +1254,7 @@
           if (rows.length < 20) rows.push(`${cpfTrab};${cpfDep};${v.depIRRF};${v.dtNascto};${v.nome};${v.tpDepCodigo}`);
         });
       });
-      document.getElementById("depPreview").textContent = rows.length ? rows.join("
-") : "(nenhuma linha válida carregada)";
+      document.getElementById("depPreview").textContent = rows.length ? rows.join("\n") : "(nenhuma linha válida carregada)";
       document.getElementById("depStats").textContent = `cpfTrab distintos: ${depBaseMap.size} | pares cpfTrab+cpfDep: ${totalPairs}`;
     }
 
@@ -1376,8 +1374,7 @@
         if (plan.duplicates.length > 60) lines.push(`... (${plan.duplicates.length-60} linhas adicionais omitidas no preview)`);
       }
 
-      return lines.join("
-");
+      return lines.join("\n");
     }
 
     function depBuildInfoDepObj(cpfDep, data) {
@@ -1453,8 +1450,7 @@
       rep.push("");
       rep.push(depReportText(plan));
 
-      document.getElementById("depReport").textContent = rep.join("
-");
+      document.getElementById("depReport").textContent = rep.join("\n");
 
       setStatus(`<div class="alert alert-success mb-0">
         Dependentes adicionados: <strong>${addedCount}</strong> |
