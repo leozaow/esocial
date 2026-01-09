@@ -52,8 +52,8 @@
         </div>
         <div class="btn-group-custom">
           <button id="downloadBtn" class="btn btn-info"><i class="fas fa-download"></i> Baixar Edição</button>
-          <button id="cpfRemoveBtn" class="btn btn-danger" data-toggle="modal" data-target="#cpfRemoveModal"><i class="fas fa-user-times"></i> Excluir por CSV de CPFs</button>
-          <button id="depSyncBtn" class="btn btn-primary" data-toggle="modal" data-target="#depSyncModal"><i class="fas fa-user-plus"></i> Sincronizar Dependentes (CSV)</button>
+          <button id="cpfRemoveBtn" class="btn btn-danger" data-toggle="modal" data-target="#cpfRemoveModal"><i class="fas fa-user-times"></i> Excluir por lista de CPFs</button>
+          <button id="depSyncBtn" class="btn btn-primary" data-toggle="modal" data-target="#depSyncModal"><i class="fas fa-user-plus"></i> Sincronizar Dependentes</button>
         </div>
         <div id="statusArea" class="mt-3"></div>
       </div>
@@ -197,12 +197,12 @@
       </div>
     </div>
 
-    <!-- Modal: Excluir por CSV de CPFs -->
+    <!-- Modal: Excluir por lista de CPFs -->
     <div class="modal fade" id="cpfRemoveModal" tabindex="-1" aria-labelledby="cpfRemoveModalLabel" aria-hidden="true">
       <div class="modal-dialog modal-lg" style="max-width: 850px;">
         <div class="modal-content">
           <div class="modal-header">
-            <h5 class="modal-title" id="cpfRemoveModalLabel">Excluir eventos por lista de CPFs (CSV)</h5>
+            <h5 class="modal-title" id="cpfRemoveModalLabel">Excluir eventos por lista de CPFs</h5>
             <button type="button" class="close" data-dismiss="modal" aria-label="Fechar"><span aria-hidden="true">&times;</span></button>
           </div>
           <div class="modal-body">
@@ -211,13 +211,7 @@
               A remoção preserva os demais registros integralmente.
             </div>
 
-            <div class="form-group">
-              <label><strong>Carregar arquivo CSV / TXT:</strong></label>
-              <input type="file" id="cpfCsvInput" accept=".csv,.txt" class="form-control-file"/>
-              <div class="small-hint mt-2">
-                Pode conter CPF em qualquer coluna. O sistema extrai dígitos e normaliza para 11 posições (com zeros à esquerda, se necessário).
-              </div>
-            </div>
+            <div class="small-hint mb-3">Cole abaixo os CPFs (1 por linha). O sistema normaliza para 11 dígitos (zeros à esquerda quando necessário) e remove eventos cujo <span class="mono">trabalhador.cpfTrab</span> corresponda.</div>
 
             <div class="form-group">
               <label><strong>Ou cole os CPFs (1 por linha):</strong></label>
@@ -247,7 +241,7 @@
       <div class="modal-dialog modal-lg" style="max-width: 950px;">
         <div class="modal-content">
           <div class="modal-header">
-            <h5 class="modal-title" id="depSyncModalLabel">Sincronizar Dependentes (s1210InfoDep) por base CSV</h5>
+            <h5 class="modal-title" id="depSyncModalLabel">Sincronizar Dependentes (s1210InfoDep) por base</h5>
             <button type="button" class="close" data-dismiss="modal" aria-label="Fechar"><span aria-hidden="true">&times;</span></button>
           </div>
           <div class="modal-body">
@@ -257,14 +251,7 @@
               O script só adiciona o necessário, preservando a integridade do arquivo.
             </div>
 
-            <div class="form-group">
-              <label><strong>Carregar base CSV / TXT (separado por ;):</strong></label>
-              <input type="file" id="depCsvInput" accept=".csv,.txt" class="form-control-file"/>
-              <div class="small-hint mt-2">
-                Formato por linha: <span class="mono">cpfTrab;cpfDep;depIRRF;dtNascto;nome;tpDep.codigo</span>.
-                CPFs podem vir sem zeros à esquerda (Excel); o sistema normaliza para 11 dígitos.
-              </div>
-            </div>
+            <div class="small-hint mb-3">Cole a base abaixo (uma linha por registro), separada por <span class="mono">;</span>. Formato: <span class="mono">cpfTrab;cpfDep;depIRRF;dtNascto;nome;tpDep.codigo;descrDep</span> (o último campo <span class="mono">descrDep</span> é opcional). CPFs são normalizados para 11 dígitos.</div>
 
             <div class="form-group">
               <label><strong>Ou cole a base (uma linha por registro):</strong></label>
@@ -584,7 +571,7 @@
             <table class="table table-sm table-bordered mb-3">
               <thead class="thead-light">
                 <tr>
-                  <th>cpfDep</th><th>depIRRF</th><th>dtNascto</th><th>nome</th><th>tpDep.codigo</th><th style="width:70px;">Ação</th>
+                  <th>cpfDep</th><th>depIRRF</th><th>dtNascto</th><th>nome</th><th>tpDep.codigo</th><th>descrDep</th><th style="width:70px;">Ação</th>
                 </tr>
               </thead>
               <tbody class="ir-dep-tbody"></tbody>
@@ -635,6 +622,7 @@
         <td><input type="text" class="form-control form-control-sm dep-dtNascto"></td>
         <td><input type="text" class="form-control form-control-sm dep-nome"></td>
         <td><input type="text" class="form-control form-control-sm dep-tpDep"></td>
+        <td><input type="text" class="form-control form-control-sm dep-descrDep"></td>
         <td class="text-center"><button type="button" class="btn btn-sm btn-outline-danger dep-remove"><i class="fas fa-trash"></i></button></td>
       `;
 
@@ -643,6 +631,8 @@
       tr.querySelector(".dep-dtNascto").value = dep.dtNascto ?? "";
       tr.querySelector(".dep-nome").value = dep.nome ?? "";
       tr.querySelector(".dep-tpDep").value = dep.tpDep?.codigo ?? "";
+      const _dd = tr.querySelector(".dep-descrDep");
+      if (_dd) _dd.value = dep.descrDep ?? "";
       tr.querySelector(".dep-remove").addEventListener("click", () => tr.remove());
 
       tbody.appendChild(tr);
@@ -948,7 +938,10 @@
                 setIfChanged(dep, "nome", safeValue(tr, ".dep-nome"));
                 if (dep.tpDep && typeof dep.tpDep === "object") setIfChanged(dep.tpDep, "codigo", safeValue(tr, ".dep-tpDep"));
 
-                newDeps.push(dep);
+                
+                const __descrDep = safeValue(tr, ".dep-descrDep");
+                if (("descrDep" in dep) || __descrDep) setIfChanged(dep, "descrDep", __descrDep);
+newDeps.push(dep);
               });
               if (newDeps.length === 0) delete blk.s1210InfoDep;
               else blk.s1210InfoDep = newDeps;
@@ -1076,7 +1069,7 @@
     });
 
     // ============================================================================
-    // Script: Excluir por CSV de CPFs (cpfTrab)
+    // Script: Excluir por lista de CPFs (cpfTrab)
     // ============================================================================
     let cachedCpfSet = new Set();
 
@@ -1125,27 +1118,13 @@
       document.getElementById("cpfStats").textContent = `CPFs válidos: ${list.length}`;
     }
 
-    document.getElementById("cpfCsvInput").addEventListener("change", function () {
-      const file = this.files && this.files[0];
-      if (!file) return;
-
-      const reader = new FileReader();
-      reader.onload = function (e) {
-        const text = e.target.result || "";
-        const set = extractCpfsFromText(text);
-        cachedCpfSet = new Set([...cachedCpfSet, ...set]);
-        updateCpfPreview();
-      };
-      reader.readAsText(file);
-    });
-
     document.getElementById("cpfTextarea").addEventListener("input", function () {
       // não auto-mescla a cada tecla para evitar "travadas" em colagens grandes
     });
 
     $('#cpfRemoveModal').on('shown.bs.modal', function () {
       cachedCpfSet = new Set();
-      document.getElementById("cpfCsvInput").value = "";
+      
       document.getElementById("cpfTextarea").value = "";
       updateCpfPreview();
     });
@@ -1225,8 +1204,9 @@
       const dtNascto = depClean(parts[3], "*datavazia*");
       const nome = depClean(parts[4], "*vazio*");
       const tpDepCodigo = depClean(parts[5], "*vazio*");
+      const descrDep = depClean(parts[6], "");
 
-      return { cpfTrab, cpfDep, depIRRF, dtNascto, nome, tpDepCodigo };
+      return { cpfTrab, cpfDep, depIRRF, dtNascto, nome, tpDepCodigo, descrDep };
     }
 
     function depIngestText(text) {
@@ -1251,7 +1231,7 @@
       depBaseMap.forEach((inner, cpfTrab) => {
         inner.forEach((v, cpfDep) => {
           totalPairs += 1;
-          if (rows.length < 20) rows.push(`${cpfTrab};${cpfDep};${v.depIRRF};${v.dtNascto};${v.nome};${v.tpDepCodigo}`);
+          if (rows.length < 20) rows.push(`${cpfTrab};${cpfDep};${v.depIRRF};${v.dtNascto};${v.nome};${v.tpDepCodigo};${v.descrDep || ""}`);
         });
       });
       document.getElementById("depPreview").textContent = rows.length ? rows.join("\n") : "(nenhuma linha válida carregada)";
@@ -1378,14 +1358,18 @@
     }
 
     function depBuildInfoDepObj(cpfDep, data) {
-      return {
-        cpfDep: cpfDep,
-        depIRRF: data?.depIRRF ?? "*vazio*",
-        dtNascto: data?.dtNascto ?? "*datavazia*",
-        nome: data?.nome ?? "*vazio*",
-        tpDep: { codigo: data?.tpDepCodigo ?? "*vazio*" }
-      };
+  const obj = {
+    cpfDep: cpfDep,
+    depIRRF: data?.depIRRF ?? "*vazio*",
+    dtNascto: data?.dtNascto ?? "*datavazia*",
+    nome: data?.nome ?? "*vazio*",
+    tpDep: { codigo: data?.tpDepCodigo ?? "*vazio*" }
+  };
+  // descrDep é opcional: só inclui se vier preenchido na base
+  if (data?.descrDep && String(data.descrDep).trim() !== "") obj.descrDep = data.descrDep;
+  return obj;
     }
+
 
     function depDedupInfoDepArr(arr) {
       const out = [];
@@ -1463,24 +1447,12 @@
     $('#depSyncModal').on('shown.bs.modal', function () {
       depBaseMap = new Map();
       depPlan = null;
-      document.getElementById("depCsvInput").value = "";
+      
       document.getElementById("depTextarea").value = "";
       document.getElementById("depPreview").textContent = "(nenhuma linha válida carregada)";
       document.getElementById("depStats").textContent = "";
       document.getElementById("depReport").textContent = "";
       document.getElementById("depDedupCheckbox").checked = false;
-    });
-
-    document.getElementById("depCsvInput").addEventListener("change", function () {
-      const file = this.files && this.files[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = function (e) {
-        depIngestText(e.target.result || "");
-        depPreviewUpdate();
-        document.getElementById("depReport").textContent = "Base carregada. Clique em 'Analisar' para gerar o relatório.";
-      };
-      reader.readAsText(file);
     });
 
     document.getElementById("depAnalyzeBtn").addEventListener("click", () => {
