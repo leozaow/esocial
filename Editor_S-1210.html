@@ -52,8 +52,8 @@
         </div>
         <div class="btn-group-custom">
           <button id="downloadBtn" class="btn btn-info"><i class="fas fa-download"></i> Baixar Edição</button>
-          <button id="cpfRemoveBtn" class="btn btn-danger" data-toggle="modal" data-target="#cpfRemoveModal"><i class="fas fa-user-times"></i> Excluir por CSV de CPFs</button>
-          <button id="depSyncBtn" class="btn btn-primary" data-toggle="modal" data-target="#depSyncModal"><i class="fas fa-user-plus"></i> Sincronizar Dependentes (CSV)</button>
+          <button id="cpfRemoveBtn" class="btn btn-danger" data-toggle="modal" data-target="#cpfRemoveModal"><i class="fas fa-user-times"></i> Excluir por lista de CPFs</button>
+          <button id="depSyncBtn" class="btn btn-primary" data-toggle="modal" data-target="#depSyncModal"><i class="fas fa-user-plus"></i> Sincronizar Dependentes</button>
         </div>
         <div id="statusArea" class="mt-3"></div>
       </div>
@@ -197,12 +197,12 @@
       </div>
     </div>
 
-    <!-- Modal: Excluir por CSV de CPFs -->
+    <!-- Modal: Excluir por lista de CPFs -->
     <div class="modal fade" id="cpfRemoveModal" tabindex="-1" aria-labelledby="cpfRemoveModalLabel" aria-hidden="true">
       <div class="modal-dialog modal-lg" style="max-width: 850px;">
         <div class="modal-content">
           <div class="modal-header">
-            <h5 class="modal-title" id="cpfRemoveModalLabel">Excluir eventos por lista de CPFs (CSV)</h5>
+            <h5 class="modal-title" id="cpfRemoveModalLabel">Excluir eventos por lista de CPFs</h5>
             <button type="button" class="close" data-dismiss="modal" aria-label="Fechar"><span aria-hidden="true">&times;</span></button>
           </div>
           <div class="modal-body">
@@ -210,16 +210,8 @@
               Esta operação remove eventos cujo <strong>trabalhador.cpfTrab</strong> (Identificação do Evento) esteja na lista.
               A remoção preserva os demais registros integralmente.
             </div>
-
-            <div class="form-group">
-              <label><strong>Carregar arquivo CSV / TXT:</strong></label>
-              <input type="file" id="cpfCsvInput" accept=".csv,.txt" class="form-control-file"/>
-              <div class="small-hint mt-2">
-                Pode conter CPF em qualquer coluna. O sistema extrai dígitos e normaliza para 11 posições (com zeros à esquerda, se necessário).
-              </div>
-            </div>
-
-            <div class="form-group">
+            <div class="small-hint mb-3">Cole abaixo os CPFs (1 por linha). O sistema normaliza para 11 dígitos (zeros à esquerda quando necessário) e remove eventos cujo <span class="mono">trabalhador.cpfTrab</span> corresponda.</div>
+<div class="form-group">
               <label><strong>Ou cole os CPFs (1 por linha):</strong></label>
               <textarea id="cpfTextarea" class="form-control mono" rows="6" placeholder="Ex:
 01234567890
@@ -247,7 +239,7 @@
       <div class="modal-dialog modal-lg" style="max-width: 950px;">
         <div class="modal-content">
           <div class="modal-header">
-            <h5 class="modal-title" id="depSyncModalLabel">Sincronizar Dependentes (s1210InfoDep) por base CSV</h5>
+            <h5 class="modal-title" id="depSyncModalLabel">Sincronizar Dependentes (s1210InfoDep) por base</h5>
             <button type="button" class="close" data-dismiss="modal" aria-label="Fechar"><span aria-hidden="true">&times;</span></button>
           </div>
           <div class="modal-body">
@@ -256,17 +248,8 @@
               garantir que o <strong>cpfDep</strong> esteja cadastrado em <strong>Dependentes (s1210InfoDep)</strong> no mesmo bloco IR Complem.
               O script só adiciona o necessário, preservando a integridade do arquivo.
             </div>
-
-            <div class="form-group">
-              <label><strong>Carregar base CSV / TXT (separado por ;):</strong></label>
-              <input type="file" id="depCsvInput" accept=".csv,.txt" class="form-control-file"/>
-              <div class="small-hint mt-2">
-                Formato por linha: <span class="mono">cpfTrab;cpfDep;depIRRF;dtNascto;nome;tpDep.codigo</span>.
-                CPFs podem vir sem zeros à esquerda (Excel); o sistema normaliza para 11 dígitos.
-              </div>
-            </div>
-
-            <div class="form-group">
+            <div class="small-hint mb-3">Cole a base abaixo (uma linha por registro), separada por <span class="mono">;</span>. Formato: <span class="mono">cpfTrab;cpfDep;depIRRF;dtNascto;nome;tpDep.codigo;descrDep</span> (o último campo <span class="mono">descrDep</span> é opcional). CPFs são normalizados para 11 dígitos.</div>
+<div class="form-group">
               <label><strong>Ou cole a base (uma linha por registro):</strong></label>
               <textarea id="depTextarea" class="form-control mono" rows="7" placeholder="Ex:
 01234567890;12345678901;S;2001-05-10;FULANO DE TAL;01"></textarea>
@@ -584,7 +567,7 @@
             <table class="table table-sm table-bordered mb-3">
               <thead class="thead-light">
                 <tr>
-                  <th>cpfDep</th><th>depIRRF</th><th>dtNascto</th><th>nome</th><th>tpDep.codigo</th><th style="width:70px;">Ação</th>
+                  <th>cpfDep</th><th>depIRRF</th><th>dtNascto</th><th>nome</th><th>tpDep.codigo</th><th>descrDep</th><th style="width:70px;">Ação</th>
                 </tr>
               </thead>
               <tbody class="ir-dep-tbody"></tbody>
@@ -635,6 +618,7 @@
         <td><input type="text" class="form-control form-control-sm dep-dtNascto"></td>
         <td><input type="text" class="form-control form-control-sm dep-nome"></td>
         <td><input type="text" class="form-control form-control-sm dep-tpDep"></td>
+        <td><input type="text" class="form-control form-control-sm dep-descrDep"></td>
         <td class="text-center"><button type="button" class="btn btn-sm btn-outline-danger dep-remove"><i class="fas fa-trash"></i></button></td>
       `;
 
@@ -643,6 +627,7 @@
       tr.querySelector(".dep-dtNascto").value = dep.dtNascto ?? "";
       tr.querySelector(".dep-nome").value = dep.nome ?? "";
       tr.querySelector(".dep-tpDep").value = dep.tpDep?.codigo ?? "";
+      tr.querySelector(".dep-descrDep").value = dep.descrDep ?? "";
       tr.querySelector(".dep-remove").addEventListener("click", () => tr.remove());
 
       tbody.appendChild(tr);
@@ -948,7 +933,10 @@
                 setIfChanged(dep, "nome", safeValue(tr, ".dep-nome"));
                 if (dep.tpDep && typeof dep.tpDep === "object") setIfChanged(dep.tpDep, "codigo", safeValue(tr, ".dep-tpDep"));
 
-                newDeps.push(dep);
+                
+                const __descrDep = safeValue(tr, ".dep-descrDep");
+                if (("descrDep" in dep) || __descrDep) setIfChanged(dep, "descrDep", __descrDep);
+newDeps.push(dep);
               });
               if (newDeps.length === 0) delete blk.s1210InfoDep;
               else blk.s1210InfoDep = newDeps;
@@ -1076,7 +1064,7 @@
     });
 
     // ============================================================================
-    // Script: Excluir por CSV de CPFs (cpfTrab)
+    // Script: Excluir por lista de CPFs (cpfTrab)
     // ============================================================================
     let cachedCpfSet = new Set();
 
@@ -1124,366 +1112,13 @@
       document.getElementById("cpfPreview").textContent = preview || "(nenhum CPF válido carregado)";
       document.getElementById("cpfStats").textContent = `CPFs válidos: ${list.length}`;
     }
-
-    document.getElementById("cpfCsvInput").addEventListener("change", function () {
-      const file = this.files && this.files[0];
-      if (!file) return;
-
-      const reader = new FileReader();
-      reader.onload = function (e) {
-        const text = e.target.result || "";
-        const set = extractCpfsFromText(text);
-        cachedCpfSet = new Set([...cachedCpfSet, ...set]);
-        updateCpfPreview();
-      };
-      reader.readAsText(file);
-    });
-
-    document.getElementById("cpfTextarea").addEventListener("input", function () {
+document.getElementById("cpfTextarea").addEventListener("input", function () {
       // não auto-mescla a cada tecla para evitar "travadas" em colagens grandes
     });
 
     $('#cpfRemoveModal').on('shown.bs.modal', function () {
       cachedCpfSet = new Set();
-      document.getElementById("cpfCsvInput").value = "";
-      document.getElementById("cpfTextarea").value = "";
-      updateCpfPreview();
-    });
-
-    document.getElementById("applyCpfRemovalBtn").addEventListener("click", () => {
-      // incorpora textarea
-      const pasted = document.getElementById("cpfTextarea").value || "";
-      const pastedSet = extractCpfsFromText(pasted);
-      cachedCpfSet = new Set([...cachedCpfSet, ...pastedSet]);
-      updateCpfPreview();
-
-      if (cachedCpfSet.size === 0) {
-        alert("Nenhum CPF válido foi identificado. Verifique o CSV/texto.");
-        return;
-      }
-
-      const eventos = getEventos();
-      const before = eventos.length;
-
-      const removedCpfs = new Set();
-      const kept = [];
-
-      for (const evt of eventos) {
-        const cpfTrab = evt?.trabalhador?.cpfTrab;
-        const norm = normalizeCpf(cpfTrab);
-        if (norm && cachedCpfSet.has(norm)) {
-          removedCpfs.add(norm);
-          continue; // remove evento
-        }
-        kept.push(evt);
-      }
-
-      window.esocialData.s1210PagtoRendTrabGroup.s1210PagtoRendTrab = kept;
-      renderEventosTable();
-      $("#cpfRemoveModal").modal("hide");
-
-      const removedCount = before - kept.length;
-      setStatus(
-        `<div class="alert alert-success mb-0">
-          Registros removidos: <strong>${removedCount}</strong> (CPFs distintos encontrados: ${removedCpfs.size}).<br/>
-          Critério: trabalhador.cpfTrab (normalizado para 11 dígitos).
-        </div>`
-      );
-    });
-
-    // ============================================================================
-
-    // ============================================================================
-    // Script: Sincronizar Dependentes (s1210InfoDep) por base (cpfTrab;cpfDep;depIRRF;dtNascto;nome;tpDep.codigo)
-    // ============================================================================
-    // Base: depBaseMap.get(cpfTrab11).get(cpfDep11) => { depIRRF, dtNascto, nome, tpDepCodigo }
-    let depBaseMap = new Map();
-    let depPlan = null;
-
-    function depClean(v, fallback) {
-      const s = (v === null || v === undefined) ? "" : String(v).trim();
-      if (!s) return fallback;
-      return s.replace(/^["']|["']$/g, "");
-    }
-
-    function depParseLine(line) {
-      const raw = String(line || "").trim();
-      if (!raw) return null;
-
-      const low = raw.toLowerCase();
-      if (low.includes("cpftrab") && low.includes("cpfdep")) return null;
-
-      let parts = raw.split(";");
-      if (parts.length < 2) parts = raw.split(",");
-      if (parts.length < 2) return null;
-
-      const cpfTrab = normalizeCpf(parts[0]);
-      const cpfDep  = normalizeCpf(parts[1]);
-      if (!cpfTrab || !cpfDep) return null;
-
-      const depIRRF = depClean(parts[2], "*vazio*");
-      const dtNascto = depClean(parts[3], "*datavazia*");
-      const nome = depClean(parts[4], "*vazio*");
-      const tpDepCodigo = depClean(parts[5], "*vazio*");
-
-      return { cpfTrab, cpfDep, depIRRF, dtNascto, nome, tpDepCodigo };
-    }
-
-    function depIngestText(text) {
-      const lines = String(text || "").split(/\r?\n/);
-      for (const line of lines) {
-        const rec = depParseLine(line);
-        if (!rec) continue;
-
-        if (!depBaseMap.has(rec.cpfTrab)) depBaseMap.set(rec.cpfTrab, new Map());
-        depBaseMap.get(rec.cpfTrab).set(rec.cpfDep, {
-          depIRRF: rec.depIRRF,
-          dtNascto: rec.dtNascto,
-          nome: rec.nome,
-          tpDepCodigo: rec.tpDepCodigo
-        });
-      }
-    }
-
-    function depPreviewUpdate() {
-      const rows = [];
-      let totalPairs = 0;
-      depBaseMap.forEach((inner, cpfTrab) => {
-        inner.forEach((v, cpfDep) => {
-          totalPairs += 1;
-          if (rows.length < 20) rows.push(`${cpfTrab};${cpfDep};${v.depIRRF};${v.dtNascto};${v.nome};${v.tpDepCodigo}`);
-        });
-      });
-      document.getElementById("depPreview").textContent = rows.length ? rows.join("\n") : "(nenhuma linha válida carregada)";
-      document.getElementById("depStats").textContent = `cpfTrab distintos: ${depBaseMap.size} | pares cpfTrab+cpfDep: ${totalPairs}`;
-    }
-
-    function depGetReferencedCpfs(ircr) {
-      const set = new Set();
-      const ded = Array.isArray(ircr?.s1210DedDepen) ? ircr.s1210DedDepen : [];
-      const pen = Array.isArray(ircr?.s1210PenAlim) ? ircr.s1210PenAlim : [];
-      for (const row of ded) {
-        const n = normalizeCpf(row?.cpfDep);
-        if (n) set.add(n);
-      }
-      for (const row of pen) {
-        const n = normalizeCpf(row?.cpfDep);
-        if (n) set.add(n);
-      }
-      return set;
-    }
-
-    function depAnalyze() {
-      const events = getEventos();
-      const plan = {
-        toAdd: [],
-        missingInBase: [],
-        duplicates: [],
-        stats: { totalReferenced: 0, totalMissing: 0, totalToAdd: 0, totalEventsImpacted: 0, totalBlocksImpacted: 0 }
-      };
-
-      const impactedEvents = new Set();
-      const impactedBlocks = new Set();
-
-      for (const evt of events) {
-        const cpfTrab = normalizeCpf(evt?.trabalhador?.cpfTrab);
-        if (!cpfTrab) continue;
-
-        const ordem = evt?.ordemRegistro ?? "";
-        const complemArr = Array.isArray(evt?.s1210InfoIRComplem) ? evt.s1210InfoIRComplem : [];
-        if (!complemArr.length) continue;
-
-        complemArr.forEach((blk, blkIndex) => {
-          const ircrArr = Array.isArray(blk?.s1210InfoIRCR) ? blk.s1210InfoIRCR : [];
-          if (!ircrArr.length) return;
-
-          const infoDepArr = Array.isArray(blk?.s1210InfoDep) ? blk.s1210InfoDep : [];
-          const seen = new Set();
-          const existing = new Set();
-
-          for (const dep of infoDepArr) {
-            const c = normalizeCpf(dep?.cpfDep);
-            if (!c) continue;
-            if (seen.has(c)) plan.duplicates.push({ cpfTrab, ordemRegistro: ordem, blkIndex, cpfDep: c });
-            else seen.add(c);
-            existing.add(c);
-          }
-
-          const referenced = new Set();
-          ircrArr.forEach((ircr) => depGetReferencedCpfs(ircr).forEach(x => referenced.add(x)));
-
-          referenced.forEach((cpfDep) => {
-            plan.stats.totalReferenced += 1;
-            if (existing.has(cpfDep)) return;
-
-            const data = depBaseMap.get(cpfTrab)?.get(cpfDep);
-            if (data) {
-              plan.toAdd.push({ blkRef: blk, cpfTrab, cpfDep, data, ordemRegistro: ordem, blkIndex });
-              impactedEvents.add(cpfTrab + "|" + ordem);
-              impactedBlocks.add(cpfTrab + "|" + ordem + "|" + blkIndex);
-            } else {
-              plan.missingInBase.push({ cpfTrab, cpfDep, ordemRegistro: ordem, blkIndex });
-            }
-          });
-        });
-      }
-
-      plan.stats.totalMissing = plan.missingInBase.length;
-      plan.stats.totalToAdd = plan.toAdd.length;
-      plan.stats.totalEventsImpacted = impactedEvents.size;
-      plan.stats.totalBlocksImpacted = impactedBlocks.size;
-
-      depPlan = plan;
-      return plan;
-    }
-
-    function depReportText(plan) {
-      const lines = [];
-      lines.push("Resumo");
-      lines.push(`- Referências (cpfDep em Ded/Pensão): ${plan.stats.totalReferenced}`);
-      lines.push(`- Inclusões necessárias (base disponível): ${plan.stats.totalToAdd}`);
-      lines.push(`- Eventos impactados: ${plan.stats.totalEventsImpacted}`);
-      lines.push(`- Blocos IR Complem impactados: ${plan.stats.totalBlocksImpacted}`);
-      lines.push(`- Pendências (sem base): ${plan.stats.totalMissing}`);
-      lines.push(`- Duplicidades detectadas (s1210InfoDep): ${plan.duplicates.length}`);
-      lines.push("");
-
-      if (plan.stats.totalMissing) {
-        lines.push("Pendências (cpfDep referenciado sem cadastro em InfoDep e sem linha na base):");
-        const grp = new Map();
-        for (const it of plan.missingInBase) {
-          const key = `${it.cpfTrab} (ordemRegistro ${it.ordemRegistro}, bloco ${it.blkIndex})`;
-          if (!grp.has(key)) grp.set(key, new Set());
-          grp.get(key).add(it.cpfDep);
-        }
-        let shown = 0;
-        grp.forEach((set, key) => {
-          if (shown >= 60) return;
-          lines.push(`- ${key}: ${Array.from(set).join(", ")}`);
-          shown += 1;
-        });
-        if (grp.size > 60) lines.push(`... (${grp.size-60} grupos adicionais omitidos no preview)`);
-        lines.push("");
-      }
-
-      if (plan.duplicates.length) {
-        lines.push("Duplicidades detectadas em s1210InfoDep:");
-        plan.duplicates.slice(0, 60).forEach(d => {
-          lines.push(`- cpfTrab ${d.cpfTrab} (ordemRegistro ${d.ordemRegistro}, bloco ${d.blkIndex}): cpfDep ${d.cpfDep}`);
-        });
-        if (plan.duplicates.length > 60) lines.push(`... (${plan.duplicates.length-60} linhas adicionais omitidas no preview)`);
-      }
-
-      return lines.join("\n");
-    }
-
-    function depBuildInfoDepObj(cpfDep, data) {
-      return {
-        cpfDep: cpfDep,
-        depIRRF: data?.depIRRF ?? "*vazio*",
-        dtNascto: data?.dtNascto ?? "*datavazia*",
-        nome: data?.nome ?? "*vazio*",
-        tpDep: { codigo: data?.tpDepCodigo ?? "*vazio*" }
-      };
-    }
-
-    function depDedupInfoDepArr(arr) {
-      const out = [];
-      const seen = new Set();
-      let removed = 0;
-      for (const dep of arr) {
-        const c = normalizeCpf(dep?.cpfDep);
-        if (!c) { out.push(dep); continue; }
-        if (seen.has(c)) { removed += 1; continue; }
-        seen.add(c);
-        out.push(dep);
-      }
-      return { out, removed };
-    }
-
-    function depApplyFixes() {
-      const plan = depPlan || depAnalyze();
-      const doDedup = !!document.getElementById("depDedupCheckbox")?.checked;
-
-      const addedKey = new Set();
-      let addedCount = 0;
-
-      for (const item of plan.toAdd) {
-        const blk = item.blkRef;
-        if (!blk) continue;
-
-        const key = (item.ordemRegistro ?? "") + "|" + (item.blkIndex ?? "") + "|" + item.cpfDep;
-        if (addedKey.has(key)) continue;
-        addedKey.add(key);
-
-        if (!Array.isArray(blk.s1210InfoDep)) blk.s1210InfoDep = [];
-        const exists = blk.s1210InfoDep.some(d => normalizeCpf(d?.cpfDep) === item.cpfDep);
-        if (exists) continue;
-
-        blk.s1210InfoDep.push(depBuildInfoDepObj(item.cpfDep, item.data));
-        addedCount += 1;
-      }
-
-      let dedupRemoved = 0;
-      if (doDedup) {
-        const events = getEventos();
-        for (const evt of events) {
-          const complemArr = Array.isArray(evt?.s1210InfoIRComplem) ? evt.s1210InfoIRComplem : [];
-          for (const blk of complemArr) {
-            if (!Array.isArray(blk?.s1210InfoDep)) continue;
-            const r = depDedupInfoDepArr(blk.s1210InfoDep);
-            if (r.removed) {
-              blk.s1210InfoDep = r.out;
-              dedupRemoved += r.removed;
-            }
-          }
-        }
-      }
-
-      renderEventosTable();
-
-      const rep = [];
-      rep.push("Aplicação concluída");
-      rep.push(`- Dependentes adicionados: ${addedCount}`);
-      rep.push(`- Duplicidades removidas (opcional): ${dedupRemoved}`);
-      rep.push(`- Pendências sem base (não corrigidas): ${plan.missingInBase.length}`);
-      rep.push("");
-      rep.push(depReportText(plan));
-
-      document.getElementById("depReport").textContent = rep.join("\n");
-
-      setStatus(`<div class="alert alert-success mb-0">
-        Dependentes adicionados: <strong>${addedCount}</strong> |
-        Pendências sem base: <strong>${plan.missingInBase.length}</strong> |
-        Duplicidades removidas: <strong>${dedupRemoved}</strong>
-      </div>`);
-    }
-
-    // UI bindings
-    $('#depSyncModal').on('shown.bs.modal', function () {
-      depBaseMap = new Map();
-      depPlan = null;
-      document.getElementById("depCsvInput").value = "";
-      document.getElementById("depTextarea").value = "";
-      document.getElementById("depPreview").textContent = "(nenhuma linha válida carregada)";
-      document.getElementById("depStats").textContent = "";
-      document.getElementById("depReport").textContent = "";
-      document.getElementById("depDedupCheckbox").checked = false;
-    });
-
-    document.getElementById("depCsvInput").addEventListener("change", function () {
-      const file = this.files && this.files[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = function (e) {
-        depIngestText(e.target.result || "");
-        depPreviewUpdate();
-        document.getElementById("depReport").textContent = "Base carregada. Clique em 'Analisar' para gerar o relatório.";
-      };
-      reader.readAsText(file);
-    });
-
-    document.getElementById("depAnalyzeBtn").addEventListener("click", () => {
+document.getElementById("depAnalyzeBtn").addEventListener("click", () => {
       depIngestText(document.getElementById("depTextarea").value || "");
       depPreviewUpdate();
       const plan = depAnalyze();
