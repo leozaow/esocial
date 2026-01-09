@@ -263,6 +263,10 @@
               <input type="checkbox" class="form-check-input" id="depDedupCheckbox">
               <label class="form-check-label" for="depDedupCheckbox">Remover duplicidades existentes em s1210InfoDep (mantém a primeira ocorrência)</label>
             </div>
+            <div class="form-group form-check">
+              <input type="checkbox" class="form-check-input" id="depIrcrDedupCheckbox">
+              <label class="form-check-label" for="depIrcrDedupCheckbox">Consolidar IRCR duplicados por tpCR (mesclar Ded/Pensão e remover itens duplicados)</label>
+            </div>
 
             <div class="small-hint mb-2">Pré-visualização (primeiras 20 linhas válidas):</div>
             <pre id="depPreview" class="mono status-box p-2" style="background:#f8f9fa;border:1px solid #dee2e6;border-radius:6px; max-height: 220px; overflow:auto;"></pre>
@@ -939,8 +943,35 @@
                 if (dep.tpDep && typeof dep.tpDep === "object") setIfChanged(dep.tpDep, "codigo", safeValue(tr, ".dep-tpDep"));
 
                 
-                const __descrDep = safeValue(tr, ".dep-descrDep");
-                if (("descrDep" in dep) || __descrDep) setIfChanged(dep, "descrDep", __descrDep);
+                
+
+const __depIRRF = safeValue(tr, ".dep-depIRRF");
+const __tp = safeValue(tr, ".dep-tpDep");
+const __descrDep = safeValue(tr, ".dep-descrDep");
+
+// Regras:
+// - Se depIRRF == "S": tpDep obrigatório; descrDep somente se tpDep==99
+// - Se depIRRF != "S": permitimos tpDep==99 e descrDep (cotista). Se tpDep!=99, remove descrDep.
+if (String(__depIRRF).trim() === "S") {
+  if (!dep.tpDep || typeof dep.tpDep !== "object") dep.tpDep = { codigo: "" };
+  setIfChanged(dep.tpDep, "codigo", __tp);
+
+  if (String(__tp).trim() === "99") {
+    setIfChanged(dep, "descrDep", __descrDep);
+  } else {
+    if ("descrDep" in dep) delete dep.descrDep;
+  }
+} else {
+  // cotista ou outro cenário sem dedução: tpDep pode existir, mas descrDep só faz sentido se tpDep==99
+  if (!dep.tpDep || typeof dep.tpDep !== "object") dep.tpDep = { codigo: "" };
+  setIfChanged(dep.tpDep, "codigo", __tp);
+
+  if (String(__tp).trim() === "99") {
+    setIfChanged(dep, "descrDep", __descrDep);
+  } else {
+    if ("descrDep" in dep) delete dep.descrDep;
+  }
+}
 newDeps.push(dep);
               });
               if (newDeps.length === 0) delete blk.s1210InfoDep;
@@ -1173,310 +1204,463 @@ newDeps.push(dep);
     // ============================================================================
 
     // ============================================================================
-    // Script: Sincronizar Dependentes (s1210InfoDep) por base (cpfTrab;cpfDep;depIRRF;dtNascto;nome;tpDep.codigo)
-    // ============================================================================
-    // Base: depBaseMap.get(cpfTrab11).get(cpfDep11) => { depIRRF, dtNascto, nome, tpDepCodigo }
-    let depBaseMap = new Map();
-    let depPlan = null;
+// ============================================================================
+// Script: Sincronizar Dependentes (s1210InfoDep) por base (cpfTrab;cpfDep;depIRRF;dtNascto;nome;tpDep.codigo;descrDep)
+// ============================================================================
+// Regras de inteligência (motivo da inclusão):
+// - Se houver referência em s1210DedDepen: depIRRF = "S" e ignora descrDep
+// - Se o ÚNICO motivo for s1210PenAlim: depIRRF = "*vazio*" e descrDep deve vir preenchido na base
+//
+// Base: depBaseMap.get(cpfTrab11).get(cpfDep11) => { dtNascto, nome, tpDepCodigo, descrDep }
+let depBaseMap = new Map();
+let depPlan = null;
 
-    function depClean(v, fallback) {
-      const s = (v === null || v === undefined) ? "" : String(v).trim();
-      if (!s) return fallback;
-      return s.replace(/^["']|["']$/g, "");
+function depClean(v, fallback) {
+  const s = (v === null || v === undefined) ? "" : String(v).trim();
+  if (!s) return fallback;
+  return s.replace(/^["']|["']$/g, "");
+}
+
+function depParseLine(line) {
+  const raw = String(line || "").trim();
+  if (!raw) return null;
+
+  const low = raw.toLowerCase();
+  if (low.includes("cpftrab") && low.includes("cpfdep")) return null;
+
+  const parts = raw.split(";");
+  if (parts.length < 2) return null;
+
+  const cpfTrab = normalizeCpf(parts[0]);
+  const cpfDep  = normalizeCpf(parts[1]);
+  if (!cpfTrab || !cpfDep) return null;
+
+  const depIRRF = depClean(parts[2], "*vazio*");      // pode ser ignorado conforme motivo
+  const dtNascto = depClean(parts[3], "*datavazia*");
+  const nome = depClean(parts[4], "*vazio*");
+  const tpDepCodigo = depClean(parts[5], "*vazio*");
+  const descrDep = depClean(parts[6], "");            // opcional, exigida apenas para PEN-only
+
+  return { cpfTrab, cpfDep, depIRRF, dtNascto, nome, tpDepCodigo, descrDep };
+}
+
+function depIngestText(text) {
+  const lines = String(text || "").split(/\r?\n/);
+  for (const line of lines) {
+    const rec = depParseLine(line);
+    if (!rec) continue;
+
+    if (!depBaseMap.has(rec.cpfTrab)) depBaseMap.set(rec.cpfTrab, new Map());
+    depBaseMap.get(rec.cpfTrab).set(rec.cpfDep, {
+      depIRRF: rec.depIRRF,
+      dtNascto: rec.dtNascto,
+      nome: rec.nome,
+      tpDepCodigo: rec.tpDepCodigo,
+      descrDep: rec.descrDep
+    });
+  }
+}
+
+function depPreviewUpdate() {
+  const rows = [];
+  let totalPairs = 0;
+
+  depBaseMap.forEach((inner, cpfTrab) => {
+    inner.forEach((v, cpfDep) => {
+      totalPairs += 1;
+      if (rows.length < 20) rows.push(`${cpfTrab};${cpfDep};${v.depIRRF};${v.dtNascto};${v.nome};${v.tpDepCodigo};${v.descrDep || ""}`);
+    });
+  });
+
+  document.getElementById("depPreview").textContent = rows.length ? rows.join("\n") : "(nenhuma linha válida carregada)";
+  document.getElementById("depStats").textContent = `cpfTrab distintos: ${depBaseMap.size} | pares cpfTrab+cpfDep: ${totalPairs}`;
+}
+
+function depGetReferencedCpfs(ircr) {
+  // retorna {ded:Set, pen:Set}
+  const dedSet = new Set();
+  const penSet = new Set();
+  const ded = Array.isArray(ircr?.s1210DedDepen) ? ircr.s1210DedDepen : [];
+  const pen = Array.isArray(ircr?.s1210PenAlim) ? ircr.s1210PenAlim : [];
+
+  for (const row of ded) {
+    const n = normalizeCpf(row?.cpfDep);
+    if (n) dedSet.add(n);
+  }
+  for (const row of pen) {
+    const n = normalizeCpf(row?.cpfDep);
+    if (n) penSet.add(n);
+  }
+  return { dedSet, penSet };
+}
+
+function depAnalyze() {
+  const events = getEventos();
+  const plan = {
+    toAdd: [],              // { blkRef, cpfTrab, cpfDep, data, reason, ordemRegistro, blkIndex }
+    missingInBase: [],      // { cpfTrab, cpfDep, ordemRegistro, blkIndex, reason, why }
+    duplicatesInfoDep: [],  // { cpfTrab, ordemRegistro, blkIndex, cpfDep }
+    stats: {
+      totalReferenced: 0,
+      totalToAdd: 0,
+      totalMissing: 0,
+      totalEventsImpacted: 0,
+      totalBlocksImpacted: 0,
+      referencedDed: 0,
+      referencedPen: 0
     }
+  };
 
-    function depParseLine(line) {
-      const raw = String(line || "").trim();
-      if (!raw) return null;
+  const impactedEvents = new Set();
+  const impactedBlocks = new Set();
 
-      const low = raw.toLowerCase();
-      if (low.includes("cpftrab") && low.includes("cpfdep")) return null;
+  for (const evt of events) {
+    const cpfTrab = normalizeCpf(evt?.trabalhador?.cpfTrab);
+    if (!cpfTrab) continue;
 
-      let parts = raw.split(";");
-      if (parts.length < 2) parts = raw.split(",");
-      if (parts.length < 2) return null;
+    const ordem = evt?.ordemRegistro ?? "";
+    const complemArr = Array.isArray(evt?.s1210InfoIRComplem) ? evt.s1210InfoIRComplem : [];
+    if (!complemArr.length) continue;
 
-      const cpfTrab = normalizeCpf(parts[0]);
-      const cpfDep  = normalizeCpf(parts[1]);
-      if (!cpfTrab || !cpfDep) return null;
+    complemArr.forEach((blk, blkIndex) => {
+      const ircrArr = Array.isArray(blk?.s1210InfoIRCR) ? blk.s1210InfoIRCR : [];
+      if (!ircrArr.length) return;
 
-      const depIRRF = depClean(parts[2], "*vazio*");
-      const dtNascto = depClean(parts[3], "*datavazia*");
-      const nome = depClean(parts[4], "*vazio*");
-      const tpDepCodigo = depClean(parts[5], "*vazio*");
-      const descrDep = depClean(parts[6], "");
+      const infoDepArr = Array.isArray(blk?.s1210InfoDep) ? blk.s1210InfoDep : [];
+      const seen = new Set();
+      const existing = new Set();
 
-      return { cpfTrab, cpfDep, depIRRF, dtNascto, nome, tpDepCodigo, descrDep };
-    }
-
-    function depIngestText(text) {
-      const lines = String(text || "").split(/\r?\n/);
-      for (const line of lines) {
-        const rec = depParseLine(line);
-        if (!rec) continue;
-
-        if (!depBaseMap.has(rec.cpfTrab)) depBaseMap.set(rec.cpfTrab, new Map());
-        depBaseMap.get(rec.cpfTrab).set(rec.cpfDep, {
-          depIRRF: rec.depIRRF,
-          dtNascto: rec.dtNascto,
-          nome: rec.nome,
-          tpDepCodigo: rec.tpDepCodigo
-        });
+      for (const dep of infoDepArr) {
+        const c = normalizeCpf(dep?.cpfDep);
+        if (!c) continue;
+        if (seen.has(c)) plan.duplicatesInfoDep.push({ cpfTrab, ordemRegistro: ordem, blkIndex, cpfDep: c });
+        else seen.add(c);
+        existing.add(c);
       }
-    }
 
-    function depPreviewUpdate() {
-      const rows = [];
-      let totalPairs = 0;
-      depBaseMap.forEach((inner, cpfTrab) => {
-        inner.forEach((v, cpfDep) => {
-          totalPairs += 1;
-          if (rows.length < 20) rows.push(`${cpfTrab};${cpfDep};${v.depIRRF};${v.dtNascto};${v.nome};${v.tpDepCodigo};${v.descrDep || ""}`);
-        });
+      const refDed = new Set();
+      const refPen = new Set();
+      ircrArr.forEach((ircr) => {
+        const r = depGetReferencedCpfs(ircr);
+        r.dedSet.forEach(x => refDed.add(x));
+        r.penSet.forEach(x => refPen.add(x));
       });
-      document.getElementById("depPreview").textContent = rows.length ? rows.join("\n") : "(nenhuma linha válida carregada)";
-      document.getElementById("depStats").textContent = `cpfTrab distintos: ${depBaseMap.size} | pares cpfTrab+cpfDep: ${totalPairs}`;
+
+      plan.stats.referencedDed += refDed.size;
+      plan.stats.referencedPen += refPen.size;
+
+      const all = new Set([...refDed, ...refPen]);
+      all.forEach((cpfDep) => {
+        const hasDed = refDed.has(cpfDep);
+
+        plan.stats.totalReferenced += 1;
+        if (existing.has(cpfDep)) return;
+
+        const reason = hasDed ? "DED" : "PEN_ONLY";
+
+        
+const data = depBaseMap.get(cpfTrab)?.get(cpfDep);
+if (!data) {
+  plan.missingInBase.push({ cpfTrab, cpfDep, ordemRegistro: ordem, blkIndex, reason, why: "SEM_REGISTRO_NA_BASE" });
+  return;
+}
+
+if (reason === "DED") {
+  const __tpDep = String(data.tpDepCodigo ?? "").trim();
+  if (!__tpDep || __tpDep === "*vazio*") {
+    plan.missingInBase.push({ cpfTrab, cpfDep, ordemRegistro: ordem, blkIndex, reason, why: "DED_EXIGE_tpDep" });
+    return;
+  }
+  if (__tpDep === "99") {
+    if (!data.descrDep || String(data.descrDep).trim() === "") {
+      plan.missingInBase.push({ cpfTrab, cpfDep, ordemRegistro: ordem, blkIndex, reason, why: "tpDep=99_EXIGE_descrDep" });
+      return;
     }
+  }
+}
 
-    function depGetReferencedCpfs(ircr) {
-      const set = new Set();
-      const ded = Array.isArray(ircr?.s1210DedDepen) ? ircr.s1210DedDepen : [];
-      const pen = Array.isArray(ircr?.s1210PenAlim) ? ircr.s1210PenAlim : [];
-      for (const row of ded) {
-        const n = normalizeCpf(row?.cpfDep);
-        if (n) set.add(n);
-      }
-      for (const row of pen) {
-        const n = normalizeCpf(row?.cpfDep);
-        if (n) set.add(n);
-      }
-      return set;
+plan.toAdd.push({ blkRef: blk, cpfTrab, cpfDep, data, reason, ordemRegistro: ordem, blkIndex });
+        impactedEvents.add(cpfTrab + "|" + ordem);
+        impactedBlocks.add(cpfTrab + "|" + ordem + "|" + blkIndex);
+      });
+    });
+  }
+
+  plan.stats.totalToAdd = plan.toAdd.length;
+  plan.stats.totalMissing = plan.missingInBase.length;
+  plan.stats.totalEventsImpacted = impactedEvents.size;
+  plan.stats.totalBlocksImpacted = impactedBlocks.size;
+
+  depPlan = plan;
+  return plan;
+}
+
+function depReportText(plan) {
+  const lines = [];
+  lines.push("Resumo");
+  lines.push(`- Referências (cpfDep em Ded/Pensão): ${plan.stats.totalReferenced}`);
+  lines.push(`  - Ded: ${plan.stats.referencedDed} | Pen: ${plan.stats.referencedPen}`);
+  lines.push(`- Inclusões necessárias (base disponível + regras ok): ${plan.stats.totalToAdd}`);
+  lines.push(`- Eventos impactados: ${plan.stats.totalEventsImpacted}`);
+  lines.push(`- Blocos IR Complem impactados: ${plan.stats.totalBlocksImpacted}`);
+  lines.push(`- Pendências (não corrigidas): ${plan.stats.totalMissing}`);
+  lines.push(`- Duplicidades detectadas (s1210InfoDep): ${plan.duplicatesInfoDep.length}`);
+  lines.push("");
+
+  if (plan.stats.totalMissing) {
+    lines.push("Pendências:");
+    const grp = new Map();
+    for (const it of plan.missingInBase) {
+      const key = `${it.cpfTrab} (ordemRegistro ${it.ordemRegistro}, bloco ${it.blkIndex})`;
+      if (!grp.has(key)) grp.set(key, []);
+      grp.get(key).push(`${it.cpfDep} [${it.reason}] (${it.why})`);
     }
+    let shown = 0;
+    grp.forEach((arr, key) => {
+      if (shown >= 60) return;
+      lines.push(`- ${key}: ${arr.join(", ")}`);
+      shown += 1;
+    });
+    if (grp.size > 60) lines.push(`... (${grp.size-60} grupos adicionais omitidos no preview)`);
+    lines.push("");
+  }
 
-    function depAnalyze() {
-      const events = getEventos();
-      const plan = {
-        toAdd: [],
-        missingInBase: [],
-        duplicates: [],
-        stats: { totalReferenced: 0, totalMissing: 0, totalToAdd: 0, totalEventsImpacted: 0, totalBlocksImpacted: 0 }
-      };
+  if (plan.duplicatesInfoDep.length) {
+    lines.push("Duplicidades detectadas em s1210InfoDep:");
+    plan.duplicatesInfoDep.slice(0, 60).forEach(d => {
+      lines.push(`- cpfTrab ${d.cpfTrab} (ordemRegistro ${d.ordemRegistro}, bloco ${d.blkIndex}): cpfDep ${d.cpfDep}`);
+    });
+    if (plan.duplicatesInfoDep.length > 60) lines.push(`... (${plan.duplicatesInfoDep.length-60} linhas adicionais omitidas no preview)`);
+  }
 
-      const impactedEvents = new Set();
-      const impactedBlocks = new Set();
+  return lines.join("\n");
+}
 
-      for (const evt of events) {
-        const cpfTrab = normalizeCpf(evt?.trabalhador?.cpfTrab);
-        if (!cpfTrab) continue;
-
-        const ordem = evt?.ordemRegistro ?? "";
-        const complemArr = Array.isArray(evt?.s1210InfoIRComplem) ? evt.s1210InfoIRComplem : [];
-        if (!complemArr.length) continue;
-
-        complemArr.forEach((blk, blkIndex) => {
-          const ircrArr = Array.isArray(blk?.s1210InfoIRCR) ? blk.s1210InfoIRCR : [];
-          if (!ircrArr.length) return;
-
-          const infoDepArr = Array.isArray(blk?.s1210InfoDep) ? blk.s1210InfoDep : [];
-          const seen = new Set();
-          const existing = new Set();
-
-          for (const dep of infoDepArr) {
-            const c = normalizeCpf(dep?.cpfDep);
-            if (!c) continue;
-            if (seen.has(c)) plan.duplicates.push({ cpfTrab, ordemRegistro: ordem, blkIndex, cpfDep: c });
-            else seen.add(c);
-            existing.add(c);
-          }
-
-          const referenced = new Set();
-          ircrArr.forEach((ircr) => depGetReferencedCpfs(ircr).forEach(x => referenced.add(x)));
-
-          referenced.forEach((cpfDep) => {
-            plan.stats.totalReferenced += 1;
-            if (existing.has(cpfDep)) return;
-
-            const data = depBaseMap.get(cpfTrab)?.get(cpfDep);
-            if (data) {
-              plan.toAdd.push({ blkRef: blk, cpfTrab, cpfDep, data, ordemRegistro: ordem, blkIndex });
-              impactedEvents.add(cpfTrab + "|" + ordem);
-              impactedBlocks.add(cpfTrab + "|" + ordem + "|" + blkIndex);
-            } else {
-              plan.missingInBase.push({ cpfTrab, cpfDep, ordemRegistro: ordem, blkIndex });
-            }
-          });
-        });
-      }
-
-      plan.stats.totalMissing = plan.missingInBase.length;
-      plan.stats.totalToAdd = plan.toAdd.length;
-      plan.stats.totalEventsImpacted = impactedEvents.size;
-      plan.stats.totalBlocksImpacted = impactedBlocks.size;
-
-      depPlan = plan;
-      return plan;
-    }
-
-    function depReportText(plan) {
-      const lines = [];
-      lines.push("Resumo");
-      lines.push(`- Referências (cpfDep em Ded/Pensão): ${plan.stats.totalReferenced}`);
-      lines.push(`- Inclusões necessárias (base disponível): ${plan.stats.totalToAdd}`);
-      lines.push(`- Eventos impactados: ${plan.stats.totalEventsImpacted}`);
-      lines.push(`- Blocos IR Complem impactados: ${plan.stats.totalBlocksImpacted}`);
-      lines.push(`- Pendências (sem base): ${plan.stats.totalMissing}`);
-      lines.push(`- Duplicidades detectadas (s1210InfoDep): ${plan.duplicates.length}`);
-      lines.push("");
-
-      if (plan.stats.totalMissing) {
-        lines.push("Pendências (cpfDep referenciado sem cadastro em InfoDep e sem linha na base):");
-        const grp = new Map();
-        for (const it of plan.missingInBase) {
-          const key = `${it.cpfTrab} (ordemRegistro ${it.ordemRegistro}, bloco ${it.blkIndex})`;
-          if (!grp.has(key)) grp.set(key, new Set());
-          grp.get(key).add(it.cpfDep);
-        }
-        let shown = 0;
-        grp.forEach((set, key) => {
-          if (shown >= 60) return;
-          lines.push(`- ${key}: ${Array.from(set).join(", ")}`);
-          shown += 1;
-        });
-        if (grp.size > 60) lines.push(`... (${grp.size-60} grupos adicionais omitidos no preview)`);
-        lines.push("");
-      }
-
-      if (plan.duplicates.length) {
-        lines.push("Duplicidades detectadas em s1210InfoDep:");
-        plan.duplicates.slice(0, 60).forEach(d => {
-          lines.push(`- cpfTrab ${d.cpfTrab} (ordemRegistro ${d.ordemRegistro}, bloco ${d.blkIndex}): cpfDep ${d.cpfDep}`);
-        });
-        if (plan.duplicates.length > 60) lines.push(`... (${plan.duplicates.length-60} linhas adicionais omitidas no preview)`);
-      }
-
-      return lines.join("\n");
-    }
-
-    function depBuildInfoDepObj(cpfDep, data) {
+function depBuildInfoDepObj(cpfDep, data, reason) {
   const obj = {
     cpfDep: cpfDep,
-    depIRRF: data?.depIRRF ?? "*vazio*",
+    depIRRF: (reason === "DED") ? "S" : "*vazio*",
     dtNascto: data?.dtNascto ?? "*datavazia*",
-    nome: data?.nome ?? "*vazio*",
-    tpDep: { codigo: data?.tpDepCodigo ?? "*vazio*" }
+    nome: data?.nome ?? "*vazio*"
   };
-  // descrDep é opcional: só inclui se vier preenchido na base
-  if (data?.descrDep && String(data.descrDep).trim() !== "") obj.descrDep = data.descrDep;
+
+  // Regra prática adotada:
+  // - DED => depIRRF="S" e tpDep obrigatório (da base). descrDep somente se tpDep==99.
+  // - PEN_ONLY => cotista: tpDep=99 e descrDep="Cotista" (fixo).
+  if (reason === "DED") {
+    const tp = String(data?.tpDepCodigo ?? "*vazio*").trim() || "*vazio*";
+    obj.tpDep = { codigo: tp };
+    if (tp === "99") {
+      obj.descrDep = (data?.descrDep && String(data.descrDep).trim() !== "") ? data.descrDep : "";
+    }
+  } else {
+    // Somente Pensão Alimentícia -> Cotista
+    obj.tpDep = { codigo: "99" };
+    obj.descrDep = "Cotista";
+  }
+
   return obj;
+}
+
+function depDedupInfoDepArr(arr) {
+  const out = [];
+  const seen = new Set();
+  let removed = 0;
+  for (const dep of arr) {
+    const c = normalizeCpf(dep?.cpfDep);
+    if (!c) { out.push(dep); continue; }
+    if (seen.has(c)) { removed += 1; continue; }
+    seen.add(c);
+    out.push(dep);
+  }
+  return { out, removed };
+}
+
+function keyDedRow(r) {
+  const cpf = normalizeCpf(r?.cpfDep) || "";
+  const tpRend = (r?.tpRend ?? "").toString();
+  const vlr = (r?.vlrDedDep ?? "").toString();
+  return `${cpf}|${tpRend}|${vlr}`;
+}
+function keyPenRow(r) {
+  const cpf = normalizeCpf(r?.cpfDep) || "";
+  const tpRend = (r?.tpRend ?? "").toString();
+  const vlr = (r?.vlrDedPenAlim ?? "").toString();
+  return `${cpf}|${tpRend}|${vlr}`;
+}
+
+function consolidateIrcrDuplicatesInBlock(blk) {
+  const arr = Array.isArray(blk?.s1210InfoIRCR) ? blk.s1210InfoIRCR : null;
+  if (!arr || arr.length < 2) return { changed:false, mergedCount:0, dedRemoved:0, penRemoved:0 };
+
+  const out = [];
+  const firstIndex = new Map();
+  let mergedCount = 0, dedRemoved = 0, penRemoved = 0;
+
+  for (const ircr of arr) {
+    const tpCR = (ircr?.tpCR ?? "").toString();
+    const hasDed = Array.isArray(ircr?.s1210DedDepen) && ircr.s1210DedDepen.length > 0;
+    const hasPen = Array.isArray(ircr?.s1210PenAlim) && ircr.s1210PenAlim.length > 0;
+
+    if (!firstIndex.has(tpCR) || (!hasDed && !hasPen)) {
+      if (!firstIndex.has(tpCR)) firstIndex.set(tpCR, out.length);
+      out.push(ircr);
+      continue;
     }
 
+    const base = out[firstIndex.get(tpCR)];
 
-    function depDedupInfoDepArr(arr) {
-      const out = [];
-      const seen = new Set();
-      let removed = 0;
-      for (const dep of arr) {
-        const c = normalizeCpf(dep?.cpfDep);
-        if (!c) { out.push(dep); continue; }
-        if (seen.has(c)) { removed += 1; continue; }
-        seen.add(c);
-        out.push(dep);
+    if (hasDed) {
+      if (!Array.isArray(base.s1210DedDepen)) base.s1210DedDepen = [];
+      const seen = new Set(base.s1210DedDepen.map(keyDedRow));
+      for (const row of ircr.s1210DedDepen) {
+        const k = keyDedRow(row);
+        if (seen.has(k)) { dedRemoved += 1; continue; }
+        seen.add(k);
+        base.s1210DedDepen.push(row);
       }
-      return { out, removed };
     }
 
-    function depApplyFixes() {
-      const plan = depPlan || depAnalyze();
-      const doDedup = !!document.getElementById("depDedupCheckbox")?.checked;
-
-      const addedKey = new Set();
-      let addedCount = 0;
-
-      for (const item of plan.toAdd) {
-        const blk = item.blkRef;
-        if (!blk) continue;
-
-        const key = (item.ordemRegistro ?? "") + "|" + (item.blkIndex ?? "") + "|" + item.cpfDep;
-        if (addedKey.has(key)) continue;
-        addedKey.add(key);
-
-        if (!Array.isArray(blk.s1210InfoDep)) blk.s1210InfoDep = [];
-        const exists = blk.s1210InfoDep.some(d => normalizeCpf(d?.cpfDep) === item.cpfDep);
-        if (exists) continue;
-
-        blk.s1210InfoDep.push(depBuildInfoDepObj(item.cpfDep, item.data));
-        addedCount += 1;
+    if (hasPen) {
+      if (!Array.isArray(base.s1210PenAlim)) base.s1210PenAlim = [];
+      const seen = new Set(base.s1210PenAlim.map(keyPenRow));
+      for (const row of ircr.s1210PenAlim) {
+        const k = keyPenRow(row);
+        if (seen.has(k)) { penRemoved += 1; continue; }
+        seen.add(k);
+        base.s1210PenAlim.push(row);
       }
+    }
 
-      let dedupRemoved = 0;
-      if (doDedup) {
-        const events = getEventos();
-        for (const evt of events) {
-          const complemArr = Array.isArray(evt?.s1210InfoIRComplem) ? evt.s1210InfoIRComplem : [];
-          for (const blk of complemArr) {
-            if (!Array.isArray(blk?.s1210InfoDep)) continue;
-            const r = depDedupInfoDepArr(blk.s1210InfoDep);
-            if (r.removed) {
-              blk.s1210InfoDep = r.out;
-              dedupRemoved += r.removed;
-            }
-          }
+    for (const k of Object.keys(ircr)) {
+      if (k === "tpCR" || k === "s1210DedDepen" || k === "s1210PenAlim") continue;
+      if (base[k] === undefined && ircr[k] !== undefined) base[k] = ircr[k];
+    }
+
+    mergedCount += 1;
+  }
+
+  const changed = (mergedCount > 0);
+  if (changed) blk.s1210InfoIRCR = out;
+  return { changed, mergedCount, dedRemoved, penRemoved };
+}
+
+function depApplyFixes() {
+  const plan = depPlan || depAnalyze();
+  const doDedupInfoDep = !!document.getElementById("depDedupCheckbox")?.checked;
+  const doConsolidateIrcr = !!document.getElementById("depIrcrDedupCheckbox")?.checked;
+
+  const addedKey = new Set();
+  let addedCount = 0;
+
+  for (const item of plan.toAdd) {
+    const blk = item.blkRef;
+    if (!blk) continue;
+
+    const key = (item.ordemRegistro ?? "") + "|" + (item.blkIndex ?? "") + "|" + item.cpfDep;
+    if (addedKey.has(key)) continue;
+    addedKey.add(key);
+
+    if (!Array.isArray(blk.s1210InfoDep)) blk.s1210InfoDep = [];
+    const exists = blk.s1210InfoDep.some(d => normalizeCpf(d?.cpfDep) === item.cpfDep);
+    if (exists) continue;
+
+    blk.s1210InfoDep.push(depBuildInfoDepObj(item.cpfDep, item.data, item.reason));
+    addedCount += 1;
+  }
+
+  let dedupRemoved = 0;
+  if (doDedupInfoDep) {
+    const events = getEventos();
+    for (const evt of events) {
+      const complemArr = Array.isArray(evt?.s1210InfoIRComplem) ? evt.s1210InfoIRComplem : [];
+      for (const blk of complemArr) {
+        if (!Array.isArray(blk?.s1210InfoDep)) continue;
+        const r = depDedupInfoDepArr(blk.s1210InfoDep);
+        if (r.removed) {
+          blk.s1210InfoDep = r.out;
+          dedupRemoved += r.removed;
         }
       }
-
-      renderEventosTable();
-
-      const rep = [];
-      rep.push("Aplicação concluída");
-      rep.push(`- Dependentes adicionados: ${addedCount}`);
-      rep.push(`- Duplicidades removidas (opcional): ${dedupRemoved}`);
-      rep.push(`- Pendências sem base (não corrigidas): ${plan.missingInBase.length}`);
-      rep.push("");
-      rep.push(depReportText(plan));
-
-      document.getElementById("depReport").textContent = rep.join("\n");
-
-      setStatus(`<div class="alert alert-success mb-0">
-        Dependentes adicionados: <strong>${addedCount}</strong> |
-        Pendências sem base: <strong>${plan.missingInBase.length}</strong> |
-        Duplicidades removidas: <strong>${dedupRemoved}</strong>
-      </div>`);
     }
+  }
 
-    // UI bindings
-    $('#depSyncModal').on('shown.bs.modal', function () {
-      depBaseMap = new Map();
-      depPlan = null;
-      
-      document.getElementById("depTextarea").value = "";
-      document.getElementById("depPreview").textContent = "(nenhuma linha válida carregada)";
-      document.getElementById("depStats").textContent = "";
-      document.getElementById("depReport").textContent = "";
-      document.getElementById("depDedupCheckbox").checked = false;
-    });
-
-    document.getElementById("depAnalyzeBtn").addEventListener("click", () => {
-      depIngestText(document.getElementById("depTextarea").value || "");
-      depPreviewUpdate();
-      const plan = depAnalyze();
-      document.getElementById("depReport").textContent = depReportText(plan);
-      setStatus(`<div class="alert alert-info mb-0">
-        Análise concluída: Inclusões necessárias: <strong>${plan.stats.totalToAdd}</strong> |
-        Pendências sem base: <strong>${plan.stats.totalMissing}</strong> |
-        Duplicidades: <strong>${plan.duplicates.length}</strong>
-      </div>`);
-    });
-
-    document.getElementById("depApplyBtn").addEventListener("click", () => {
-      depIngestText(document.getElementById("depTextarea").value || "");
-      depPreviewUpdate();
-      const plan = depAnalyze();
-      if (plan.stats.totalToAdd === 0 && plan.stats.totalMissing === 0 && plan.duplicates.length === 0) {
-        document.getElementById("depReport").textContent = "Nenhuma ação necessária. Não há pendências detectadas.";
-        return;
+  let ircrMerged = 0, ircrDedRemoved = 0, ircrPenRemoved = 0, ircrBlocksChanged = 0;
+  if (doConsolidateIrcr) {
+    const events = getEventos();
+    for (const evt of events) {
+      const complemArr = Array.isArray(evt?.s1210InfoIRComplem) ? evt.s1210InfoIRComplem : [];
+      for (const blk of complemArr) {
+        const r = consolidateIrcrDuplicatesInBlock(blk);
+        if (r.changed) {
+          ircrBlocksChanged += 1;
+          ircrMerged += r.mergedCount;
+          ircrDedRemoved += r.dedRemoved;
+          ircrPenRemoved += r.penRemoved;
+        }
       }
-      depApplyFixes();
-    });
+    }
+  }
+
+  renderEventosTable();
+
+  const rep = [];
+  rep.push("Aplicação concluída");
+  rep.push(`- Dependentes adicionados: ${addedCount}`);
+  rep.push(`- Duplicidades removidas em s1210InfoDep (opcional): ${dedupRemoved}`);
+  rep.push(`- Pendências (não corrigidas): ${plan.missingInBase.length}`);
+  if (doConsolidateIrcr) {
+    rep.push(`- IRCR consolidados (tpCR): ${ircrMerged} mesclas em ${ircrBlocksChanged} bloco(s)`);
+    rep.push(`  - Itens Ded duplicados ignorados: ${ircrDedRemoved}`);
+    rep.push(`  - Itens Pen duplicados ignorados: ${ircrPenRemoved}`);
+  }
+  rep.push("");
+  rep.push(depReportText(plan));
+
+  document.getElementById("depReport").textContent = rep.join("\n");
+
+  setStatus(`<div class="alert alert-success mb-0">
+    Dependentes adicionados: <strong>${addedCount}</strong> |
+    Pendências: <strong>${plan.missingInBase.length}</strong> |
+    InfoDep duplicados removidos: <strong>${dedupRemoved}</strong>
+    ${doConsolidateIrcr ? `| IRCR mesclados: <strong>${ircrMerged}</strong>` : ""}
+  </div>`);
+}
+
+$('#depSyncModal').on('shown.bs.modal', function () {
+  depBaseMap = new Map();
+  depPlan = null;
+  document.getElementById("depTextarea").value = "";
+  document.getElementById("depPreview").textContent = "(nenhuma linha válida carregada)";
+  document.getElementById("depStats").textContent = "";
+  document.getElementById("depReport").textContent = "";
+  document.getElementById("depDedupCheckbox").checked = false;
+  document.getElementById("depIrcrDedupCheckbox").checked = false;
+});
+
+document.getElementById("depAnalyzeBtn").addEventListener("click", () => {
+  depIngestText(document.getElementById("depTextarea").value || "");
+  depPreviewUpdate();
+  const plan = depAnalyze();
+  document.getElementById("depReport").textContent = depReportText(plan);
+
+  setStatus(`<div class="alert alert-info mb-0">
+    Análise concluída: Inclusões: <strong>${plan.stats.totalToAdd}</strong> |
+    Pendências: <strong>${plan.stats.totalMissing}</strong> |
+    InfoDep duplicidades: <strong>${plan.duplicatesInfoDep.length}</strong>
+  </div>`);
+});
+
+document.getElementById("depApplyBtn").addEventListener("click", () => {
+  depIngestText(document.getElementById("depTextarea").value || "");
+  depPreviewUpdate();
+  const plan = depAnalyze();
+  if (plan.stats.totalToAdd === 0 && plan.stats.totalMissing === 0 && plan.duplicatesInfoDep.length === 0) {
+    document.getElementById("depReport").textContent = "Nenhuma ação necessária. Não há pendências detectadas.";
+    return;
+  }
+  depApplyFixes();
+});
 
     // Init
     // ============================================================================
