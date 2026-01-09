@@ -1,0 +1,1099 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Editor S-1210</title>
+
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootswatch@4.5.2/dist/cosmo/bootstrap.min.css"/>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css"/>
+
+  <style>
+    .navbar { box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
+    h2 { margin-top: 1rem; margin-bottom: 1.5rem; font-weight: 600; }
+    .tools-section { margin-bottom: 1.5rem; }
+    .tools-section .card-header { font-weight: bold; font-size: 1rem; }
+    .btn-group-custom { display: flex; flex-wrap: wrap; gap: .5rem; }
+    .soft-box { background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 6px; padding: 1rem; }
+    .card-soft { background-color: #f8f9fa; border: 1px solid #dee2e6; border-radius: 6px; }
+    .card-soft .card-header { background: rgba(0,0,0,0.03); }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+    .small-hint { font-size: .85rem; color: #6c757d; }
+    .danger-hint { font-size: .85rem; color: #b02a37; }
+    .table td, .table th { vertical-align: middle; }
+    .placeholder-select { max-width: 160px; }
+    .card-soft.is-empty { opacity: .78; }
+    .card-soft.is-empty .card-header { background: rgba(0,0,0,0.015); }
+    .toggle-btn { padding: .15rem .45rem; font-size: .8rem; }
+    .badge-empty { font-size: .72rem; }
+  </style>
+</head>
+<body>
+
+  <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+    <a class="navbar-brand" href="#">Editor Eventos - S-1210</a>
+  </nav>
+
+  <div class="container my-4">
+    <h2>Editor S-1210 (Pagamentos de Rendimentos do Trabalho)</h2>
+
+    <div class="tools-section card">
+      <div class="card-header">Carregar e Baixar Arquivo</div>
+      <div class="card-body">
+        <div class="form-group">
+          <label for="fileInput"><strong>Carregar Arquivo JSON:</strong></label>
+          <input type="file" id="fileInput" accept=".json" class="form-control-file" />
+          <div class="small-hint mt-2">
+            O arquivo deve conter: <span class="mono">{"s1210PagtoRendTrabGroup":{"s1210PagtoRendTrab":[...]}}</span>
+          </div>
+          <div class="small-hint mt-2">
+            <strong>Integridade:</strong> o salvamento aplica <em>patch</em> (atualiza apenas chaves editadas; não injeta chaves ausentes com arrays vazios).
+          </div>
+        </div>
+        <div class="btn-group-custom">
+          <button id="downloadBtn" class="btn btn-info"><i class="fas fa-download"></i> Baixar Edição</button>
+          <button id="validateBtn" class="btn btn-outline-secondary"><i class="fas fa-check-circle"></i> Validar Estrutura</button>
+        </div>
+        <div id="validationResult" class="mt-3"></div>
+      </div>
+    </div>
+
+    <div class="tools-section card">
+      <div class="card-header">Seleção em Massa</div>
+      <div class="card-body">
+        <div class="btn-group-custom">
+          <button id="selectAllBtn" class="btn btn-primary">Selecionar Todos (visíveis)</button>
+          <button id="deselectAllBtn" class="btn btn-secondary">Desmarcar Todos (visíveis)</button>
+          <button id="removeSelectedBtn" class="btn btn-danger">Remover Selecionados</button>
+        </div>
+        <div class="small-hint mt-2">
+          A seleção é armazenada apenas no navegador (campo interno <span class="mono">_selected</span>) e removida automaticamente no download.
+        </div>
+      </div>
+    </div>
+
+    <div class="tools-section card">
+      <div class="card-header">Filtro de Busca</div>
+      <div class="card-body">
+        <div class="form-group mb-0">
+          <label for="searchInput">Buscar (CPF, chaveIntegração, perApur, ideDmDev, etc.):</label>
+          <input type="text" id="searchInput" class="form-control" placeholder="Digite algo para filtrar..."/>
+        </div>
+      </div>
+    </div>
+
+    <div class="tools-section">
+      <table class="table table-bordered" id="eventosTable">
+        <thead class="thead-light">
+          <tr>
+            <th style="width:40px;">Sel.</th>
+            <th>Ordem</th>
+            <th>CPF</th>
+            <th>Per Apuração</th>
+            <th>Empregador</th>
+            <th style="width:190px;">Ações</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+    <!-- Modal de Edição -->
+    <div class="modal fade" id="eventoModal" tabindex="-1" aria-labelledby="eventoModalLabel" aria-hidden="true">
+      <div class="modal-dialog modal-xl" style="max-width: 92%;">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="eventoModalLabel">Editar Evento S-1210</h5>
+            <button type="button" class="close" data-dismiss="modal" aria-label="Fechar"><span aria-hidden="true">&times;</span></button>
+          </div>
+          <div class="modal-body">
+            <form id="eventoForm">
+
+              <div class="soft-box mb-3">
+                <h5 class="mb-3">Identificação do Evento</h5>
+
+                <div class="form-row">
+                  <div class="form-group col-md-2">
+                    <label>Ordem Registro</label>
+                    <div class="input-group">
+                      <input type="text" class="form-control" id="evt_ordemRegistro" />
+                    </div>
+                  </div>
+                  <div class="form-group col-md-6">
+                    <label>Chave Integração</label>
+                    <div class="input-group">
+                      <input type="text" class="form-control" id="evt_chaveIntegracao" />
+                    </div>
+                  </div>
+                  <div class="form-group col-md-4">
+                    <label>Período de Apuração</label>
+                    <div class="input-group">
+                      <input type="text" class="form-control has-placeholder" id="evt_perApur" data-ph-key="perApur" placeholder="YYYY-MM-DD ou *datavazia*" />
+                    </div>
+                  </div>
+                </div>
+
+                <hr/>
+
+                <h6>Empregador</h6>
+                <div class="form-row">
+                  <div class="form-group col-md-6">
+                    <label>nrInsc</label>
+                    <input type="text" class="form-control has-placeholder" id="emp_nrInsc" data-ph-key="nrInsc" />
+                  </div>
+                  <div class="form-group col-md-6">
+                    <label>tpInsc.tipo</label>
+                    <input type="text" class="form-control" id="emp_tpInsc_tipo" />
+                  </div>
+                </div>
+
+                <h6>Trabalhador</h6>
+                <div class="form-row">
+                  <div class="form-group col-md-6">
+                    <label>cpfTrab</label>
+                    <input type="text" class="form-control has-placeholder" id="trab_cpfTrab" data-ph-key="cpfTrab" />
+                  </div>
+                </div>
+
+                <div class="danger-hint">
+                  Observação: CPF/tpInsc/perApur podem ser chaves de integração no seu fluxo. Edite com cautela.
+                </div>
+              </div>
+
+              <div class="soft-box mb-3">
+                <div class="d-flex justify-content-between align-items-center">
+                  <h5 class="mb-0">IR Complementar (s1210InfoIRComplem)</h5>
+                  <button type="button" class="btn btn-outline-primary btn-sm" id="addIrComplemBtn">
+                    <i class="fas fa-plus"></i> Adicionar bloco IR Complem
+                  </button>
+                </div>
+                <div class="small-hint mt-2">
+                  Blocos sem dados relevantes são abertos retraídos automaticamente.
+                </div>
+                <div id="irComplemContainer" class="mt-3"></div>
+              </div>
+
+              <div class="soft-box">
+                <div class="d-flex justify-content-between align-items-center">
+                  <h5 class="mb-0">Pagamentos (s1210PagtoRendTrabInfo)</h5>
+                  <button type="button" class="btn btn-outline-primary btn-sm" id="addPagtoInfoBtn">
+                    <i class="fas fa-plus"></i> Adicionar Pagamento
+                  </button>
+                </div>
+                <div class="small-hint mt-2">
+                  Pagamentos sem dados relevantes são abertos retraídos automaticamente.
+                </div>
+                <div id="pagtoInfoContainer" class="mt-3"></div>
+              </div>
+
+            </form>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-dismiss="modal">Fechar</button>
+            <button type="button" class="btn btn-primary" id="saveEventoBtn"><i class="fas fa-save"></i> Salvar Alterações do Evento</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- container -->
+
+  <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js"></script>
+  <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+
+  <script>
+    // ============================================================================
+    // Dados globais
+    // ============================================================================
+    window.esocialData = {"s1210PagtoRendTrabGroup":{"s1210PagtoRendTrab":[]}};
+    window.loadedFileName = null;
+
+    function deepClone(x){ return JSON.parse(JSON.stringify(x)); }
+
+    function ensureRoot(data) {
+      if (!data || typeof data !== "object") data = {};
+      if (!data.s1210PagtoRendTrabGroup || typeof data.s1210PagtoRendTrabGroup !== "object") data.s1210PagtoRendTrabGroup = {};
+      if (!Array.isArray(data.s1210PagtoRendTrabGroup.s1210PagtoRendTrab)) data.s1210PagtoRendTrabGroup.s1210PagtoRendTrab = [];
+      return data;
+    }
+
+    function getEventos() {
+      window.esocialData = ensureRoot(window.esocialData);
+      return window.esocialData.s1210PagtoRendTrabGroup.s1210PagtoRendTrab;
+    }
+
+    function safeValue(parent, selector) {
+      const el = parent.querySelector(selector);
+      return el ? el.value.trim() : "";
+    }
+
+    const EMPTY_TOKENS = new Set(["", "*vazio*", "*datavazia*", "*numerovazio*"]);
+    function isMeaningful(v){
+      if (v === null || v === undefined) return false;
+      if (typeof v === "string") return !EMPTY_TOKENS.has(v.trim());
+      if (typeof v === "number") return true;
+      if (typeof v === "boolean") return true;
+      if (Array.isArray(v)) return v.some(isMeaningful);
+      if (typeof v === "object") return Object.values(v).some(isMeaningful);
+      return true;
+    }
+
+    const placeholdersMap = {
+      "*vazio*": ["*vazio*"],
+      "*datavazia*": ["*datavazia*"],
+      "*numerovazio*": ["*numerovazio*"],
+      "pais": ["*vazio*"],
+      "tpPgto": ["*vazio*"],
+      "tipoCompetencia": ["*vazio*"],
+      "tpCR": ["*vazio*"],
+      "ideDmDev": ["*vazio*"],
+      "cpfDep": ["*vazio*"],
+      "cpfTrab": ["*vazio*"],
+      "nrInsc": ["*vazio*"],
+      "dtNascto": ["*datavazia*"],
+      "perRef": ["*datavazia*"],
+      "perApur": ["*datavazia*"],
+      "dtPgto": ["*datavazia*"],
+      "dtLaudo": ["*datavazia*"],
+      "perRefAjuste": ["*datavazia*"],
+      "vrLiq": ["*numerovazio*"],
+      "vlrDedDep": ["*numerovazio*"],
+      "vlrDedPenAlim": ["*numerovazio*"]
+    };
+
+    function addPlaceholderDropdowns(scopeEl) {
+      const allInputs = (scopeEl || document).querySelectorAll("input.has-placeholder");
+      allInputs.forEach((input) => {
+        const dataKey = input.getAttribute("data-ph-key") || input.id || "";
+        const key = dataKey.includes(".") ? dataKey.split(".").slice(-1)[0] : dataKey;
+        const placeholders = placeholdersMap[key];
+        if (!placeholders) return;
+
+        const wrapper = input.parentElement;
+        if (!wrapper || !wrapper.classList.contains("input-group")) return;
+        if (wrapper.querySelector(".placeholder-select")) return;
+
+        const select = document.createElement("select");
+        select.className = "form-control placeholder-select";
+        select.style.minWidth = "120px";
+
+        const optDefault = document.createElement("option");
+        optDefault.value = "";
+        optDefault.textContent = "(Digite valor)";
+        select.appendChild(optDefault);
+
+        placeholders.forEach((ph) => {
+          const opt = document.createElement("option");
+          opt.value = ph;
+          opt.textContent = ph;
+          select.appendChild(opt);
+        });
+
+        select.addEventListener("change", () => { if (select.value) input.value = select.value; });
+
+        let appendDiv = wrapper.querySelector(".input-group-append");
+        if (!appendDiv) { appendDiv = document.createElement("div"); appendDiv.className = "input-group-append"; wrapper.appendChild(appendDiv); }
+        appendDiv.appendChild(select);
+      });
+    }
+
+    function eventoCorrespondeFiltro(evt) {
+      const searchValue = (document.getElementById("searchInput").value || "").toLowerCase();
+      if (!searchValue) return true;
+      try { return JSON.stringify(evt).toLowerCase().includes(searchValue); } catch { return true; }
+    }
+
+    // ============================================================================
+    // Render tabela
+    // ============================================================================
+    function renderEventosTable() {
+      const tbody = document.querySelector("#eventosTable tbody");
+      tbody.innerHTML = "";
+      const eventos = getEventos();
+
+      eventos.forEach((evt, index) => {
+        if (typeof evt._selected === "undefined") evt._selected = false;
+        if (!eventoCorrespondeFiltro(evt)) return;
+
+        const tr = document.createElement("tr");
+
+        const tdSel = document.createElement("td");
+        tdSel.style.textAlign = "center";
+        const cb = document.createElement("input");
+        cb.type = "checkbox";
+        cb.checked = !!evt._selected;
+        cb.addEventListener("change", () => { evt._selected = cb.checked; });
+        tdSel.appendChild(cb);
+        tr.appendChild(tdSel);
+
+        const tdOrdem = document.createElement("td");
+        tdOrdem.textContent = evt.ordemRegistro || "";
+        tr.appendChild(tdOrdem);
+
+        const tdCpf = document.createElement("td");
+        tdCpf.textContent = (evt.trabalhador && evt.trabalhador.cpfTrab) ? evt.trabalhador.cpfTrab : "";
+        tr.appendChild(tdCpf);
+
+        const tdPer = document.createElement("td");
+        tdPer.textContent = evt.perApur || "";
+        tr.appendChild(tdPer);
+
+        const tdEmp = document.createElement("td");
+        const nrInsc = evt.empregador?.nrInsc || "";
+        const tpInsc = evt.empregador?.tpInsc?.tipo || "";
+        tdEmp.textContent = nrInsc ? `${nrInsc} (tp ${tpInsc || "?"})` : "";
+        tr.appendChild(tdEmp);
+
+        const tdAcoes = document.createElement("td");
+        const btnEdit = document.createElement("button");
+        btnEdit.className = "btn btn-sm btn-warning mr-2";
+        btnEdit.innerHTML = '<i class="fas fa-edit"></i> Editar';
+        btnEdit.addEventListener("click", () => openEventoModal(index));
+        tdAcoes.appendChild(btnEdit);
+
+        tr.appendChild(tdAcoes);
+        tbody.appendChild(tr);
+      });
+    }
+    document.getElementById("searchInput").addEventListener("input", renderEventosTable);
+
+    // ============================================================================
+    // Seleção em massa
+    // ============================================================================
+    document.getElementById("selectAllBtn").addEventListener("click", () => {
+      getEventos().forEach(evt => { if (eventoCorrespondeFiltro(evt)) evt._selected = true; });
+      renderEventosTable();
+    });
+    document.getElementById("deselectAllBtn").addEventListener("click", () => {
+      getEventos().forEach(evt => { if (eventoCorrespondeFiltro(evt)) evt._selected = false; });
+      renderEventosTable();
+    });
+    document.getElementById("removeSelectedBtn").addEventListener("click", () => {
+      if (!confirm("Deseja remover todos os selecionados?")) return;
+      window.esocialData.s1210PagtoRendTrabGroup.s1210PagtoRendTrab = getEventos().filter(e => !e._selected);
+      renderEventosTable();
+    });
+
+    // ============================================================================
+    // Carregar arquivo
+    // ============================================================================
+    document.getElementById("fileInput").addEventListener("change", function () {
+      const file = this.files && this.files[0];
+      if (!file) return;
+      window.loadedFileName = file.name;
+
+      const reader = new FileReader();
+      reader.onload = function (e) {
+        try {
+          const parsed = JSON.parse(e.target.result);
+          window.esocialData = ensureRoot(parsed);
+          getEventos().forEach(evt => { if (typeof evt._selected === "undefined") evt._selected = false; });
+          renderEventosTable();
+          document.getElementById("validationResult").innerHTML = "";
+          alert("Arquivo carregado com sucesso!");
+        } catch (err) {
+          alert("Erro ao ler JSON: " + err);
+        }
+      };
+      reader.readAsText(file);
+    });
+
+    // ============================================================================
+    // Download (remove _selected)
+    // ============================================================================
+    function gerarArquivoEsocialFormatado(data) {
+      const eventos = data?.s1210PagtoRendTrabGroup?.s1210PagtoRendTrab || [];
+      let resultado = '{"s1210PagtoRendTrabGroup":{"s1210PagtoRendTrab":[';
+      for (let i = 0; i < eventos.length; i++) {
+        const eStr = JSON.stringify(eventos[i], (k,v) => (k === "_selected" ? undefined : v), 0);
+        resultado += (i === 0 ? "\n" : "\n,") + eStr;
+      }
+      resultado += "\n]}}";
+      return resultado;
+    }
+
+    function gerarNomeArquivoDownload() {
+      if (window.loadedFileName && window.loadedFileName.toLowerCase().endsWith(".json")) {
+        const base = window.loadedFileName.replace(/\.json$/i, "");
+        return base + "_editado.json";
+      }
+      return "S-1210_editado.json";
+    }
+
+    document.getElementById("downloadBtn").addEventListener("click", () => {
+      try {
+        const issues = validateData(window.esocialData);
+        if (issues.length) {
+          if (!confirm("Foram encontrados avisos na validação. Deseja baixar mesmo assim?\n\n- " + issues.join("\n- "))) return;
+        }
+        const dataStr = gerarArquivoEsocialFormatado(window.esocialData);
+        const blob = new Blob([dataStr], { type: "application/json;charset=utf-8;" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.setAttribute("href", url);
+        link.setAttribute("download", gerarNomeArquivoDownload());
+        link.click();
+        URL.revokeObjectURL(url);
+      } catch (err) {
+        alert("Erro ao gerar download: " + err);
+      }
+    });
+
+    // ============================================================================
+    // Validação
+    // ============================================================================
+    function isDateOrPlaceholder(v){ if (v === "*datavazia*") return true; return /^\d{4}-\d{2}-\d{2}$/.test(v); }
+    function isNumberStringOrPlaceholder(v){ if (v === "*numerovazio*") return true; return /^-?\d+(\.\d+)?$/.test(String(v)); }
+
+    function validateData(data){
+      const issues = [];
+      if (!data || !data.s1210PagtoRendTrabGroup || !Array.isArray(data.s1210PagtoRendTrabGroup.s1210PagtoRendTrab)) {
+        issues.push("Estrutura raiz inválida (s1210PagtoRendTrabGroup/s1210PagtoRendTrab).");
+        return issues;
+      }
+      const eventos = data.s1210PagtoRendTrabGroup.s1210PagtoRendTrab;
+      eventos.forEach((evt, idx) => {
+        if (!evt || typeof evt !== "object") { issues.push(`Evento[${idx}] não é objeto.`); return; }
+        if (!("ordemRegistro" in evt)) issues.push(`Evento[${idx}] sem ordemRegistro.`);
+        if (!("chaveIntegracao" in evt)) issues.push(`Evento[${idx}] sem chaveIntegracao.`);
+        if ("perApur" in evt && evt.perApur && !isDateOrPlaceholder(evt.perApur)) issues.push(`Evento[${idx}] perApur fora do padrão: ${evt.perApur}`);
+        (evt.s1210PagtoRendTrabInfo || []).forEach((p, pidx) => {
+          if (p.dtPgto && !isDateOrPlaceholder(p.dtPgto)) issues.push(`Evento[${idx}]/Pagto[${pidx}] dtPgto fora do padrão: ${p.dtPgto}`);
+          (p.s1210PagtoRendTrabDetPag || []).forEach((d, didx) => {
+            if (d.perRef && !isDateOrPlaceholder(d.perRef)) issues.push(`Evento[${idx}]/Pagto[${pidx}]/DetPag[${didx}] perRef fora do padrão: ${d.perRef}`);
+            if (d.vrLiq && !isNumberStringOrPlaceholder(d.vrLiq)) issues.push(`Evento[${idx}]/Pagto[${pidx}]/DetPag[${didx}] vrLiq fora do padrão: ${d.vrLiq}`);
+          });
+        });
+      });
+      return issues;
+    }
+
+    document.getElementById("validateBtn").addEventListener("click", () => {
+      const issues = validateData(window.esocialData);
+      const box = document.getElementById("validationResult");
+      if (!issues.length) box.innerHTML = '<div class="alert alert-success mb-0"><i class="fas fa-check"></i> Validação básica OK.</div>';
+      else box.innerHTML = '<div class="alert alert-warning"><strong>Avisos:</strong><br/>' + issues.map(i => "• " + i).join("<br/>") + "</div>";
+    });
+
+    // ============================================================================
+    // Modal (patch)
+    // ============================================================================
+    let currentEditingEventRef = null;
+
+    function setAutoCollapse(cardEl, collapseEl, obj) {
+      const hasData = isMeaningful(obj);
+      if (!hasData) {
+        cardEl.classList.add("is-empty");
+        const badge = cardEl.querySelector(".badge-empty");
+        if (badge) badge.style.display = "inline-block";
+        $(collapseEl).collapse('hide');
+      } else {
+        const badge = cardEl.querySelector(".badge-empty");
+        if (badge) badge.style.display = "none";
+        $(collapseEl).collapse('show');
+      }
+    }
+
+    function setIfChanged(obj, key, newVal){
+      if (!obj) return;
+      const oldVal = obj[key];
+      if (oldVal !== newVal) obj[key] = newVal;
+    }
+
+    function openEventoModal(index) {
+      currentEditingEventRef = getEventos()[index];
+      const evt = currentEditingEventRef;
+
+      document.getElementById("evt_ordemRegistro").value = evt.ordemRegistro ?? "";
+      document.getElementById("evt_chaveIntegracao").value = evt.chaveIntegracao ?? "";
+      document.getElementById("evt_perApur").value = evt.perApur ?? "";
+      document.getElementById("emp_nrInsc").value = evt.empregador?.nrInsc ?? "";
+      document.getElementById("emp_tpInsc_tipo").value = evt.empregador?.tpInsc?.tipo ?? "";
+      document.getElementById("trab_cpfTrab").value = evt.trabalhador?.cpfTrab ?? "";
+
+      // IR Complem
+      const irCont = document.getElementById("irComplemContainer");
+      irCont.innerHTML = "";
+      (evt.s1210InfoIRComplem || []).forEach((blk, idx) => addIrComplemCard(irCont, blk, idx));
+
+      document.getElementById("addIrComplemBtn").onclick = () => {
+        const blk = { dtLaudo: "*datavazia*", perRefAjuste: "*datavazia*", s1210InfoDep: [], s1210InfoIRCR: [] };
+        addIrComplemCard(irCont, blk, null, true);
+      };
+
+      // Pagamentos
+      const pagCont = document.getElementById("pagtoInfoContainer");
+      pagCont.innerHTML = "";
+      (evt.s1210PagtoRendTrabInfo || []).forEach((p, idx) => addPagtoInfoCard(pagCont, p, idx));
+
+      document.getElementById("addPagtoInfoBtn").onclick = () => {
+        const p = { dtPgto: "*datavazia*", paisResidExt: { pais: "*vazio*" }, tpPgto: "*vazio*", s1210PagtoRendTrabDetPag: [], s1210PagtoRendTrabInfoExt: [] };
+        addPagtoInfoCard(pagCont, p, null, true);
+      };
+
+      addPlaceholderDropdowns(document.getElementById("eventoModal"));
+      $("#eventoModal").modal("show");
+    }
+
+    // --------------------------- Builders (com idx) -----------------------
+    function addIrComplemCard(container, blk, idx=null, isNew=false) {
+      const card = document.createElement("div");
+      card.className = "card card-soft mb-3 ir-complem-card";
+      if (idx !== null) card.dataset.idx = String(idx);
+      if (isNew) card.dataset.isNew = "1";
+      card.dataset.template = JSON.stringify(blk);
+
+      const cid = "ir_" + Math.floor(Math.random()*1e9);
+
+      card.innerHTML = `
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <div class="d-flex align-items-center">
+            <button type="button" class="btn btn-sm btn-outline-secondary toggle-btn mr-2" data-toggle="collapse" data-target="#${cid}">
+              <i class="fas fa-chevron-down"></i>
+            </button>
+            <strong>Bloco IR Complem</strong>
+            <span class="badge badge-light badge-empty ml-2" style="display:none;">sem dados</span>
+          </div>
+          <button type="button" class="btn btn-sm btn-outline-danger ir-remove"><i class="fas fa-times"></i> Remover</button>
+        </div>
+        <div class="card-body collapse show" id="${cid}">
+
+          <div class="form-row">
+            <div class="form-group col-md-6">
+              <label>dtLaudo</label>
+              <div class="input-group">
+                <input type="text" class="form-control has-placeholder ir-dtLaudo" data-ph-key="dtLaudo"/>
+              </div>
+            </div>
+            <div class="form-group col-md-6">
+              <label>perRefAjuste</label>
+              <div class="input-group">
+                <input type="text" class="form-control has-placeholder ir-perRefAjuste" data-ph-key="perRefAjuste"/>
+              </div>
+            </div>
+          </div>
+
+          <hr/>
+
+          <div class="d-flex justify-content-between align-items-center">
+            <h6 class="mb-0">Dependentes (s1210InfoDep)</h6>
+            <button type="button" class="btn btn-sm btn-outline-primary ir-add-dep"><i class="fas fa-plus"></i> Adicionar</button>
+          </div>
+          <div class="table-responsive">
+            <table class="table table-sm table-bordered mb-3">
+              <thead class="thead-light">
+                <tr>
+                  <th>cpfDep</th><th>depIRRF</th><th>dtNascto</th><th>nome</th><th>tpDep.codigo</th><th style="width:70px;">Ação</th>
+                </tr>
+              </thead>
+              <tbody class="ir-dep-tbody"></tbody>
+            </table>
+          </div>
+
+          <div class="d-flex justify-content-between align-items-center">
+            <h6 class="mb-0">IRCR (s1210InfoIRCR)</h6>
+            <button type="button" class="btn btn-sm btn-outline-primary ir-add-ircr"><i class="fas fa-plus"></i> Adicionar IRCR</button>
+          </div>
+          <div class="ir-ircr-container mt-2"></div>
+        </div>
+      `;
+
+      card.querySelector(".ir-dtLaudo").value = blk.dtLaudo ?? "";
+      card.querySelector(".ir-perRefAjuste").value = blk.perRefAjuste ?? "";
+
+      const depTbody = card.querySelector(".ir-dep-tbody");
+      (blk.s1210InfoDep || []).forEach((dep, depIdx) => addDepRow(depTbody, dep, depIdx));
+
+      card.querySelector(".ir-add-dep").addEventListener("click", () => {
+        const dep = { cpfDep:"*vazio*", depIRRF:"*vazio*", dtNascto:"*datavazia*", nome:"*vazio*", tpDep:{codigo:"*vazio*"} };
+        addDepRow(depTbody, dep, null, true);
+      });
+
+      const ircrCont = card.querySelector(".ir-ircr-container");
+      (blk.s1210InfoIRCR || []).forEach((ircr, ircrIdx) => addIrcrCard(ircrCont, ircr, ircrIdx));
+      card.querySelector(".ir-add-ircr").addEventListener("click", () => {
+        const ircr = { tpCR:"*vazio*" };
+        addIrcrCard(ircrCont, ircr, null, true);
+      });
+
+      card.querySelector(".ir-remove").addEventListener("click", () => card.remove());
+
+      container.appendChild(card);
+      addPlaceholderDropdowns(card);
+      setAutoCollapse(card, card.querySelector(".card-body"), blk);
+    }
+
+    function addDepRow(tbody, dep, idx=null, isNew=false) {
+      const tr = document.createElement("tr");
+      if (idx !== null) tr.dataset.idx = String(idx);
+      if (isNew) tr.dataset.isNew = "1";
+      tr.dataset.template = JSON.stringify(dep);
+
+      tr.innerHTML = `
+        <td><div class="input-group"><input type="text" class="form-control form-control-sm has-placeholder dep-cpfDep" data-ph-key="cpfDep"></div></td>
+        <td><input type="text" class="form-control form-control-sm dep-depIRRF"></td>
+        <td><div class="input-group"><input type="text" class="form-control form-control-sm has-placeholder dep-dtNascto" data-ph-key="dtNascto"></div></td>
+        <td><input type="text" class="form-control form-control-sm dep-nome"></td>
+        <td><input type="text" class="form-control form-control-sm dep-tpDep"></td>
+        <td class="text-center"><button type="button" class="btn btn-sm btn-outline-danger dep-remove"><i class="fas fa-trash"></i></button></td>
+      `;
+
+      tr.querySelector(".dep-cpfDep").value = dep.cpfDep ?? "";
+      tr.querySelector(".dep-depIRRF").value = dep.depIRRF ?? "";
+      tr.querySelector(".dep-dtNascto").value = dep.dtNascto ?? "";
+      tr.querySelector(".dep-nome").value = dep.nome ?? "";
+      tr.querySelector(".dep-tpDep").value = dep.tpDep?.codigo ?? "";
+      tr.querySelector(".dep-remove").addEventListener("click", () => tr.remove());
+
+      tbody.appendChild(tr);
+      addPlaceholderDropdowns(tr);
+    }
+
+    function addIrcrCard(container, ircr, idx=null, isNew=false) {
+      const card = document.createElement("div");
+      card.className = "card card-soft mb-3 ircr-card";
+      if (idx !== null) card.dataset.idx = String(idx);
+      if (isNew) card.dataset.isNew = "1";
+      card.dataset.template = JSON.stringify(ircr);
+
+      const cid = "ircr_" + Math.floor(Math.random()*1e9);
+
+      card.innerHTML = `
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <div class="d-flex align-items-center">
+            <button type="button" class="btn btn-sm btn-outline-secondary toggle-btn mr-2" data-toggle="collapse" data-target="#${cid}">
+              <i class="fas fa-chevron-down"></i>
+            </button>
+            <strong>IRCR</strong>
+            <span class="badge badge-light badge-empty ml-2" style="display:none;">sem dados</span>
+          </div>
+          <button type="button" class="btn btn-sm btn-outline-danger ircr-remove"><i class="fas fa-times"></i> Remover</button>
+        </div>
+        <div class="card-body collapse show" id="${cid}">
+          <div class="form-row">
+            <div class="form-group col-md-4">
+              <label>tpCR</label>
+              <div class="input-group">
+                <input type="text" class="form-control has-placeholder ircr-tpCR" data-ph-key="tpCR"/>
+              </div>
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="col-md-6">
+              <div class="d-flex justify-content-between align-items-center">
+                <h6 class="mb-2">Ded. Dependente (s1210DedDepen)</h6>
+                <button type="button" class="btn btn-sm btn-outline-primary ircr-add-ded"><i class="fas fa-plus"></i> Adicionar</button>
+              </div>
+              <div class="table-responsive">
+                <table class="table table-sm table-bordered">
+                  <thead class="thead-light">
+                    <tr><th>cpfDep</th><th>tpRend</th><th>vlrDedDep</th><th style="width:70px;">Ação</th></tr>
+                  </thead>
+                  <tbody class="ded-tbody"></tbody>
+                </table>
+              </div>
+            </div>
+
+            <div class="col-md-6">
+              <div class="d-flex justify-content-between align-items-center">
+                <h6 class="mb-2">Pensão Alimentícia (s1210PenAlim)</h6>
+                <button type="button" class="btn btn-sm btn-outline-primary ircr-add-pen"><i class="fas fa-plus"></i> Adicionar</button>
+              </div>
+              <div class="table-responsive">
+                <table class="table table-sm table-bordered">
+                  <thead class="thead-light">
+                    <tr><th>cpfDep</th><th>tpRend</th><th>vlrDedPenAlim</th><th style="width:70px;">Ação</th></tr>
+                  </thead>
+                  <tbody class="pen-tbody"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+
+      card.querySelector(".ircr-tpCR").value = ircr.tpCR ?? "";
+
+      const dedTbody = card.querySelector(".ded-tbody");
+      (ircr.s1210DedDepen || []).forEach((x, xIdx) => addDedRow(dedTbody, x, xIdx));
+      card.querySelector(".ircr-add-ded").addEventListener("click", () => {
+        addDedRow(dedTbody, { cpfDep:"*vazio*", tpRend:"*vazio*", vlrDedDep:"*numerovazio*" }, null, true);
+      });
+
+      const penTbody = card.querySelector(".pen-tbody");
+      (ircr.s1210PenAlim || []).forEach((x, xIdx) => addPenRow(penTbody, x, xIdx));
+      card.querySelector(".ircr-add-pen").addEventListener("click", () => {
+        addPenRow(penTbody, { cpfDep:"*vazio*", tpRend:"*vazio*", vlrDedPenAlim:"*numerovazio*" }, null, true);
+      });
+
+      card.querySelector(".ircr-remove").addEventListener("click", () => card.remove());
+
+      container.appendChild(card);
+      addPlaceholderDropdowns(card);
+      setAutoCollapse(card, card.querySelector(".card-body"), ircr);
+    }
+
+    function addDedRow(tbody, x, idx=null, isNew=false){
+      const tr = document.createElement("tr");
+      if (idx !== null) tr.dataset.idx = String(idx);
+      if (isNew) tr.dataset.isNew = "1";
+      tr.dataset.template = JSON.stringify(x);
+
+      tr.innerHTML = `
+        <td><div class="input-group"><input type="text" class="form-control form-control-sm has-placeholder ded-cpfDep" data-ph-key="cpfDep"></div></td>
+        <td><input type="text" class="form-control form-control-sm ded-tpRend"></td>
+        <td><div class="input-group"><input type="text" class="form-control form-control-sm has-placeholder ded-vlr" data-ph-key="vlrDedDep"></div></td>
+        <td class="text-center"><button type="button" class="btn btn-sm btn-outline-danger row-remove"><i class="fas fa-trash"></i></button></td>
+      `;
+
+      tr.querySelector(".ded-cpfDep").value = x.cpfDep ?? "";
+      tr.querySelector(".ded-tpRend").value = x.tpRend ?? "";
+      tr.querySelector(".ded-vlr").value = x.vlrDedDep ?? "";
+      tr.querySelector(".row-remove").addEventListener("click", () => tr.remove());
+
+      tbody.appendChild(tr);
+      addPlaceholderDropdowns(tr);
+    }
+
+    function addPenRow(tbody, x, idx=null, isNew=false){
+      const tr = document.createElement("tr");
+      if (idx !== null) tr.dataset.idx = String(idx);
+      if (isNew) tr.dataset.isNew = "1";
+      tr.dataset.template = JSON.stringify(x);
+
+      tr.innerHTML = `
+        <td><div class="input-group"><input type="text" class="form-control form-control-sm has-placeholder pen-cpfDep" data-ph-key="cpfDep"></div></td>
+        <td><input type="text" class="form-control form-control-sm pen-tpRend"></td>
+        <td><div class="input-group"><input type="text" class="form-control form-control-sm has-placeholder pen-vlr" data-ph-key="vlrDedPenAlim"></div></td>
+        <td class="text-center"><button type="button" class="btn btn-sm btn-outline-danger row-remove"><i class="fas fa-trash"></i></button></td>
+      `;
+
+      tr.querySelector(".pen-cpfDep").value = x.cpfDep ?? "";
+      tr.querySelector(".pen-tpRend").value = x.tpRend ?? "";
+      tr.querySelector(".pen-vlr").value = x.vlrDedPenAlim ?? "";
+      tr.querySelector(".row-remove").addEventListener("click", () => tr.remove());
+
+      tbody.appendChild(tr);
+      addPlaceholderDropdowns(tr);
+    }
+
+    function addPagtoInfoCard(container, p, idx=null, isNew=false) {
+      const card = document.createElement("div");
+      card.className = "card card-soft mb-3 pagto-card";
+      if (idx !== null) card.dataset.idx = String(idx);
+      if (isNew) card.dataset.isNew = "1";
+      card.dataset.template = JSON.stringify(p);
+
+      const cid = "pagto_" + Math.floor(Math.random()*1e9);
+
+      card.innerHTML = `
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <div class="d-flex align-items-center">
+            <button type="button" class="btn btn-sm btn-outline-secondary toggle-btn mr-2" data-toggle="collapse" data-target="#${cid}">
+              <i class="fas fa-chevron-down"></i>
+            </button>
+            <strong>Pagamento</strong>
+            <span class="badge badge-light badge-empty ml-2" style="display:none;">sem dados</span>
+          </div>
+          <button type="button" class="btn btn-sm btn-outline-danger pagto-remove"><i class="fas fa-times"></i> Remover</button>
+        </div>
+        <div class="card-body collapse show" id="${cid}">
+
+          <div class="form-row">
+            <div class="form-group col-md-4">
+              <label>dtPgto</label>
+              <div class="input-group">
+                <input type="text" class="form-control has-placeholder pagto-dtPgto" data-ph-key="dtPgto"/>
+              </div>
+            </div>
+            <div class="form-group col-md-4">
+              <label>tpPgto</label>
+              <div class="input-group">
+                <input type="text" class="form-control has-placeholder pagto-tpPgto" data-ph-key="tpPgto"/>
+              </div>
+            </div>
+            <div class="form-group col-md-4">
+              <label>paisResidExt.pais</label>
+              <div class="input-group">
+                <input type="text" class="form-control has-placeholder pagto-pais" data-ph-key="pais"/>
+              </div>
+            </div>
+          </div>
+
+          <div class="soft-box mt-2">
+            <div class="d-flex justify-content-between align-items-center">
+              <h6 class="mb-0">Detalhamento (s1210PagtoRendTrabDetPag)</h6>
+              <button type="button" class="btn btn-sm btn-outline-primary det-add"><i class="fas fa-plus"></i> Adicionar DetPag</button>
+            </div>
+
+            <div class="table-responsive">
+              <table class="table table-sm table-bordered mb-0">
+                <thead class="thead-light">
+                  <tr>
+                    <th>perRef</th><th>tipoCompetencia</th><th>vrLiq</th>
+                    <th>ideRecPgtoRPPS.ideDmDev</th>
+                    <th>ideRecPgtoRGPS.ideDmDev</th>
+                    <th>ideRecPgtoBenef.ideDmDev</th>
+                    <th>ideRecPgtoResc.ideDmDev</th>
+                    <th>ideRecPgtoRescTSV.ideDmDev</th>
+                    <th style="width:70px;">Ação</th>
+                  </tr>
+                </thead>
+                <tbody class="det-tbody"></tbody>
+              </table>
+            </div>
+          </div>
+
+        </div>
+      `;
+
+      card.querySelector(".pagto-dtPgto").value = p.dtPgto ?? "";
+      card.querySelector(".pagto-tpPgto").value = p.tpPgto ?? "";
+      card.querySelector(".pagto-pais").value = p.paisResidExt?.pais ?? "";
+
+      const detTbody = card.querySelector(".det-tbody");
+      (p.s1210PagtoRendTrabDetPag || []).forEach((d, dIdx) => addDetRow(detTbody, d, dIdx));
+
+      card.querySelector(".det-add").addEventListener("click", () => {
+        const d = {
+          ideRecPgtoBenef: { ideDmDev: "*vazio*" },
+          ideRecPgtoResc: { ideDmDev: "*vazio*" },
+          ideRecPgtoRescTSV: { ideDmDev: "*vazio*" },
+          ideRecPgtoRGPS: { ideDmDev: "*vazio*" },
+          ideRecPgtoRPPS: { ideDmDev: "*vazio*" },
+          perRef: "*datavazia*",
+          tipoCompetencia: "*vazio*",
+          vrLiq: "*numerovazio*"
+        };
+        addDetRow(detTbody, d, null, true);
+      });
+
+      card.querySelector(".pagto-remove").addEventListener("click", () => card.remove());
+
+      container.appendChild(card);
+      addPlaceholderDropdowns(card);
+      setAutoCollapse(card, card.querySelector(".card-body"), p);
+    }
+
+    function addDetRow(tbody, d, idx=null, isNew=false) {
+      const tr = document.createElement("tr");
+      if (idx !== null) tr.dataset.idx = String(idx);
+      if (isNew) tr.dataset.isNew = "1";
+      tr.dataset.template = JSON.stringify(d);
+
+      tr.innerHTML = `
+        <td><div class="input-group"><input type="text" class="form-control form-control-sm has-placeholder det-perRef" data-ph-key="perRef"></div></td>
+        <td><div class="input-group"><input type="text" class="form-control form-control-sm has-placeholder det-tipoCompetencia" data-ph-key="tipoCompetencia"></div></td>
+        <td><div class="input-group"><input type="text" class="form-control form-control-sm has-placeholder det-vrLiq" data-ph-key="vrLiq"></div></td>
+
+        <td><div class="input-group"><input type="text" class="form-control form-control-sm has-placeholder det-rpps" data-ph-key="ideDmDev"></div></td>
+        <td><div class="input-group"><input type="text" class="form-control form-control-sm has-placeholder det-rgps" data-ph-key="ideDmDev"></div></td>
+        <td><div class="input-group"><input type="text" class="form-control form-control-sm has-placeholder det-benef" data-ph-key="ideDmDev"></div></td>
+        <td><div class="input-group"><input type="text" class="form-control form-control-sm has-placeholder det-resc" data-ph-key="ideDmDev"></div></td>
+        <td><div class="input-group"><input type="text" class="form-control form-control-sm has-placeholder det-resctsv" data-ph-key="ideDmDev"></div></td>
+
+        <td class="text-center"><button type="button" class="btn btn-sm btn-outline-danger row-remove"><i class="fas fa-trash"></i></button></td>
+      `;
+
+      tr.querySelector(".det-perRef").value = d.perRef ?? "";
+      tr.querySelector(".det-tipoCompetencia").value = d.tipoCompetencia ?? "";
+      tr.querySelector(".det-vrLiq").value = d.vrLiq ?? "";
+
+      tr.querySelector(".det-rpps").value = d.ideRecPgtoRPPS?.ideDmDev ?? "";
+      tr.querySelector(".det-rgps").value = d.ideRecPgtoRGPS?.ideDmDev ?? "";
+      tr.querySelector(".det-benef").value = d.ideRecPgtoBenef?.ideDmDev ?? "";
+      tr.querySelector(".det-resc").value = d.ideRecPgtoResc?.ideDmDev ?? "";
+      tr.querySelector(".det-resctsv").value = d.ideRecPgtoRescTSV?.ideDmDev ?? "";
+
+      tr.querySelector(".row-remove").addEventListener("click", () => tr.remove());
+
+      tbody.appendChild(tr);
+      addPlaceholderDropdowns(tr);
+    }
+
+    // ============================================================================
+    // SALVAR (patch in-place)
+    // ============================================================================
+    document.getElementById("saveEventoBtn").addEventListener("click", () => {
+      try {
+        const evt = currentEditingEventRef;
+        if (!evt) return;
+
+        // Topo
+        setIfChanged(evt, "ordemRegistro", document.getElementById("evt_ordemRegistro").value.trim());
+        setIfChanged(evt, "chaveIntegracao", document.getElementById("evt_chaveIntegracao").value.trim());
+        setIfChanged(evt, "perApur", document.getElementById("evt_perApur").value.trim());
+
+        if (evt.empregador) {
+          setIfChanged(evt.empregador, "nrInsc", document.getElementById("emp_nrInsc").value.trim());
+          if (evt.empregador.tpInsc) setIfChanged(evt.empregador.tpInsc, "tipo", document.getElementById("emp_tpInsc_tipo").value.trim());
+        }
+        if (evt.trabalhador) setIfChanged(evt.trabalhador, "cpfTrab", document.getElementById("trab_cpfTrab").value.trim());
+
+        // IR Complem
+        const irCards = Array.from(document.querySelectorAll("#irComplemContainer > .ir-complem-card"));
+        if (("s1210InfoIRComplem" in evt) || irCards.length > 0) {
+          const oldArr = Array.isArray(evt.s1210InfoIRComplem) ? evt.s1210InfoIRComplem : [];
+          const newArr = [];
+
+          irCards.forEach((card) => {
+            const idx = card.dataset.idx !== undefined ? parseInt(card.dataset.idx, 10) : null;
+            const isNew = card.dataset.isNew === "1";
+            let blk = (!isNew && idx !== null && oldArr[idx]) ? oldArr[idx] : JSON.parse(card.dataset.template || "{}");
+
+            setIfChanged(blk, "dtLaudo", safeValue(card, ".ir-dtLaudo"));
+            setIfChanged(blk, "perRefAjuste", safeValue(card, ".ir-perRefAjuste"));
+
+            // Dependentes
+            const depRows = Array.from(card.querySelectorAll(".ir-dep-tbody tr"));
+            const hadDepKey = ("s1210InfoDep" in blk);
+            if (hadDepKey || depRows.length > 0) {
+              const oldDeps = Array.isArray(blk.s1210InfoDep) ? blk.s1210InfoDep : [];
+              const newDeps = [];
+              depRows.forEach((tr) => {
+                const ridx = tr.dataset.idx !== undefined ? parseInt(tr.dataset.idx, 10) : null;
+                const rIsNew = tr.dataset.isNew === "1";
+                let dep = (!rIsNew && ridx !== null && oldDeps[ridx]) ? oldDeps[ridx] : JSON.parse(tr.dataset.template || "{}");
+
+                setIfChanged(dep, "cpfDep", safeValue(tr, ".dep-cpfDep"));
+                setIfChanged(dep, "depIRRF", safeValue(tr, ".dep-depIRRF"));
+                setIfChanged(dep, "dtNascto", safeValue(tr, ".dep-dtNascto"));
+                setIfChanged(dep, "nome", safeValue(tr, ".dep-nome"));
+                if (dep.tpDep && typeof dep.tpDep === "object") setIfChanged(dep.tpDep, "codigo", safeValue(tr, ".dep-tpDep"));
+
+                newDeps.push(dep);
+              });
+              if (newDeps.length === 0) delete blk.s1210InfoDep;
+              else blk.s1210InfoDep = newDeps;
+            }
+
+            // IRCR
+            const ircrCards = Array.from(card.querySelectorAll(".ir-ircr-container > .ircr-card"));
+            const hadIrcrKey = ("s1210InfoIRCR" in blk);
+            if (hadIrcrKey || ircrCards.length > 0) {
+              const oldIrcrs = Array.isArray(blk.s1210InfoIRCR) ? blk.s1210InfoIRCR : [];
+              const newIrcrs = [];
+              ircrCards.forEach((ic) => {
+                const iidx = ic.dataset.idx !== undefined ? parseInt(ic.dataset.idx, 10) : null;
+                const iIsNew = ic.dataset.isNew === "1";
+                let ircr = (!iIsNew && iidx !== null && oldIrcrs[iidx]) ? oldIrcrs[iidx] : JSON.parse(ic.dataset.template || "{}");
+
+                setIfChanged(ircr, "tpCR", safeValue(ic, ".ircr-tpCR"));
+
+                // DedDepen (não injeta key se ausente e sem linhas)
+                const dedRows = Array.from(ic.querySelectorAll(".ded-tbody tr"));
+                const hadDedKey = ("s1210DedDepen" in ircr);
+                if (hadDedKey || dedRows.length > 0) {
+                  const oldDeds = Array.isArray(ircr.s1210DedDepen) ? ircr.s1210DedDepen : [];
+                  const newDeds = [];
+                  dedRows.forEach((tr) => {
+                    const didx = tr.dataset.idx !== undefined ? parseInt(tr.dataset.idx, 10) : null;
+                    const dIsNew = tr.dataset.isNew === "1";
+                    let d = (!dIsNew && didx !== null && oldDeds[didx]) ? oldDeds[didx] : JSON.parse(tr.dataset.template || "{}");
+                    setIfChanged(d, "cpfDep", safeValue(tr, ".ded-cpfDep"));
+                    setIfChanged(d, "tpRend", safeValue(tr, ".ded-tpRend"));
+                    setIfChanged(d, "vlrDedDep", safeValue(tr, ".ded-vlr"));
+                    newDeds.push(d);
+                  });
+                  if (newDeds.length === 0) delete ircr.s1210DedDepen;
+                  else ircr.s1210DedDepen = newDeds;
+                }
+
+                // PenAlim (não injeta key se ausente e sem linhas)
+                const penRows = Array.from(ic.querySelectorAll(".pen-tbody tr"));
+                const hadPenKey = ("s1210PenAlim" in ircr);
+                if (hadPenKey || penRows.length > 0) {
+                  const oldPens = Array.isArray(ircr.s1210PenAlim) ? ircr.s1210PenAlim : [];
+                  const newPens = [];
+                  penRows.forEach((tr) => {
+                    const pidx = tr.dataset.idx !== undefined ? parseInt(tr.dataset.idx, 10) : null;
+                    const pIsNew = tr.dataset.isNew === "1";
+                    let p = (!pIsNew && pidx !== null && oldPens[pidx]) ? oldPens[pidx] : JSON.parse(tr.dataset.template || "{}");
+                    setIfChanged(p, "cpfDep", safeValue(tr, ".pen-cpfDep"));
+                    setIfChanged(p, "tpRend", safeValue(tr, ".pen-tpRend"));
+                    setIfChanged(p, "vlrDedPenAlim", safeValue(tr, ".pen-vlr"));
+                    newPens.push(p);
+                  });
+                  if (newPens.length === 0) delete ircr.s1210PenAlim;
+                  else ircr.s1210PenAlim = newPens;
+                }
+
+                newIrcrs.push(ircr);
+              });
+              if (newIrcrs.length === 0) delete blk.s1210InfoIRCR;
+              else blk.s1210InfoIRCR = newIrcrs;
+            }
+
+            newArr.push(blk);
+          });
+
+          if (newArr.length === 0) delete evt.s1210InfoIRComplem;
+          else evt.s1210InfoIRComplem = newArr;
+        }
+
+        // Pagamentos
+        const pagtoCards = Array.from(document.querySelectorAll("#pagtoInfoContainer > .pagto-card"));
+        if (("s1210PagtoRendTrabInfo" in evt) || pagtoCards.length > 0) {
+          const oldP = Array.isArray(evt.s1210PagtoRendTrabInfo) ? evt.s1210PagtoRendTrabInfo : [];
+          const newP = [];
+
+          pagtoCards.forEach((card) => {
+            const idx = card.dataset.idx !== undefined ? parseInt(card.dataset.idx, 10) : null;
+            const isNew = card.dataset.isNew === "1";
+            let p = (!isNew && idx !== null && oldP[idx]) ? oldP[idx] : JSON.parse(card.dataset.template || "{}");
+
+            setIfChanged(p, "dtPgto", safeValue(card, ".pagto-dtPgto"));
+            setIfChanged(p, "tpPgto", safeValue(card, ".pagto-tpPgto"));
+            if (p.paisResidExt && typeof p.paisResidExt === "object") setIfChanged(p.paisResidExt, "pais", safeValue(card, ".pagto-pais"));
+
+            // DetPag: não injeta key se ausente e sem linhas
+            const detRows = Array.from(card.querySelectorAll(".det-tbody tr"));
+            const hadDetKey = ("s1210PagtoRendTrabDetPag" in p);
+            if (hadDetKey || detRows.length > 0) {
+              const oldDet = Array.isArray(p.s1210PagtoRendTrabDetPag) ? p.s1210PagtoRendTrabDetPag : [];
+              const newDet = [];
+              detRows.forEach((tr) => {
+                const didx = tr.dataset.idx !== undefined ? parseInt(tr.dataset.idx, 10) : null;
+                const dIsNew = tr.dataset.isNew === "1";
+                let d = (!dIsNew && didx !== null && oldDet[didx]) ? oldDet[didx] : JSON.parse(tr.dataset.template || "{}");
+
+                setIfChanged(d, "perRef", safeValue(tr, ".det-perRef"));
+                setIfChanged(d, "tipoCompetencia", safeValue(tr, ".det-tipoCompetencia"));
+                setIfChanged(d, "vrLiq", safeValue(tr, ".det-vrLiq"));
+
+                if (d.ideRecPgtoRPPS) setIfChanged(d.ideRecPgtoRPPS, "ideDmDev", safeValue(tr, ".det-rpps"));
+                if (d.ideRecPgtoRGPS) setIfChanged(d.ideRecPgtoRGPS, "ideDmDev", safeValue(tr, ".det-rgps"));
+                if (d.ideRecPgtoBenef) setIfChanged(d.ideRecPgtoBenef, "ideDmDev", safeValue(tr, ".det-benef"));
+                if (d.ideRecPgtoResc) setIfChanged(d.ideRecPgtoResc, "ideDmDev", safeValue(tr, ".det-resc"));
+                if (d.ideRecPgtoRescTSV) setIfChanged(d.ideRecPgtoRescTSV, "ideDmDev", safeValue(tr, ".det-resctsv"));
+
+                newDet.push(d);
+              });
+              if (newDet.length === 0) delete p.s1210PagtoRendTrabDetPag;
+              else p.s1210PagtoRendTrabDetPag = newDet;
+            }
+
+            newP.push(p);
+          });
+
+          if (newP.length === 0) delete evt.s1210PagtoRendTrabInfo;
+          else evt.s1210PagtoRendTrabInfo = newP;
+        }
+
+        $("#eventoModal").modal("hide");
+        renderEventosTable();
+      } catch (err) {
+        alert("Erro ao salvar evento: " + err);
+      }
+    });
+
+    // ============================================================================
+    // Init
+    // ============================================================================
+    renderEventosTable();
+  </script>
+
+</body>
+</html>
