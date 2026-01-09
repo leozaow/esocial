@@ -21,11 +21,11 @@
     .small-hint { font-size: .85rem; color: #6c757d; }
     .danger-hint { font-size: .85rem; color: #b02a37; }
     .table td, .table th { vertical-align: middle; }
-    .placeholder-select { max-width: 160px; }
     .card-soft.is-empty { opacity: .78; }
     .card-soft.is-empty .card-header { background: rgba(0,0,0,0.015); }
     .toggle-btn { padding: .15rem .45rem; font-size: .8rem; }
     .badge-empty { font-size: .72rem; }
+    .status-box { white-space: pre-wrap; }
   </style>
 </head>
 <body>
@@ -52,9 +52,10 @@
         </div>
         <div class="btn-group-custom">
           <button id="downloadBtn" class="btn btn-info"><i class="fas fa-download"></i> Baixar Edição</button>
-          <button id="validateBtn" class="btn btn-outline-secondary"><i class="fas fa-check-circle"></i> Validar Estrutura</button>
+          <button id="cpfRemoveBtn" class="btn btn-danger" data-toggle="modal" data-target="#cpfRemoveModal"><i class="fas fa-user-times"></i> Excluir por CSV de CPFs</button>
+          <button id="depSyncBtn" class="btn btn-primary" data-toggle="modal" data-target="#depSyncModal"><i class="fas fa-user-plus"></i> Sincronizar Dependentes (CSV)</button>
         </div>
-        <div id="validationResult" class="mt-3"></div>
+        <div id="statusArea" class="mt-3"></div>
       </div>
     </div>
 
@@ -64,7 +65,7 @@
         <div class="btn-group-custom">
           <button id="selectAllBtn" class="btn btn-primary">Selecionar Todos (visíveis)</button>
           <button id="deselectAllBtn" class="btn btn-secondary">Desmarcar Todos (visíveis)</button>
-          <button id="removeSelectedBtn" class="btn btn-danger">Remover Selecionados</button>
+          <button id="removeSelectedBtn" class="btn btn-outline-danger">Remover Selecionados</button>
         </div>
         <div class="small-hint mt-2">
           A seleção é armazenada apenas no navegador (campo interno <span class="mono">_selected</span>) e removida automaticamente no download.
@@ -128,7 +129,7 @@
                   <div class="form-group col-md-4">
                     <label>Período de Apuração</label>
                     <div class="input-group">
-                      <input type="text" class="form-control has-placeholder" id="evt_perApur" data-ph-key="perApur" placeholder="YYYY-MM-DD ou *datavazia*" />
+                      <input type="text" class="form-control" id="evt_perApur" placeholder="YYYY-MM-DD ou *datavazia*" />
                     </div>
                   </div>
                 </div>
@@ -139,7 +140,7 @@
                 <div class="form-row">
                   <div class="form-group col-md-6">
                     <label>nrInsc</label>
-                    <input type="text" class="form-control has-placeholder" id="emp_nrInsc" data-ph-key="nrInsc" />
+                    <input type="text" class="form-control" id="emp_nrInsc" />
                   </div>
                   <div class="form-group col-md-6">
                     <label>tpInsc.tipo</label>
@@ -151,7 +152,7 @@
                 <div class="form-row">
                   <div class="form-group col-md-6">
                     <label>cpfTrab</label>
-                    <input type="text" class="form-control has-placeholder" id="trab_cpfTrab" data-ph-key="cpfTrab" />
+                    <input type="text" class="form-control" id="trab_cpfTrab" />
                   </div>
                 </div>
 
@@ -196,6 +197,107 @@
       </div>
     </div>
 
+    <!-- Modal: Excluir por CSV de CPFs -->
+    <div class="modal fade" id="cpfRemoveModal" tabindex="-1" aria-labelledby="cpfRemoveModalLabel" aria-hidden="true">
+      <div class="modal-dialog modal-lg" style="max-width: 850px;">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="cpfRemoveModalLabel">Excluir eventos por lista de CPFs (CSV)</h5>
+            <button type="button" class="close" data-dismiss="modal" aria-label="Fechar"><span aria-hidden="true">&times;</span></button>
+          </div>
+          <div class="modal-body">
+            <div class="alert alert-warning">
+              Esta operação remove eventos cujo <strong>trabalhador.cpfTrab</strong> (Identificação do Evento) esteja na lista.
+              A remoção preserva os demais registros integralmente.
+            </div>
+
+            <div class="form-group">
+              <label><strong>Carregar arquivo CSV / TXT:</strong></label>
+              <input type="file" id="cpfCsvInput" accept=".csv,.txt" class="form-control-file"/>
+              <div class="small-hint mt-2">
+                Pode conter CPF em qualquer coluna. O sistema extrai dígitos e normaliza para 11 posições (com zeros à esquerda, se necessário).
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label><strong>Ou cole os CPFs (1 por linha):</strong></label>
+              <textarea id="cpfTextarea" class="form-control mono" rows="6" placeholder="Ex:
+01234567890
+1234567890
+123.456.789-01"></textarea>
+            </div>
+
+            <div class="small-hint mb-2">
+              Pré-visualização (primeiros 20 CPFs válidos):
+            </div>
+            <pre id="cpfPreview" class="mono status-box p-2" style="background:#f8f9fa;border:1px solid #dee2e6;border-radius:6px; max-height: 220px; overflow:auto;"></pre>
+            <div id="cpfStats" class="small-hint mt-2"></div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+            <button type="button" class="btn btn-danger" id="applyCpfRemovalBtn"><i class="fas fa-trash"></i> Excluir registros encontrados</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  
+    <!-- Modal: Sincronizar Dependentes (InfoDep) a partir de base (cpfTrab;cpfDep;depIRRF;dtNascto;nome;tpDep.codigo) -->
+    <div class="modal fade" id="depSyncModal" tabindex="-1" aria-labelledby="depSyncModalLabel" aria-hidden="true">
+      <div class="modal-dialog modal-lg" style="max-width: 950px;">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="depSyncModalLabel">Sincronizar Dependentes (s1210InfoDep) por base CSV</h5>
+            <button type="button" class="close" data-dismiss="modal" aria-label="Fechar"><span aria-hidden="true">&times;</span></button>
+          </div>
+          <div class="modal-body">
+            <div class="alert alert-info">
+              Objetivo: quando houver <strong>Ded. Dependente (s1210DedDepen)</strong> ou <strong>Pensão Alimentícia (s1210PenAlim)</strong>,
+              garantir que o <strong>cpfDep</strong> esteja cadastrado em <strong>Dependentes (s1210InfoDep)</strong> no mesmo bloco IR Complem.
+              O script só adiciona o necessário, preservando a integridade do arquivo.
+            </div>
+
+            <div class="form-group">
+              <label><strong>Carregar base CSV / TXT (separado por ;):</strong></label>
+              <input type="file" id="depCsvInput" accept=".csv,.txt" class="form-control-file"/>
+              <div class="small-hint mt-2">
+                Formato por linha: <span class="mono">cpfTrab;cpfDep;depIRRF;dtNascto;nome;tpDep.codigo</span>.
+                CPFs podem vir sem zeros à esquerda (Excel); o sistema normaliza para 11 dígitos.
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label><strong>Ou cole a base (uma linha por registro):</strong></label>
+              <textarea id="depTextarea" class="form-control mono" rows="7" placeholder="Ex:
+01234567890;12345678901;S;2001-05-10;FULANO DE TAL;01"></textarea>
+            </div>
+
+            <div class="form-group form-check">
+              <input type="checkbox" class="form-check-input" id="depDedupCheckbox">
+              <label class="form-check-label" for="depDedupCheckbox">Remover duplicidades existentes em s1210InfoDep (mantém a primeira ocorrência)</label>
+            </div>
+
+            <div class="small-hint mb-2">Pré-visualização (primeiras 20 linhas válidas):</div>
+            <pre id="depPreview" class="mono status-box p-2" style="background:#f8f9fa;border:1px solid #dee2e6;border-radius:6px; max-height: 220px; overflow:auto;"></pre>
+            <div id="depStats" class="small-hint mt-2"></div>
+
+            <hr/>
+            <div class="d-flex flex-wrap" style="gap:.5rem;">
+              <button type="button" class="btn btn-outline-secondary" id="depAnalyzeBtn"><i class="fas fa-search"></i> Analisar</button>
+              <button type="button" class="btn btn-primary" id="depApplyBtn"><i class="fas fa-magic"></i> Aplicar correções</button>
+            </div>
+
+            <div class="small-hint mt-2">Relatório:</div>
+            <pre id="depReport" class="mono status-box p-2" style="background:#fff;border:1px solid #dee2e6;border-radius:6px; max-height: 320px; overflow:auto;"></pre>
+
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-dismiss="modal">Fechar</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
   </div><!-- container -->
 
   <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
@@ -208,8 +310,6 @@
     // ============================================================================
     window.esocialData = {"s1210PagtoRendTrabGroup":{"s1210PagtoRendTrab":[]}};
     window.loadedFileName = null;
-
-    function deepClone(x){ return JSON.parse(JSON.stringify(x)); }
 
     function ensureRoot(data) {
       if (!data || typeof data !== "object") data = {};
@@ -239,69 +339,14 @@
       return true;
     }
 
-    const placeholdersMap = {
-      "*vazio*": ["*vazio*"],
-      "*datavazia*": ["*datavazia*"],
-      "*numerovazio*": ["*numerovazio*"],
-      "pais": ["*vazio*"],
-      "tpPgto": ["*vazio*"],
-      "tipoCompetencia": ["*vazio*"],
-      "tpCR": ["*vazio*"],
-      "ideDmDev": ["*vazio*"],
-      "cpfDep": ["*vazio*"],
-      "cpfTrab": ["*vazio*"],
-      "nrInsc": ["*vazio*"],
-      "dtNascto": ["*datavazia*"],
-      "perRef": ["*datavazia*"],
-      "perApur": ["*datavazia*"],
-      "dtPgto": ["*datavazia*"],
-      "dtLaudo": ["*datavazia*"],
-      "perRefAjuste": ["*datavazia*"],
-      "vrLiq": ["*numerovazio*"],
-      "vlrDedDep": ["*numerovazio*"],
-      "vlrDedPenAlim": ["*numerovazio*"]
-    };
-
-    function addPlaceholderDropdowns(scopeEl) {
-      const allInputs = (scopeEl || document).querySelectorAll("input.has-placeholder");
-      allInputs.forEach((input) => {
-        const dataKey = input.getAttribute("data-ph-key") || input.id || "";
-        const key = dataKey.includes(".") ? dataKey.split(".").slice(-1)[0] : dataKey;
-        const placeholders = placeholdersMap[key];
-        if (!placeholders) return;
-
-        const wrapper = input.parentElement;
-        if (!wrapper || !wrapper.classList.contains("input-group")) return;
-        if (wrapper.querySelector(".placeholder-select")) return;
-
-        const select = document.createElement("select");
-        select.className = "form-control placeholder-select";
-        select.style.minWidth = "120px";
-
-        const optDefault = document.createElement("option");
-        optDefault.value = "";
-        optDefault.textContent = "(Digite valor)";
-        select.appendChild(optDefault);
-
-        placeholders.forEach((ph) => {
-          const opt = document.createElement("option");
-          opt.value = ph;
-          opt.textContent = ph;
-          select.appendChild(opt);
-        });
-
-        select.addEventListener("change", () => { if (select.value) input.value = select.value; });
-
-        let appendDiv = wrapper.querySelector(".input-group-append");
-        if (!appendDiv) { appendDiv = document.createElement("div"); appendDiv.className = "input-group-append"; wrapper.appendChild(appendDiv); }
-        appendDiv.appendChild(select);
-      });
-    }
-
     function eventoCorrespondeFiltro(evt) {
       const searchValue = (document.getElementById("searchInput").value || "").toLowerCase();
       if (!searchValue) return true;
       try { return JSON.stringify(evt).toLowerCase().includes(searchValue); } catch { return true; }
+    }
+
+    function setStatus(html) {
+      document.getElementById("statusArea").innerHTML = html || "";
     }
 
     // ============================================================================
@@ -373,6 +418,7 @@
       if (!confirm("Deseja remover todos os selecionados?")) return;
       window.esocialData.s1210PagtoRendTrabGroup.s1210PagtoRendTrab = getEventos().filter(e => !e._selected);
       renderEventosTable();
+      setStatus('<div class="alert alert-info mb-0">Selecionados removidos.</div>');
     });
 
     // ============================================================================
@@ -390,8 +436,7 @@
           window.esocialData = ensureRoot(parsed);
           getEventos().forEach(evt => { if (typeof evt._selected === "undefined") evt._selected = false; });
           renderEventosTable();
-          document.getElementById("validationResult").innerHTML = "";
-          alert("Arquivo carregado com sucesso!");
+          setStatus('<div class="alert alert-success mb-0">Arquivo carregado com sucesso.</div>');
         } catch (err) {
           alert("Erro ao ler JSON: " + err);
         }
@@ -423,10 +468,6 @@
 
     document.getElementById("downloadBtn").addEventListener("click", () => {
       try {
-        const issues = validateData(window.esocialData);
-        if (issues.length) {
-          if (!confirm("Foram encontrados avisos na validação. Deseja baixar mesmo assim?\n\n- " + issues.join("\n- "))) return;
-        }
         const dataStr = gerarArquivoEsocialFormatado(window.esocialData);
         const blob = new Blob([dataStr], { type: "application/json;charset=utf-8;" });
         const url = URL.createObjectURL(blob);
@@ -438,42 +479,6 @@
       } catch (err) {
         alert("Erro ao gerar download: " + err);
       }
-    });
-
-    // ============================================================================
-    // Validação
-    // ============================================================================
-    function isDateOrPlaceholder(v){ if (v === "*datavazia*") return true; return /^\d{4}-\d{2}-\d{2}$/.test(v); }
-    function isNumberStringOrPlaceholder(v){ if (v === "*numerovazio*") return true; return /^-?\d+(\.\d+)?$/.test(String(v)); }
-
-    function validateData(data){
-      const issues = [];
-      if (!data || !data.s1210PagtoRendTrabGroup || !Array.isArray(data.s1210PagtoRendTrabGroup.s1210PagtoRendTrab)) {
-        issues.push("Estrutura raiz inválida (s1210PagtoRendTrabGroup/s1210PagtoRendTrab).");
-        return issues;
-      }
-      const eventos = data.s1210PagtoRendTrabGroup.s1210PagtoRendTrab;
-      eventos.forEach((evt, idx) => {
-        if (!evt || typeof evt !== "object") { issues.push(`Evento[${idx}] não é objeto.`); return; }
-        if (!("ordemRegistro" in evt)) issues.push(`Evento[${idx}] sem ordemRegistro.`);
-        if (!("chaveIntegracao" in evt)) issues.push(`Evento[${idx}] sem chaveIntegracao.`);
-        if ("perApur" in evt && evt.perApur && !isDateOrPlaceholder(evt.perApur)) issues.push(`Evento[${idx}] perApur fora do padrão: ${evt.perApur}`);
-        (evt.s1210PagtoRendTrabInfo || []).forEach((p, pidx) => {
-          if (p.dtPgto && !isDateOrPlaceholder(p.dtPgto)) issues.push(`Evento[${idx}]/Pagto[${pidx}] dtPgto fora do padrão: ${p.dtPgto}`);
-          (p.s1210PagtoRendTrabDetPag || []).forEach((d, didx) => {
-            if (d.perRef && !isDateOrPlaceholder(d.perRef)) issues.push(`Evento[${idx}]/Pagto[${pidx}]/DetPag[${didx}] perRef fora do padrão: ${d.perRef}`);
-            if (d.vrLiq && !isNumberStringOrPlaceholder(d.vrLiq)) issues.push(`Evento[${idx}]/Pagto[${pidx}]/DetPag[${didx}] vrLiq fora do padrão: ${d.vrLiq}`);
-          });
-        });
-      });
-      return issues;
-    }
-
-    document.getElementById("validateBtn").addEventListener("click", () => {
-      const issues = validateData(window.esocialData);
-      const box = document.getElementById("validationResult");
-      if (!issues.length) box.innerHTML = '<div class="alert alert-success mb-0"><i class="fas fa-check"></i> Validação básica OK.</div>';
-      else box.innerHTML = '<div class="alert alert-warning"><strong>Avisos:</strong><br/>' + issues.map(i => "• " + i).join("<br/>") + "</div>";
     });
 
     // ============================================================================
@@ -532,7 +537,6 @@
         addPagtoInfoCard(pagCont, p, null, true);
       };
 
-      addPlaceholderDropdowns(document.getElementById("eventoModal"));
       $("#eventoModal").modal("show");
     }
 
@@ -562,15 +566,11 @@
           <div class="form-row">
             <div class="form-group col-md-6">
               <label>dtLaudo</label>
-              <div class="input-group">
-                <input type="text" class="form-control has-placeholder ir-dtLaudo" data-ph-key="dtLaudo"/>
-              </div>
+              <input type="text" class="form-control ir-dtLaudo"/>
             </div>
             <div class="form-group col-md-6">
               <label>perRefAjuste</label>
-              <div class="input-group">
-                <input type="text" class="form-control has-placeholder ir-perRefAjuste" data-ph-key="perRefAjuste"/>
-              </div>
+              <input type="text" class="form-control ir-perRefAjuste"/>
             </div>
           </div>
 
@@ -620,7 +620,6 @@
       card.querySelector(".ir-remove").addEventListener("click", () => card.remove());
 
       container.appendChild(card);
-      addPlaceholderDropdowns(card);
       setAutoCollapse(card, card.querySelector(".card-body"), blk);
     }
 
@@ -631,9 +630,9 @@
       tr.dataset.template = JSON.stringify(dep);
 
       tr.innerHTML = `
-        <td><div class="input-group"><input type="text" class="form-control form-control-sm has-placeholder dep-cpfDep" data-ph-key="cpfDep"></div></td>
+        <td><input type="text" class="form-control form-control-sm dep-cpfDep"></td>
         <td><input type="text" class="form-control form-control-sm dep-depIRRF"></td>
-        <td><div class="input-group"><input type="text" class="form-control form-control-sm has-placeholder dep-dtNascto" data-ph-key="dtNascto"></div></td>
+        <td><input type="text" class="form-control form-control-sm dep-dtNascto"></td>
         <td><input type="text" class="form-control form-control-sm dep-nome"></td>
         <td><input type="text" class="form-control form-control-sm dep-tpDep"></td>
         <td class="text-center"><button type="button" class="btn btn-sm btn-outline-danger dep-remove"><i class="fas fa-trash"></i></button></td>
@@ -647,7 +646,6 @@
       tr.querySelector(".dep-remove").addEventListener("click", () => tr.remove());
 
       tbody.appendChild(tr);
-      addPlaceholderDropdowns(tr);
     }
 
     function addIrcrCard(container, ircr, idx=null, isNew=false) {
@@ -674,9 +672,7 @@
           <div class="form-row">
             <div class="form-group col-md-4">
               <label>tpCR</label>
-              <div class="input-group">
-                <input type="text" class="form-control has-placeholder ircr-tpCR" data-ph-key="tpCR"/>
-              </div>
+              <input type="text" class="form-control ircr-tpCR"/>
             </div>
           </div>
 
@@ -731,7 +727,6 @@
       card.querySelector(".ircr-remove").addEventListener("click", () => card.remove());
 
       container.appendChild(card);
-      addPlaceholderDropdowns(card);
       setAutoCollapse(card, card.querySelector(".card-body"), ircr);
     }
 
@@ -742,9 +737,9 @@
       tr.dataset.template = JSON.stringify(x);
 
       tr.innerHTML = `
-        <td><div class="input-group"><input type="text" class="form-control form-control-sm has-placeholder ded-cpfDep" data-ph-key="cpfDep"></div></td>
+        <td><input type="text" class="form-control form-control-sm ded-cpfDep"></td>
         <td><input type="text" class="form-control form-control-sm ded-tpRend"></td>
-        <td><div class="input-group"><input type="text" class="form-control form-control-sm has-placeholder ded-vlr" data-ph-key="vlrDedDep"></div></td>
+        <td><input type="text" class="form-control form-control-sm ded-vlr"></td>
         <td class="text-center"><button type="button" class="btn btn-sm btn-outline-danger row-remove"><i class="fas fa-trash"></i></button></td>
       `;
 
@@ -754,7 +749,6 @@
       tr.querySelector(".row-remove").addEventListener("click", () => tr.remove());
 
       tbody.appendChild(tr);
-      addPlaceholderDropdowns(tr);
     }
 
     function addPenRow(tbody, x, idx=null, isNew=false){
@@ -764,9 +758,9 @@
       tr.dataset.template = JSON.stringify(x);
 
       tr.innerHTML = `
-        <td><div class="input-group"><input type="text" class="form-control form-control-sm has-placeholder pen-cpfDep" data-ph-key="cpfDep"></div></td>
+        <td><input type="text" class="form-control form-control-sm pen-cpfDep"></td>
         <td><input type="text" class="form-control form-control-sm pen-tpRend"></td>
-        <td><div class="input-group"><input type="text" class="form-control form-control-sm has-placeholder pen-vlr" data-ph-key="vlrDedPenAlim"></div></td>
+        <td><input type="text" class="form-control form-control-sm pen-vlr"></td>
         <td class="text-center"><button type="button" class="btn btn-sm btn-outline-danger row-remove"><i class="fas fa-trash"></i></button></td>
       `;
 
@@ -776,7 +770,6 @@
       tr.querySelector(".row-remove").addEventListener("click", () => tr.remove());
 
       tbody.appendChild(tr);
-      addPlaceholderDropdowns(tr);
     }
 
     function addPagtoInfoCard(container, p, idx=null, isNew=false) {
@@ -804,21 +797,15 @@
           <div class="form-row">
             <div class="form-group col-md-4">
               <label>dtPgto</label>
-              <div class="input-group">
-                <input type="text" class="form-control has-placeholder pagto-dtPgto" data-ph-key="dtPgto"/>
-              </div>
+              <input type="text" class="form-control pagto-dtPgto"/>
             </div>
             <div class="form-group col-md-4">
               <label>tpPgto</label>
-              <div class="input-group">
-                <input type="text" class="form-control has-placeholder pagto-tpPgto" data-ph-key="tpPgto"/>
-              </div>
+              <input type="text" class="form-control pagto-tpPgto"/>
             </div>
             <div class="form-group col-md-4">
               <label>paisResidExt.pais</label>
-              <div class="input-group">
-                <input type="text" class="form-control has-placeholder pagto-pais" data-ph-key="pais"/>
-              </div>
+              <input type="text" class="form-control pagto-pais"/>
             </div>
           </div>
 
@@ -873,7 +860,6 @@
       card.querySelector(".pagto-remove").addEventListener("click", () => card.remove());
 
       container.appendChild(card);
-      addPlaceholderDropdowns(card);
       setAutoCollapse(card, card.querySelector(".card-body"), p);
     }
 
@@ -884,15 +870,15 @@
       tr.dataset.template = JSON.stringify(d);
 
       tr.innerHTML = `
-        <td><div class="input-group"><input type="text" class="form-control form-control-sm has-placeholder det-perRef" data-ph-key="perRef"></div></td>
-        <td><div class="input-group"><input type="text" class="form-control form-control-sm has-placeholder det-tipoCompetencia" data-ph-key="tipoCompetencia"></div></td>
-        <td><div class="input-group"><input type="text" class="form-control form-control-sm has-placeholder det-vrLiq" data-ph-key="vrLiq"></div></td>
+        <td><input type="text" class="form-control form-control-sm det-perRef"></td>
+        <td><input type="text" class="form-control form-control-sm det-tipoCompetencia"></td>
+        <td><input type="text" class="form-control form-control-sm det-vrLiq"></td>
 
-        <td><div class="input-group"><input type="text" class="form-control form-control-sm has-placeholder det-rpps" data-ph-key="ideDmDev"></div></td>
-        <td><div class="input-group"><input type="text" class="form-control form-control-sm has-placeholder det-rgps" data-ph-key="ideDmDev"></div></td>
-        <td><div class="input-group"><input type="text" class="form-control form-control-sm has-placeholder det-benef" data-ph-key="ideDmDev"></div></td>
-        <td><div class="input-group"><input type="text" class="form-control form-control-sm has-placeholder det-resc" data-ph-key="ideDmDev"></div></td>
-        <td><div class="input-group"><input type="text" class="form-control form-control-sm has-placeholder det-resctsv" data-ph-key="ideDmDev"></div></td>
+        <td><input type="text" class="form-control form-control-sm det-rpps"></td>
+        <td><input type="text" class="form-control form-control-sm det-rgps"></td>
+        <td><input type="text" class="form-control form-control-sm det-benef"></td>
+        <td><input type="text" class="form-control form-control-sm det-resc"></td>
+        <td><input type="text" class="form-control form-control-sm det-resctsv"></td>
 
         <td class="text-center"><button type="button" class="btn btn-sm btn-outline-danger row-remove"><i class="fas fa-trash"></i></button></td>
       `;
@@ -910,7 +896,6 @@
       tr.querySelector(".row-remove").addEventListener("click", () => tr.remove());
 
       tbody.appendChild(tr);
-      addPlaceholderDropdowns(tr);
     }
 
     // ============================================================================
@@ -982,7 +967,7 @@
 
                 setIfChanged(ircr, "tpCR", safeValue(ic, ".ircr-tpCR"));
 
-                // DedDepen (não injeta key se ausente e sem linhas)
+                // DedDepen
                 const dedRows = Array.from(ic.querySelectorAll(".ded-tbody tr"));
                 const hadDedKey = ("s1210DedDepen" in ircr);
                 if (hadDedKey || dedRows.length > 0) {
@@ -1001,7 +986,7 @@
                   else ircr.s1210DedDepen = newDeds;
                 }
 
-                // PenAlim (não injeta key se ausente e sem linhas)
+                // PenAlim
                 const penRows = Array.from(ic.querySelectorAll(".pen-tbody tr"));
                 const hadPenKey = ("s1210PenAlim" in ircr);
                 if (hadPenKey || penRows.length > 0) {
@@ -1048,7 +1033,7 @@
             setIfChanged(p, "tpPgto", safeValue(card, ".pagto-tpPgto"));
             if (p.paisResidExt && typeof p.paisResidExt === "object") setIfChanged(p.paisResidExt, "pais", safeValue(card, ".pagto-pais"));
 
-            // DetPag: não injeta key se ausente e sem linhas
+            // DetPag
             const detRows = Array.from(card.querySelectorAll(".det-tbody tr"));
             const hadDetKey = ("s1210PagtoRendTrabDetPag" in p);
             if (hadDetKey || detRows.length > 0) {
@@ -1084,9 +1069,126 @@
 
         $("#eventoModal").modal("hide");
         renderEventosTable();
+        setStatus('<div class="alert alert-success mb-0">Alterações salvas (patch aplicado).</div>');
       } catch (err) {
         alert("Erro ao salvar evento: " + err);
       }
+    });
+
+    // ============================================================================
+    // Script: Excluir por CSV de CPFs (cpfTrab)
+    // ============================================================================
+    let cachedCpfSet = new Set();
+
+    function normalizeCpf(value) {
+      if (value === null || value === undefined) return null;
+      const s = String(value).trim();
+      if (!s) return null;
+
+      // 1) tenta achar um CPF "completo" no texto (11 dígitos)
+      const eleven = s.match(/\d{11}/);
+      if (eleven) return eleven[0];
+
+      // 2) remove tudo que não é dígito e ajusta tamanho (Excel pode cortar zeros à esquerda)
+      let digits = s.replace(/\D+/g, "");
+      if (!digits) return null;
+
+      if (digits.length < 11) digits = digits.padStart(11, "0");
+      if (digits.length > 11) digits = digits.slice(-11); // fallback seguro
+
+      return digits.length === 11 ? digits : null;
+    }
+
+    function extractCpfsFromText(text) {
+      const set = new Set();
+      const lines = String(text || "").split(/\r?\n/);
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed) continue;
+
+        // tentativas:
+        // - pega primeiro CPF 11 dígitos se existir
+        const m11 = trimmed.match(/\d{11}/);
+        if (m11) { set.add(m11[0]); continue; }
+
+        // - caso venha "sem zero à esquerda" (10 dígitos) ou com máscara
+        const norm = normalizeCpf(trimmed);
+        if (norm) set.add(norm);
+      }
+      return set;
+    }
+
+    function updateCpfPreview() {
+      const list = Array.from(cachedCpfSet);
+      const preview = list.slice(0, 20).join("\n");
+      document.getElementById("cpfPreview").textContent = preview || "(nenhum CPF válido carregado)";
+      document.getElementById("cpfStats").textContent = `CPFs válidos: ${list.length}`;
+    }
+
+    document.getElementById("cpfCsvInput").addEventListener("change", function () {
+      const file = this.files && this.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function (e) {
+        const text = e.target.result || "";
+        const set = extractCpfsFromText(text);
+        cachedCpfSet = new Set([...cachedCpfSet, ...set]);
+        updateCpfPreview();
+      };
+      reader.readAsText(file);
+    });
+
+    document.getElementById("cpfTextarea").addEventListener("input", function () {
+      // não auto-mescla a cada tecla para evitar "travadas" em colagens grandes
+    });
+
+    $('#cpfRemoveModal').on('shown.bs.modal', function () {
+      cachedCpfSet = new Set();
+      document.getElementById("cpfCsvInput").value = "";
+      document.getElementById("cpfTextarea").value = "";
+      updateCpfPreview();
+    });
+
+    document.getElementById("applyCpfRemovalBtn").addEventListener("click", () => {
+      // incorpora textarea
+      const pasted = document.getElementById("cpfTextarea").value || "";
+      const pastedSet = extractCpfsFromText(pasted);
+      cachedCpfSet = new Set([...cachedCpfSet, ...pastedSet]);
+      updateCpfPreview();
+
+      if (cachedCpfSet.size === 0) {
+        alert("Nenhum CPF válido foi identificado. Verifique o CSV/texto.");
+        return;
+      }
+
+      const eventos = getEventos();
+      const before = eventos.length;
+
+      const removedCpfs = new Set();
+      const kept = [];
+
+      for (const evt of eventos) {
+        const cpfTrab = evt?.trabalhador?.cpfTrab;
+        const norm = normalizeCpf(cpfTrab);
+        if (norm && cachedCpfSet.has(norm)) {
+          removedCpfs.add(norm);
+          continue; // remove evento
+        }
+        kept.push(evt);
+      }
+
+      window.esocialData.s1210PagtoRendTrabGroup.s1210PagtoRendTrab = kept;
+      renderEventosTable();
+      $("#cpfRemoveModal").modal("hide");
+
+      const removedCount = before - kept.length;
+      setStatus(
+        `<div class="alert alert-success mb-0">
+          Registros removidos: <strong>${removedCount}</strong> (CPFs distintos encontrados: ${removedCpfs.size}).<br/>
+          Critério: trabalhador.cpfTrab (normalizado para 11 dígitos).
+        </div>`
+      );
     });
 
     // ============================================================================
