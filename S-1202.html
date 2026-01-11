@@ -81,7 +81,7 @@
 
   <!-- Navbar simples -->
   <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
-    <a class="navbar-brand" href="#">Editor Eventos - V1.0.4</a>
+    <a class="navbar-brand" href="#">Editor Eventos - V1.0.5</a>
   </nav>
 
   <!-- Conteúdo principal -->
@@ -96,6 +96,7 @@
           <label for="fileInput"><strong>Carregar Arquivo JSON:</strong></label>
           <input type="file" id="fileInput" accept=".json" class="form-control-file" />
         </div>
+        <div id="jsonLoadInfo" class="mt-3"></div>
         <button id="downloadBtn" class="btn btn-info">Baixar Edição</button>
       </div>
     </div>
@@ -216,37 +217,29 @@
               <span aria-hidden="true">&times;</span>
             </button>
           </div>
-                    <div class="modal-body">
+
+          <div class="modal-body">
             <div class="form-group">
-              <label for="csvOldFileInput">Base antiga (cpfTrab;matricula) <span class="text-muted">(estático)</span>:</label>
-              <input type="file" id="csvOldFileInput" accept=".csv" class="form-control-file" />
-              <small class="form-text text-muted">CPF pode vir com 11 dígitos, com máscara, ou sem zeros à esquerda (será normalizado).</small>
+              <label for="csvFileInput">Arquivo CSV (cpfTrab;matricula;matricula_atual):</label>
+              <input type="file" id="csvFileInput" accept=".csv" class="form-control-file" />
+              <small class="form-text text-muted">
+                Separador recomendado: <code>;</code>. CPF pode vir com máscara, com 11 dígitos, ou sem zeros à esquerda (será normalizado).
+              </small>
 
-              <hr>
-
-              <label for="csvNewFileInput">Base nova (cpfTrab;matricula_atual) <span class="text-muted">(atualize apenas este)</span>:</label>
-              <input type="file" id="csvNewFileInput" accept=".csv" class="form-control-file" />
-              <small class="form-text text-muted">Use esta base para refletir a matrícula que está vindo atualmente no JSON gerado pelo RH.</small>
-
-              <hr>
-
-              <div class="form-check">
+              <div class="form-check mt-3">
                 <input type="checkbox" class="form-check-input" id="csvHeuristicSuffix">
                 <label class="form-check-label" for="csvHeuristicSuffix">
-                  Tentar correção automática quando a matrícula terminar em <code>/NN</code> (ex.: <code>12345/01</code> → <code>12345</code>) caso não exista base para o CPF
+                  Tentar correção automática quando a matrícula terminar em <code>/N</code> ou <code>/NN</code> (ex.: <code>12345/1</code> ou <code>12345/01</code> → <code>12345</code>) caso o CPF não exista no CSV
                 </label>
-                <small class="form-text text-muted">Opcional e conservador: só aplica para o padrão final <code>/</code> + 2 dígitos e apenas quando não houver mapeamento por CPF.</small>
+                <small class="form-text text-muted">
+                  Opcional e conservador: só remove sufixo final <code>/</code> + 1-2 dígitos, e apenas quando não houver mapeamento por CPF.
+                </small>
               </div>
 
-              <hr>
-
-              <label for="csvFileInput">Modo legado: arquivo único (cpfTrab;matricula;matricula_atual):</label>
-              <input type="file" id="csvFileInput" accept=".csv" class="form-control-file" />
-
-              <div id="csvStatus" class="small text-muted mt-2">Nenhuma base carregada ainda.</div>
+              <div id="csvStatus" class="small text-muted mt-3">Nenhum CSV carregado ainda.</div>
             </div>
           </div>
-          </div>
+
           <div class="modal-footer">
             <button type="button" class="btn btn-secondary" data-dismiss="modal">Fechar</button>
             <button type="button" class="btn btn-primary" id="analisarMatriculasBtn">Analisar Matrículas</button>
@@ -643,6 +636,7 @@
     // ======================================================================
     // Controle de arquivo carregado (para salvar com o mesmo nome + "_editado")
     let loadedFileName = null;
+    let loadedFileMeta = null;
 
     function stripUtf8Bom(text) {
       if (!text) return "";
@@ -1434,6 +1428,7 @@
 
       $("#eventoModal").modal("hide");
       renderEventosTable();
+      if (typeof refreshJsonLoadInfo === "function") refreshJsonLoadInfo();
     };
 
     // ----------------------------------------------------------------------
@@ -1444,6 +1439,7 @@
       if (!file) return;
 
       loadedFileName = file.name || null;
+      loadedFileMeta = { name: file.name || "", size: file.size || 0, lastModified: file.lastModified || 0 };
 
       const reader = new FileReader();
       reader.onload = function (e) {
@@ -1459,6 +1455,7 @@
           });
 
           renderEventosTable();
+          if (typeof refreshJsonLoadInfo === "function") refreshJsonLoadInfo();
 
           if (parsed.repaired) {
             alert("Arquivo carregado com sucesso (foi aplicado um reparo mínimo para leitura: BOM e/ou vírgula sobrando). Recomenda-se validar o conteúdo antes da transmissão.");
@@ -1649,6 +1646,7 @@
       let novos = eventos.filter((e) => !e._selected);
       window.esocialData.s1202RemuTrabRPPSGroup.s1202RemuTrabRPPS = novos;
       renderEventosTable();
+      if (typeof refreshJsonLoadInfo === "function") refreshJsonLoadInfo();
     });
 
     // ----------------------------------------------------------------------
@@ -1959,40 +1957,33 @@ function mesclarEventos() {
 
     // Inicializa a tabela ao carregar
     renderEventosTable();
+    if (typeof refreshJsonLoadInfo === "function") refreshJsonLoadInfo();
 
     
+    
     // ======================================================================
-    // CSV MATRÍCULAS (base antiga + base nova + legado)
+    // CSV MATRÍCULAS (arquivo único: cpfTrab;matricula;matricula_atual)
     // ======================================================================
 
-    // Bases
-    let csvMappingLegacy = {};  // cpf -> { matricula, matricula_atual }
-    let csvBaseOld = {};        // cpf -> matricula (antiga)
-    let csvBaseNew = {};        // cpf -> matricula_atual (atual)
-    let csvLastLoadedInfo = { old: 0, neu: 0, legacy: 0 };
+    let csvMapping = {}; // cpf -> { matricula_antiga, matricula_atual }
+    let csvStats = { totalLinhas: 0, validas: 0, ignoradas: 0, conflitos: 0, delimiter: ";" };
 
     function normalizeCpf(raw) {
       const digits = String(raw || "").replace(/\D/g, "");
       if (!digits) return "";
-      // Se vier com menos dígitos, completa à esquerda; se vier com mais, mantém (mas isso indica entrada inconsistente).
       return digits.length < 11 ? digits.padStart(11, "0") : digits;
     }
 
-    function updateCsvStatus(extraMessage) {
-      const el = document.getElementById("csvStatus");
-      if (!el) return;
-      const parts = [];
-      if (csvLastLoadedInfo.old) parts.push(`Base antiga: ${csvLastLoadedInfo.old} CPFs`);
-      if (csvLastLoadedInfo.neu) parts.push(`Base nova: ${csvLastLoadedInfo.neu} CPFs`);
-      if (csvLastLoadedInfo.legacy) parts.push(`Legado: ${csvLastLoadedInfo.legacy} CPFs`);
-      el.textContent = (parts.length ? parts.join(" | ") : "Nenhuma base carregada ainda.") + (extraMessage ? ` — ${extraMessage}` : "");
+    function detectDelimiter(line) {
+      const s = String(line || "");
+      const semi = (s.match(/;/g) || []).length;
+      const comma = (s.match(/,/g) || []).length;
+      return semi >= comma ? ";" : ",";
     }
 
-    // CSV com separador ';' e possível cabeçalho. Aceita 2 ou 3 colunas, conforme modo.
     function parseCsvLines(csvText) {
       const t = stripUtf8Bom(String(csvText || ""));
-      const lines = t.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
-      return lines;
+      return t.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
     }
 
     function looksLikeHeader(firstCell) {
@@ -2000,53 +1991,41 @@ function mesclarEventos() {
       return v.includes("cpf") || v.includes("cpftrab");
     }
 
-    function loadCsvBaseOld(csvText) {
+    function loadCsvMapping(csvText) {
       const lines = parseCsvLines(csvText);
+      const stats = { totalLinhas: lines.length, validas: 0, ignoradas: 0, conflitos: 0, delimiter: ";" };
       const mapping = {};
-      for (let i = 0; i < lines.length; i++) {
-        const cols = lines[i].split(";").map(c => c.trim());
-        if (cols.length < 2) continue;
-        if (i === 0 && looksLikeHeader(cols[0])) continue;
-        const cpf = normalizeCpf(cols[0]);
-        if (!cpf) continue;
-        const matricula = cols[1];
-        if (!matricula) continue;
-        mapping[cpf] = matricula;
-      }
-      return mapping;
-    }
 
-    function loadCsvBaseNew(csvText) {
-      const lines = parseCsvLines(csvText);
-      const mapping = {};
-      for (let i = 0; i < lines.length; i++) {
-        const cols = lines[i].split(";").map(c => c.trim());
-        if (cols.length < 2) continue;
-        if (i === 0 && looksLikeHeader(cols[0])) continue;
-        const cpf = normalizeCpf(cols[0]);
-        if (!cpf) continue;
-        const matriculaAtual = cols[1];
-        if (!matriculaAtual) continue;
-        mapping[cpf] = matriculaAtual;
-      }
-      return mapping;
-    }
+      if (!lines.length) return { mapping, stats };
 
-    function loadCsvLegacy(csvText) {
-      const lines = parseCsvLines(csvText);
-      const mapping = {};
+      const delimiter = detectDelimiter(lines[0]);
+      stats.delimiter = delimiter;
+
       for (let i = 0; i < lines.length; i++) {
-        const cols = lines[i].split(";").map(c => c.trim());
-        if (cols.length < 3) continue;
-        if (i === 0 && looksLikeHeader(cols[0])) continue;
+        const cols = lines[i].split(delimiter).map(c => String(c || "").trim());
+        if (!cols.length) { stats.ignoradas++; continue; }
+        if (i === 0 && looksLikeHeader(cols[0])) { stats.ignoradas++; continue; }
+        if (cols.length < 3) { stats.ignoradas++; continue; }
+
         const cpf = normalizeCpf(cols[0]);
-        if (!cpf) continue;
-        mapping[cpf] = {
-          matricula: cols[1] || "",
-          matricula_atual: cols[2] || ""
-        };
+        const matriculaAntiga = cols[1] || "";
+        const matriculaAtual = cols[2] || "";
+        if (!cpf || !matriculaAntiga || !matriculaAtual) { stats.ignoradas++; continue; }
+
+        if (mapping[cpf]) {
+          const prev = mapping[cpf];
+          if (prev.matricula_antiga !== matriculaAntiga || prev.matricula_atual !== matriculaAtual) {
+            // conflito: preferimos não sobrescrever para evitar atualização errada
+            stats.conflitos++;
+            continue;
+          }
+        } else {
+          mapping[cpf] = { matricula_antiga: matriculaAntiga, matricula_atual: matriculaAtual };
+          stats.validas++;
+        }
       }
-      return mapping;
+
+      return { mapping, stats };
     }
 
     async function readFileAsText(file) {
@@ -2058,56 +2037,35 @@ function mesclarEventos() {
       });
     }
 
-    // Listeners dos inputs
-    const oldInput = document.getElementById("csvOldFileInput");
-    const newInput = document.getElementById("csvNewFileInput");
-    const legacyInput = document.getElementById("csvFileInput");
+    function updateCsvStatus(extraMessage) {
+      const el = document.getElementById("csvStatus");
+      if (!el) return;
 
-    if (oldInput) {
-      oldInput.addEventListener("change", async function () {
-        const file = this.files && this.files[0];
-        if (!file) return;
-        try {
-          const txt = await readFileAsText(file);
-          csvBaseOld = loadCsvBaseOld(txt);
-          csvLastLoadedInfo.old = Object.keys(csvBaseOld).length;
-          updateCsvStatus("Base antiga carregada.");
-        } catch (err) {
-          alert("Erro ao ler Base antiga (CSV): " + err);
-        } finally {
-          this.value = "";
-        }
-      });
+      const total = Object.keys(csvMapping || {}).length;
+      const parts = [];
+      if (total) parts.push(`CPFs carregados: ${total}`);
+      if (csvStats.totalLinhas) parts.push(`Linhas: ${csvStats.totalLinhas}`);
+      if (csvStats.validas) parts.push(`Válidas: ${csvStats.validas}`);
+      if (csvStats.ignoradas) parts.push(`Ignoradas: ${csvStats.ignoradas}`);
+      if (csvStats.conflitos) parts.push(`Conflitos: ${csvStats.conflitos}`);
+      if (csvStats.delimiter) parts.push(`Delim: '${csvStats.delimiter}'`);
+
+      el.textContent = (parts.length ? parts.join(" | ") : "Nenhum CSV carregado ainda.") + (extraMessage ? ` — ${extraMessage}` : "");
     }
 
-    if (newInput) {
-      newInput.addEventListener("change", async function () {
+    const csvInput = document.getElementById("csvFileInput");
+    if (csvInput) {
+      csvInput.addEventListener("change", async function () {
         const file = this.files && this.files[0];
         if (!file) return;
         try {
           const txt = await readFileAsText(file);
-          csvBaseNew = loadCsvBaseNew(txt);
-          csvLastLoadedInfo.neu = Object.keys(csvBaseNew).length;
-          updateCsvStatus("Base nova carregada.");
+          const loaded = loadCsvMapping(txt);
+          csvMapping = loaded.mapping;
+          csvStats = loaded.stats;
+          updateCsvStatus("CSV carregado.");
         } catch (err) {
-          alert("Erro ao ler Base nova (CSV): " + err);
-        } finally {
-          this.value = "";
-        }
-      });
-    }
-
-    if (legacyInput) {
-      legacyInput.addEventListener("change", async function () {
-        const file = this.files && this.files[0];
-        if (!file) return;
-        try {
-          const txt = await readFileAsText(file);
-          csvMappingLegacy = loadCsvLegacy(txt);
-          csvLastLoadedInfo.legacy = Object.keys(csvMappingLegacy).length;
-          updateCsvStatus("Base legada carregada.");
-        } catch (err) {
-          alert("Erro ao ler CSV legado: " + err);
+          alert("Erro ao ler CSV: " + err);
         } finally {
           this.value = "";
         }
@@ -2115,59 +2073,60 @@ function mesclarEventos() {
     }
 
     function tryHeuristicOldMatricula(matriculaAtual) {
-      const s = String(matriculaAtual || "");
-      // padrão final "/NN" (2 dígitos), ex.: "12345/01"
-      const m = s.match(/^(.*)\/\d{2}$/);
+      const s = String(matriculaAtual || "").trim();
+      // padrão final "/N" ou "/NN" (1-2 dígitos), ex.: "12345/1" ou "12345/01"
+      const m = s.match(/^(.*)\/\d{1,2}$/);
       if (!m) return null;
       const base = (m[1] || "").trim();
       return base || null;
     }
 
-    // Execução: percorre eventos e substitui matrícula atual pela antiga (baseado no CPF)
+    function forEachContrato(evt, fn) {
+      (evt.s1202RemuTrabRPPSPagtos || []).forEach((pagto) => {
+        (pagto.s1202RemuTrabRPPSPer || []).forEach((periodo) => {
+          (periodo.s1202RemuTrabRPPSEstab || []).forEach((estab) => {
+            (estab.s1202RemuTrabRPPSRemu || []).forEach((remu) => {
+              if (remu && remu.contrato) {
+                fn(remu.contrato, remu, estab, periodo, pagto);
+              }
+            });
+          });
+        });
+      });
+    }
+
+    // Execução: percorre contratos e substitui matrícula atual pela antiga (baseado no CPF do evento)
     document.getElementById("analisarMatriculasBtn").addEventListener("click", function () {
       try {
         const eventos = getEventos();
         const useHeuristic = !!(document.getElementById("csvHeuristicSuffix") && document.getElementById("csvHeuristicSuffix").checked);
 
+        let contratosVisitados = 0;
         let totalAlterados = 0;
         let totalSemBase = 0;
+        let totalMismatchAtual = 0;
 
         eventos.forEach((evt) => {
-          const cpf = normalizeCpf(evt.cpfTrab);
+          const cpf = normalizeCpf(evt.trabalhador && evt.trabalhador.cpfTrab ? evt.trabalhador.cpfTrab : "");
           if (!cpf) return;
 
-          const remus = evt.s1202RemuTrabRPPS || [];
-          remus.forEach((remu) => {
-            const contrato = remu && remu.contrato ? remu.contrato : null;
-            if (!contrato) return;
+          const reg = csvMapping[cpf];
 
+          forEachContrato(evt, (contrato) => {
+            contratosVisitados++;
             const matriculaAtualNoJson = String(contrato.matricula || "");
 
-            // 1) Preferência: base antiga + base nova (2 arquivos)
-            const oldMat = csvBaseOld[cpf];
-            const newMat = csvBaseNew[cpf];
-
-            if (oldMat && newMat) {
-              if (matriculaAtualNoJson === String(newMat)) {
-                contrato.matricula = String(oldMat);
+            if (reg && reg.matricula_antiga && reg.matricula_atual) {
+              if (matriculaAtualNoJson === String(reg.matricula_atual)) {
+                contrato.matricula = String(reg.matricula_antiga);
                 totalAlterados++;
               } else {
-                // Se a matrícula atual do JSON não bater com a base nova, não altera (segurança)
+                totalMismatchAtual++;
               }
               return;
             }
 
-            // 2) Legado: 3 colunas
-            const legacy = csvMappingLegacy[cpf];
-            if (legacy && legacy.matricula && legacy.matricula_atual) {
-              if (matriculaAtualNoJson === String(legacy.matricula_atual)) {
-                contrato.matricula = String(legacy.matricula);
-                totalAlterados++;
-              }
-              return;
-            }
-
-            // 3) Heurística opcional (somente quando não há base)
+            // Sem base para o CPF: heurística opcional
             if (useHeuristic && matriculaAtualNoJson) {
               const h = tryHeuristicOldMatricula(matriculaAtualNoJson);
               if (h && h !== matriculaAtualNoJson) {
@@ -2183,16 +2142,222 @@ function mesclarEventos() {
         });
 
         renderEventosTable();
-        updateCsvStatus(`Matrículas atualizadas: ${totalAlterados}. Sem base (ou não aplicável): ${totalSemBase}.`);
-        alert("Análise concluída! Matrículas atualizadas: " + totalAlterados + ". Sem base (ou não aplicável): " + totalSemBase + ".");
+        if (typeof refreshJsonLoadInfo === "function") refreshJsonLoadInfo();
+        updateCsvStatus(`Contratos: ${contratosVisitados}. Alterados: ${totalAlterados}. Sem base/heurística: ${totalSemBase}. Divergência matrícula_atual: ${totalMismatchAtual}.`);
+        alert(
+          "Análise concluída!\n" +
+          "Contratos verificados: " + contratosVisitados + "\n" +
+          "Matrículas alteradas: " + totalAlterados + "\n" +
+          "Sem base/heurística: " + totalSemBase + "\n" +
+          "Divergência (matrícula_atual não bate): " + totalMismatchAtual
+        );
       } catch (err) {
         alert("Erro ao analisar matrículas: " + err);
       }
     });
 
-    // Status inicial
+    // Status inicial do CSV
     updateCsvStatus();
 
+    // ======================================================================
+    // RESUMO DO ARQUIVO CARREGADO (nome, quantidade, agrupamentos)
+    // ======================================================================
+
+    function escapeHtml(str) {
+      return String(str || "").replace(/[&<>"']/g, function (ch) {
+        return ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[ch];
+      });
+    }
+
+    function formatBytes(bytes) {
+      const b = Number(bytes || 0);
+      if (!b) return "0 B";
+      const units = ["B", "KB", "MB", "GB"];
+      let i = 0;
+      let v = b;
+      while (v >= 1024 && i < units.length - 1) { v /= 1024; i++; }
+      return v.toFixed(i === 0 ? 0 : 2) + " " + units[i];
+    }
+
+    function formatDate(ms) {
+      if (!ms) return "";
+      try { return new Date(ms).toLocaleString("pt-BR"); } catch { return ""; }
+    }
+
+    function extractFolhaKey(ideDmDev) {
+      const s = String(ideDmDev || "").trim();
+      if (!s) return "Sem ideDmDev";
+      const up = s.toUpperCase();
+
+      // Pega a ÚLTIMA ocorrência do padrão "-TIPO-XXXXXX" (XXXXXX = MMYYYY ou YYYYMM, conforme o sistema)
+      const re = /-([A-Z0-9_]+)-(\d{6})(?!\d)/g;
+      let last = null;
+      let m;
+      while ((m = re.exec(up)) !== null) {
+        last = m;
+      }
+      if (last) return `${last[1]}-${last[2]}`;
+
+      return "Outros";
+    }
+
+    function refreshJsonLoadInfo() {
+      const container = document.getElementById("jsonLoadInfo");
+      if (!container) return;
+
+      if (!loadedFileMeta) {
+        container.innerHTML = `<div class="alert alert-secondary p-2 mb-0 small">Nenhum arquivo carregado.</div>`;
+        return;
+      }
+
+      const eventos = getEventos();
+      const totalEventos = eventos.length;
+
+      // CPFs únicos
+      const cpfSetGlobal = new Set();
+      let eventosSemCpf = 0;
+      let eventosSemPeriodo = 0;
+      let eventosSemInd = 0;
+
+      // Agrupamento IndApuração + Período
+      const indPerMap = new Map(); // key -> { eventos, cpfSet }
+      let minYm = null, maxYm = null;
+
+      // Agrupamento folha (por ideDmDev)
+      const folhaMap = new Map(); // folhaKey -> { demonstrativos, cpfSet, exemplosIde: Set }
+      let totalDemonstrativos = 0;
+      let demonstrativosSemIde = 0;
+
+      eventos.forEach((evt) => {
+        const cpf = normalizeCpf(evt.trabalhador && evt.trabalhador.cpfTrab ? evt.trabalhador.cpfTrab : "");
+        if (cpf) cpfSetGlobal.add(cpf); else eventosSemCpf++;
+
+        const ind = (evt.indApuracao || "").trim();
+        if (!ind) eventosSemInd++;
+        const per = (evt.perApur || "").trim();
+        if (!per) eventosSemPeriodo++;
+
+        const ym = parseYearMonth(per);
+        if (ym) {
+          if (minYm === null || ym < minYm) minYm = ym;
+          if (maxYm === null || ym > maxYm) maxYm = ym;
+        }
+
+        const key = `${ind || "(vazio)"}|${per || "(vazio)"}`;
+        if (!indPerMap.has(key)) indPerMap.set(key, { eventos: 0, cpfSet: new Set() });
+        const rec = indPerMap.get(key);
+        rec.eventos++;
+        if (cpf) rec.cpfSet.add(cpf);
+
+        // demonstrativos (pagtos) por folha
+        (evt.s1202RemuTrabRPPSPagtos || []).forEach((pagto) => {
+          totalDemonstrativos++;
+          const ide = pagto && pagto.ideDmDev ? pagto.ideDmDev : "";
+          if (!ide) demonstrativosSemIde++;
+          const folhaKey = extractFolhaKey(ide);
+          if (!folhaMap.has(folhaKey)) folhaMap.set(folhaKey, { demonstrativos: 0, cpfSet: new Set(), exemplosIde: new Set() });
+          const f = folhaMap.get(folhaKey);
+          f.demonstrativos++;
+          if (cpf) f.cpfSet.add(cpf);
+          if (ide && f.exemplosIde.size < 5) f.exemplosIde.add(String(ide));
+        });
+      });
+
+      function ymToStr(ym) {
+        if (!ym) return "";
+        const s = String(ym).padStart(6, "0");
+        return s.substring(0, 4) + "-" + s.substring(4, 6);
+      }
+
+      const indPerRows = Array.from(indPerMap.entries())
+        .map(([k, v]) => {
+          const [ind, per] = k.split("|");
+          return { ind, per, eventos: v.eventos, trabalhadores: v.cpfSet.size };
+        })
+        .sort((a, b) => (a.per.localeCompare(b.per) || a.ind.localeCompare(b.ind)));
+
+      const folhaRows = Array.from(folhaMap.entries())
+        .map(([folha, v]) => ({ folha, demonstrativos: v.demonstrativos, trabalhadores: v.cpfSet.size, exemplos: Array.from(v.exemplosIde) }))
+        .sort((a, b) => b.demonstrativos - a.demonstrativos);
+
+      const topFolhas = folhaRows.slice(0, 20);
+
+      const headerHtml = `
+        <div class="alert alert-secondary p-2 mb-0">
+          <div class="d-flex justify-content-between align-items-center">
+            <div class="small">
+              <div><strong>Arquivo:</strong> ${escapeHtml(loadedFileMeta.name)} <span class="text-muted">(${formatBytes(loadedFileMeta.size)}, modificado em ${escapeHtml(formatDate(loadedFileMeta.lastModified))})</span></div>
+              <div><strong>Eventos:</strong> ${totalEventos} &nbsp;|&nbsp; <strong>Trabalhadores (CPFs únicos):</strong> ${cpfSetGlobal.size} &nbsp;|&nbsp; <strong>Demonstrativos (ideDmDev):</strong> ${totalDemonstrativos}</div>
+              <div class="text-muted">Período apuração (mín → máx): ${escapeHtml(ymToStr(minYm) || "—")} → ${escapeHtml(ymToStr(maxYm) || "—")} &nbsp;|&nbsp; Eventos sem CPF: ${eventosSemCpf} &nbsp;|&nbsp; sem indApur: ${eventosSemInd} &nbsp;|&nbsp; sem perApur: ${eventosSemPeriodo}</div>
+            </div>
+            <button type="button" class="btn btn-sm btn-outline-dark" id="refreshSummaryBtn">Atualizar resumo</button>
+          </div>
+
+          <hr class="my-2">
+
+          <div class="small">
+            <div><strong>Trabalhadores por Ind Apuração e Período Apuração</strong></div>
+            <div class="table-responsive mt-2">
+              <table class="table table-sm table-bordered mb-2">
+                <thead class="thead-light">
+                  <tr>
+                    <th>Ind Apuração</th>
+                    <th>Período</th>
+                    <th>Eventos</th>
+                    <th>Trabalhadores</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${indPerRows.map(r => `
+                    <tr>
+                      <td>${escapeHtml(r.ind)}</td>
+                      <td>${escapeHtml(r.per)}</td>
+                      <td>${r.eventos}</td>
+                      <td>${r.trabalhadores}</td>
+                    </tr>
+                  `).join("")}
+                </tbody>
+              </table>
+            </div>
+
+            <div><strong>Demonstrativos por folha (extraído de ideDmDev)</strong> <span class="text-muted">(ex.: NORMAL-122024)</span></div>
+            <div class="table-responsive mt-2">
+              <table class="table table-sm table-bordered mb-0">
+                <thead class="thead-light">
+                  <tr>
+                    <th>Folha</th>
+                    <th>Demonstrativos</th>
+                    <th>Trabalhadores</th>
+                    <th>Exemplos ideDmDev</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${topFolhas.map(r => `
+                    <tr>
+                      <td>${escapeHtml(r.folha)}</td>
+                      <td>${r.demonstrativos}</td>
+                      <td>${r.trabalhadores}</td>
+                      <td class="text-muted">${escapeHtml(r.exemplos.join(" | ") || "—")}</td>
+                    </tr>
+                  `).join("")}
+                </tbody>
+              </table>
+            </div>
+
+            <div class="text-muted mt-2">
+              Observação: o agrupamento por folha é inferido pelo sufixo do padrão <code>-TIPO-XXXXXX</code> presente em <code>ideDmDev</code>. Demonstrativos sem <code>ideDmDev</code>: ${demonstrativosSemIde}.
+            </div>
+          </div>
+        </div>
+      `;
+
+      container.innerHTML = headerHtml;
+
+      const btn = document.getElementById("refreshSummaryBtn");
+      if (btn) {
+        btn.onclick = () => refreshJsonLoadInfo();
+      }
+    }
 </script>
 </body>
 </html>
