@@ -2065,8 +2065,15 @@ function analyzeNegativos(maxRows = 200) {
         });
       });
 
-      if (soma < 0) {
-        const ajuste = Math.abs(soma);
+      // IMPORTANT: para evitar falsos negativos do tipo "-0,0000" por erro de ponto flutuante,
+      // usamos o saldo arredondado em 4 casas como referência (mesmo critério de exibição).
+      const soma4 = parseFloat((Number(soma) || 0).toFixed(4));
+
+      // Só sugerir quando o ajuste for estritamente maior que 0,0000.
+      if (soma4 < 0) {
+        const ajuste = Math.abs(soma4);
+        if (!(ajuste > 0)) return;
+
         totalAjuste += ajuste;
 
         const ultimoPeriodo = periodos.length ? periodos[periodos.length - 1] : null;
@@ -2076,7 +2083,7 @@ function analyzeNegativos(maxRows = 200) {
           cpf: cpf || "(sem CPF)",
           ideDmDev: (pagto.ideDmDev || "(sem ideDmDev)"),
           perRef: perRefAlvo || "(sem perRef)",
-          saldo: soma,
+          saldo: soma4,
           ajuste
         });
       }
