@@ -714,6 +714,64 @@
       return target;
     }
 
+
+    // ----------------------------------------------------------------------
+    // IDEDMDEV VALIDATION (tamanho e correção automática opcional)
+    const IDEDMDEV_MAXLEN = 30;
+
+    function suggestIdeDmDevFix(value) {
+      const original = (value || "").toString();
+      if (!original) return { ok: false, original, suggested: "", reason: "vazio" };
+      if (original.length <= IDEDMDEV_MAXLEN) return { ok: true, original, suggested: original, reason: "ok" };
+
+      // 1) Remover pontos (.) — geralmente são apenas formatação de matrícula
+      let s1 = original.replace(/\./g, "");
+      if (s1.length <= IDEDMDEV_MAXLEN) return { ok: false, original, suggested: s1, reason: "remover_pontos" };
+
+      // 2) Abreviar tipos comuns de demonstrativo/folha
+      let s2 = original
+        .replace(/SUPLEMENTO/gi, "SUP")
+        .replace(/COMPLEMENTO/gi, "COMP")
+        .replace(/NORMAL/gi, "NORM")
+        .replace(/ADIANTAMENTO/gi, "ADI");
+      // repetir sem pontos, porque costuma ajudar
+      s2 = s2.replace(/\./g, "");
+      if (s2.length <= IDEDMDEV_MAXLEN) return { ok: false, original, suggested: s2, reason: "abreviar_tipo" };
+
+      // 3) Último recurso: truncar preservando o final (tipo + competência) para manter leitura
+      // Ex.: manter os últimos 14 caracteres por padrão (inclui "-122024"), e ajustar o início.
+      const keepTail = Math.min(14, s2.length);
+      const tail = s2.slice(-keepTail);
+      const headMax = IDEDMDEV_MAXLEN - tail.length;
+      const s3 = (headMax > 0 ? s2.slice(0, headMax) : "") + tail;
+      return { ok: false, original, suggested: s3, reason: "truncar" };
+    }
+
+    function validateIdeDmDevInEvento(evt) {
+      const problemas = [];
+      const pagtos = evt?.s1202RemuTrabRPPSPagtos || [];
+      pagtos.forEach((p, idx) => {
+        const ide = (p?.ideDmDev || "").toString();
+        if (!ide) {
+          problemas.push({ idx, ide, issue: "vazio", fix: "" });
+          return;
+        }
+        if (ide.length > IDEDMDEV_MAXLEN) {
+          const sug = suggestIdeDmDevFix(ide);
+          problemas.push({ idx, ide, issue: `maior_que_${IDEDMDEV_MAXLEN}`, fix: sug.suggested, reason: sug.reason });
+        }
+      });
+      return problemas;
+    }
+
+    function applyIdeDmDevAutoFix(evt, problemas) {
+      if (!Array.isArray(problemas) || problemas.length === 0) return;
+      const pagtos = evt?.s1202RemuTrabRPPSPagtos || [];
+      problemas.forEach((p) => {
+        if (typeof p.idx !== "number") return;
+        if (p.fix && pagtos[p.idx]) pagtos[p.idx].ideDmDev = p.fix;
+      });
+    }
     // ----------------------------------------------------------------------
     // PLACEHOLDER CONFIG
     const placeholdersMap = {
@@ -940,31 +998,39 @@
       if (!container) return null;
       const ideAdvCards = container.querySelectorAll(".ideadv-card");
       if (ideAdvCards.length === 0) return null;
+
       let arr = [];
       ideAdvCards.forEach((card) => {
-        const obj = {
+        const originalIde = parseJsonSafely(card.dataset.original || "{}").data || {};
+        const updatedIde = {
           nrInsc: safeValue(card, ".ideadv-nrInsc"),
           tpInsc: { tipo: safeValue(card, ".ideadv-tpInsc") },
           vlrAdv: safeValue(card, ".ideadv-vlrAdv")
         };
-        arr.push(obj);
+
+        arr.push(mergeDeep(originalIde, updatedIde));
       });
+
       return arr;
     }
 
     function getPeriodsFromCard(card) {
       const periodRows = card.querySelectorAll(".period-row");
       if (periodRows.length === 0) return null;
+
       let periods = [];
       periodRows.forEach((row) => {
-        const period = {
+        const originalPeriod = parseJsonSafely(row.dataset.original || "{}").data || {};
+        const updatedPeriod = {
           anoRef: safeValue(row, ".period-anoRef"),
           perRef: safeValue(row, ".period-perRef"),
           tpRegistro: safeValue(row, ".period-tpRegistro"),
           s1202RemuTrabRPPSEstab: getEstabsFromPeriodRow(row)
         };
-        periods.push(period);
+
+        periods.push(mergeDeep(originalPeriod, updatedPeriod));
       });
+
       return periods;
     }
 
@@ -972,9 +1038,11 @@
       const container = row.querySelector(".estabs-container");
       const estabRows = container ? container.querySelectorAll(".estab-row") : [];
       if (estabRows.length === 0) return null;
+
       let estabs = [];
       estabRows.forEach((estRow) => {
-        const estab = {
+        const originalEstab = parseJsonSafely(estRow.dataset.original || "{}").data || {};
+        const updatedEstab = {
           nrInsc: {
             iniValid: safeValue(estRow, ".estab-iniValid"),
             nrInsc: safeValue(estRow, ".estab-nrInsc"),
@@ -982,8 +1050,10 @@
           },
           s1202RemuTrabRPPSRemu: getRemusFromEstabRow(estRow)
         };
-        estabs.push(estab);
+
+        estabs.push(mergeDeep(originalEstab, updatedEstab));
       });
+
       return estabs;
     }
 
@@ -991,9 +1061,11 @@
       const container = estRow.querySelector(".remu-container");
       const remuRows = container ? container.querySelectorAll(".remu-row") : [];
       if (remuRows.length === 0) return null;
+
       let remus = [];
       remuRows.forEach((remRow) => {
-        const remu = {
+        const originalRemu = parseJsonSafely(remRow.dataset.original || "{}").data || {};
+        const updatedRemu = {
           contrato: {
             codCateg: { categoria: safeValue(remRow, ".remu-codCateg") },
             contratoTSV: safeValue(remRow, ".remu-contratoTSV"),
@@ -1002,8 +1074,11 @@
           },
           s1202RemuTrabRPPSItens: getItemsFromRemuRow(remRow)
         };
-        remus.push(remu);
+
+        // Preservar campos fora do modal (ou campos opcionais do layout) mantendo o objeto original.
+        remus.push(mergeDeep(originalRemu, updatedRemu));
       });
+
       return remus;
     }
 
@@ -1011,9 +1086,11 @@
       const container = remRow.querySelector(".itens-container");
       const itemRows = container ? container.querySelectorAll(".item-row") : [];
       if (itemRows.length === 0) return null;
+
       let items = [];
       itemRows.forEach((itemRow) => {
-        const item = {
+        const originalItem = parseJsonSafely(itemRow.dataset.original || "{}").data || {};
+        const updatedItem = {
           codRubr: {
             codRubr: safeValue(itemRow, ".item-codRubr"),
             iniValid: safeValue(itemRow, ".item-iniValid")
@@ -1024,8 +1101,13 @@
           qtdRubr: safeValue(itemRow, ".item-qtdRubr"),
           vrRubr: safeValue(itemRow, ".item-vrRubr")
         };
-        items.push(item);
+
+        // Importante: não reconstruir o objeto do item do zero.
+        // Fazemos merge em cima do original para preservar campos não expostos no UI (ex.: s1202RemuTrabRPPSDescFolha)
+        // e evitar perda de informações exigidas pelo validador/eSocial.
+        items.push(mergeDeep(originalItem, updatedItem));
       });
+
       return items;
     }
 
@@ -1181,6 +1263,8 @@
     function addPeriodRow(container, period) {
       const row = document.createElement("div");
       row.className = "border p-2 mb-2 period-row";
+      row.dataset.original = JSON.stringify(period || {});
+
       row.innerHTML = `
         <div class="form-row">
           <div class="form-group col-md-3">
@@ -1230,6 +1314,8 @@
     function addEstabRow(container, estab) {
       const row = document.createElement("div");
       row.className = "border p-2 mb-2 estab-row";
+      row.dataset.original = JSON.stringify(estab || {});
+
       row.innerHTML = `
         <div class="form-row">
           <div class="form-group col-md-3">
@@ -1284,6 +1370,8 @@
     function addRemuRow(container, remu) {
       const row = document.createElement("div");
       row.className = "border p-2 mb-2 remu-row";
+      row.dataset.original = JSON.stringify(remu || {});
+
       row.innerHTML = `
         <div class="form-row">
           <div class="form-group col-md-3">
@@ -1326,7 +1414,11 @@
           ideTabRubr: "",
           indApurIR: "",
           qtdRubr: "",
-          vrRubr: ""
+          vrRubr: "",
+          // Campo exigido pelo layout de integração observado no seu lote: manter mesmo quando "vazio"
+          s1202RemuTrabRPPSDescFolha: [
+            { instFinanc: "*vazio*", nrDoc: "*vazio*", observacao: "*vazio*", tpDesc: "*numerovazio*" }
+          ]
         };
         if (!remu.s1202RemuTrabRPPSItens) {
           remu.s1202RemuTrabRPPSItens = [];
@@ -1341,6 +1433,8 @@
     function addItemRow(container, item) {
       const row = document.createElement("div");
       row.className = "border p-2 mb-2 item-row";
+      row.dataset.original = JSON.stringify(item || {});
+
       row.innerHTML = `
         <div class="form-row">
           <div class="form-group col-md-2">
@@ -1419,11 +1513,31 @@
         return mergeDeep(originalPagto, updatedPagto);
       });
 
-      // Insere ou atualiza
+      
+      // Validação adicional: ideDmDev (tamanho máximo). Muitos validadores/integrações rejeitam > 30 caracteres.
+      const ideProblems = validateIdeDmDevInEvento(evtAtualizado);
+      if (ideProblems.length) {
+        const linhas = ideProblems.map(p => {
+          const base = `- Pagamento #${p.idx + 1}: ideDmDev="${p.ide}"`;
+          if (p.issue === "vazio") return base + " (vazio)";
+          return base + ` (tamanho=${(p.ide||'').length}). Sugestão: "${p.fix}"`;
+        }).join("\\n");
+        const msg = "Foram encontrados problemas no ideDmDev (demonstrativo) que podem impedir a importação:\\n\\n" + linhas +
+          "\\n\\nDeseja aplicar correção automática (recomendado) e continuar?";
+        if (confirm(msg)) {
+          applyIdeDmDevAutoFix(evtAtualizado, ideProblems.filter(p => p.fix));
+        } else {
+          return;
+        }
+      }
+// Insere ou atualiza
       if (currentEditingEventIndex === null) {
         getEventos().push(evtAtualizado);
       } else {
-        getEventos()[currentEditingEventIndex] = evtAtualizado;
+        // Importante para auditoria/integridade: não substituir o objeto inteiro (isso muda ordem/inserção de chaves).
+        // Faz merge no objeto original, preservando campos não exibidos no modal e mantendo a ordem de chaves existente.
+        const target = getEventos()[currentEditingEventIndex];
+        mergeDeep(target, evtAtualizado);
       }
 
       $("#eventoModal").modal("hide");
@@ -1506,7 +1620,32 @@
 
     document.getElementById("downloadBtn").addEventListener("click", () => {
       try {
-        const dataStr = gerarArquivoEsocialFormatado(window.esocialData);
+        
+        // Validação adicional antes do download: ideDmDev (tamanho máximo)
+        const eventos = getEventos();
+        let problemasAll = [];
+        eventos.forEach((evt, idxEvt) => {
+          const probs = validateIdeDmDevInEvento(evt);
+          if (probs.length) {
+            probs.forEach(p => problemasAll.push({ idxEvt, ...p }));
+          }
+        });
+        if (problemasAll.length) {
+          const linhas = problemasAll.map(p => {
+            const base = `- Evento #${p.idxEvt + 1} / Pagamento #${p.idx + 1}: ideDmDev="${p.ide}"`;
+            if (p.issue === "vazio") return base + " (vazio)";
+            return base + ` (tamanho=${(p.ide||'').length}). Sugestão: "${p.fix}"`;
+          }).join("\\n");
+          const msg = "Antes de gerar o arquivo, foram encontrados ideDmDev inválidos (podem impedir importação):\\n\\n" + linhas +
+            "\\n\\nDeseja aplicar correção automática (recomendado) e continuar?";
+          if (confirm(msg)) {
+            eventos.forEach(evt => applyIdeDmDevAutoFix(evt, validateIdeDmDevInEvento(evt).filter(p => p.fix)));
+          } else {
+            return;
+          }
+        }
+
+const dataStr = gerarArquivoEsocialFormatado(window.esocialData);
         const blob = new Blob([dataStr], { type: "application/json;charset=utf-8;" });
         const url = URL.createObjectURL(blob);
         const link = document.createElement("a");
