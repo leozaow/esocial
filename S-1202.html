@@ -1,0 +1,1975 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Editor S-1202</title>
+
+  <!-- Tema Cosmo (Bootswatch para Bootstrap 4) -->
+  <link
+    rel="stylesheet"
+    href="https://cdn.jsdelivr.net/npm/bootswatch@4.5.2/dist/cosmo/bootstrap.min.css"
+  />
+
+  <!-- Font Awesome para ícones -->
+  <link
+    rel="stylesheet"
+    href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css"
+  />
+
+  <style>
+    /* Barra do topo mais alta e com tom escuro */
+    .navbar {
+      box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    }
+
+    /* Pequenos ajustes no título principal */
+    h2 {
+      margin-top: 1rem;
+      margin-bottom: 1.5rem;
+      font-weight: 600;
+    }
+
+    /* Layout geral reorganizado em cards/seções para agrupar melhor as ferramentas */
+    .tools-section {
+      margin-bottom: 1.5rem;
+    }
+    .tools-section .card-header {
+      font-weight: bold;
+      font-size: 1rem;
+    }
+
+    /* Espaçamento para grupos de botões */
+    .btn-group-custom {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+
+    /* Melhor visual para os cards de Pagamento e subitens */
+    .pagamento-card,
+    .ideadv-card,
+    .period-row,
+    .estab-row,
+    .remu-row,
+    .item-row {
+      background-color: #f8f9fa;
+    }
+    .pagamento-card .card-body,
+    .ideadv-card,
+    .period-row,
+    .estab-row,
+    .remu-row,
+    .item-row {
+      border-radius: 4px;
+    }
+    .pagamento-card .card-body {
+      border: 1px solid #dee2e6;
+    }
+    .ideadv-card,
+    .period-row,
+    .estab-row,
+    .remu-row,
+    .item-row {
+      border: 1px solid #dee2e6;
+      margin-bottom: 1rem;
+      padding: 1rem;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Navbar simples -->
+  <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+    <a class="navbar-brand" href="#">Editor Eventos - V1.0.2</a>
+  </nav>
+
+  <!-- Conteúdo principal -->
+  <div class="container my-4">
+    <h2>Editor S-1202</h2>
+
+    <!-- Seção: Carregar e Baixar -->
+    <div class="tools-section card">
+      <div class="card-header">Carregar e Baixar Arquivo</div>
+      <div class="card-body">
+        <div class="form-group">
+          <label for="fileInput"><strong>Carregar Arquivo JSON:</strong></label>
+          <input type="file" id="fileInput" accept=".json" class="form-control-file" />
+        </div>
+        <button id="downloadBtn" class="btn btn-info">Baixar Edição</button>
+      </div>
+    </div>
+
+    <!-- Seção: Funções Diversas -->
+    <div class="tools-section card">
+      <div class="card-header">Funções Principais</div>
+      <div class="card-body">
+        <div class="btn-group-custom">
+          <button id="mergeBtn" style="display:none;" class="btn btn-primary">
+            Mesclar por chaveIntegracao
+          </button>
+			<button id="estabBtn" style="display:none;" class="btn btn-primary" data-toggle="modal" data-target="#estabModal">
+			  Informar Estabelecimentos
+			</button>
+		  <button id="categRemuBtn" class="btn btn-primary">
+			 Informar Categoria
+		  </button>
+          <button id="ajustarRubricasBtn" class="btn btn-primary">
+            Ajustar Pagamentos Negativos
+          </button>
+          <button id="verificarPeriodosBtn" class="btn btn-primary">
+            Verificar Períodos / RRA
+          </button>
+          <button id="csvModalBtn" class="btn btn-primary" data-toggle="modal" data-target="#csvModal">
+            Analisar Matrículas CSV
+          </button>
+          <button type="button" class="btn btn-dark" style="display:none;" data-toggle="modal" data-target="#scriptsModal">
+            Substituir Campos
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- <!-- Seção: Funções Diversas -->
+    <!-- <div class="tools-section card"> -->
+      <!-- <div class="card-header">Funções Principais</div> -->
+      <!-- <div class="card-body"> -->
+        <!-- <div class="btn-group-custom"> -->
+          <!-- <button id="mergeBtn" class="btn btn-primary"> -->
+            <!-- [1] Mesclar por chaveIntegracao -->
+          <!-- </button> -->
+			<!-- <button id="estabBtn" class="btn btn-primary" data-toggle="modal" data-target="#estabModal"> -->
+			  <!-- [2] Informar Estabelecimentos -->
+			<!-- </button> -->
+		  <!-- <button id="categRemuBtn" class="btn btn-primary"> -->
+			 <!-- [3] Informar Categoria -->
+		  <!-- </button> -->
+          <!-- <button id="ajustarRubricasBtn" class="btn btn-primary"> -->
+            <!-- [4] Ajustar Pagamentos Negativos -->
+          <!-- </button> -->
+          <!-- <button id="verificarPeriodosBtn" class="btn btn-primary"> -->
+            <!-- [5] Verificar Períodos / RRA -->
+          <!-- </button> -->
+          <!-- <button id="csvModalBtn" class="btn btn-primary" data-toggle="modal" data-target="#csvModal"> -->
+            <!-- [6] Analisar Matrículas CSV -->
+          <!-- </button> -->
+          <!-- <button type="button" class="btn btn-dark" data-toggle="modal" data-target="#scriptsModal"> -->
+            <!-- Substituir Campos -->
+          <!-- </button> -->
+        <!-- </div> -->
+      <!-- </div> -->
+    <!-- </div> -->
+	
+	
+    <!-- Seção: Seleção em Massa -->
+    <div class="tools-section card">
+      <div class="card-header">Seleção em Massa</div>
+      <div class="card-body">
+        <div class="btn-group-custom">
+          <button id="selectAllBtn" class="btn btn-primary">Selecionar Todos</button>
+          <button id="deselectAllBtn" class="btn btn-secondary">Desmarcar Todos</button>
+          <button id="removeSelectedBtn" class="btn btn-danger">Remover Selecionados</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Campo de busca -->
+    <div class="tools-section card">
+      <div class="card-header">Filtro de Busca</div>
+      <div class="card-body">
+        <div class="form-group">
+          <label for="searchInput">Buscar (CPF, matrícula, etc.):</label>
+          <input
+            type="text"
+            id="searchInput"
+            class="form-control"
+            placeholder="Digite algo para filtrar..."
+          />
+        </div>
+      </div>
+    </div>
+
+    <!-- Tabela de Eventos -->
+    <div class="tools-section">
+      <table class="table table-bordered" id="eventosTable">
+        <thead class="thead-light">
+          <tr>
+            <th style="width:40px;">Seleção</th>
+            <th>Ordem Registro</th>
+            <th>CPF Trabalhador</th>
+            <th>Ano Apuração</th>
+            <th>Período Apuração</th>
+            <th>Ações</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+    <!-- Modal para Carregar CSV -->
+    <div class="modal fade" id="csvModal" tabindex="-1" aria-labelledby="csvModalLabel" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="csvModalLabel">Carregar Arquivo CSV</h5>
+            <button type="button" class="close" data-dismiss="modal" aria-label="Fechar">
+              <span aria-hidden="true">&times;</span>
+            </button>
+          </div>
+          <div class="modal-body">
+            <div class="form-group">
+              <label for="csvFileInput">Selecione o arquivo CSV (cpfTrab;matricula;matricula_atual):</label>
+              <input type="file" id="csvFileInput" accept=".csv" class="form-control-file" />
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-dismiss="modal">Fechar</button>
+            <button type="button" class="btn btn-primary" id="analisarMatriculasBtn">Analisar Matrículas</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal de Edição de Evento -->
+    <div
+      class="modal fade"
+      id="eventoModal"
+      tabindex="-1"
+      aria-labelledby="eventoModalLabel"
+      aria-hidden="true"
+    >
+      <div class="modal-dialog modal-xl" style="max-width: 90%;">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="eventoModalLabel">Editar Evento</h5>
+            <button
+              type="button"
+              class="close"
+              data-dismiss="modal"
+              aria-label="Fechar"
+            >
+              <span aria-hidden="true">&times;</span>
+            </button>
+          </div>
+          <div class="modal-body">
+            <form id="eventoForm">
+              <!-- Dados do Evento (campos do topo) -->
+              <div class="form-row">
+                <div class="form-group col-md-3">
+                  <label>Ordem Registro</label>
+                  <div class="input-group">
+                    <input
+                      type="text"
+                      class="form-control has-placeholder"
+                      id="ordemRegistro"
+                    />
+                  </div>
+                </div>
+                <div class="form-group col-md-6">
+                  <label>Chave Integração</label>
+                  <div class="input-group">
+                    <input type="text" class="form-control" id="chaveIntegracao" />
+                  </div>
+                </div>
+                <div class="form-group col-md-3">
+                  <label>Ano Apur</label>
+                  <div class="input-group">
+                    <input
+                      type="text"
+                      class="form-control has-placeholder"
+                      id="anoApur"
+                    />
+                  </div>
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-group col-md-4">
+                  <label>Ind Apuração</label>
+                  <div class="input-group">
+                    <input type="text" class="form-control" id="indApuracao" />
+                  </div>
+                </div>
+                <div class="form-group col-md-4">
+                  <label>Possui Período Anterior?</label>
+                  <div class="input-group">
+                    <input type="text" class="form-control" id="indPossuiPerAnt" />
+                  </div>
+                </div>
+                <div class="form-group col-md-4">
+                  <label>Período Apuração</label>
+                  <div class="input-group">
+                    <input
+                      type="text"
+                      class="form-control has-placeholder"
+                      id="perApur"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <!-- Empregador -->
+              <h5>Empregador</h5>
+              <div class="form-row">
+                <div class="form-group col-md-6">
+                  <label>Nr Insc</label>
+                  <div class="input-group">
+                    <input
+                      type="text"
+                      class="form-control"
+                      id="empregador_nrInsc"
+                    />
+                  </div>
+                </div>
+                <div class="form-group col-md-6">
+                  <label>Tipo Insc</label>
+                  <div class="input-group">
+                    <input
+                      type="text"
+                      class="form-control"
+                      id="empregador_tpInsc_tipo"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <!-- Trabalhador -->
+              <h5>Trabalhador</h5>
+              <div class="form-row">
+                <div class="form-group col-md-6">
+                  <label>CPF</label>
+                  <div class="input-group">
+                    <input type="text" class="form-control" id="trabalhador_cpfTrab" />
+                  </div>
+                </div>
+                <div class="form-group col-md-6">
+                  <label>Nome Complementar</label>
+                  <div class="input-group">
+                    <input type="text" class="form-control" id="nmTrabComplem" />
+                  </div>
+                </div>
+              </div>
+
+              <!-- Pagamentos -->
+              <h5>Pagamentos</h5>
+              <div id="pagamentosContainer"></div>
+              <button
+                type="button"
+                class="btn btn-outline-primary mb-3"
+                id="addPagamentoBtn"
+              >
+                Adicionar Pagamento
+              </button>
+            </form>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-dismiss="modal">
+              Fechar
+            </button>
+            <button type="button" class="btn btn-primary" id="saveEventoBtn">
+              Salvar Alterações do Evento
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal de Scripts (Substituições) -->
+    <div
+      class="modal fade"
+      id="scriptsModal"
+      tabindex="-1"
+      aria-labelledby="scriptsModalLabel"
+      aria-hidden="true"
+    >
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="scriptsModalLabel">Substituir Campos</h5>
+            <button
+              type="button"
+              class="close"
+              data-dismiss="modal"
+              aria-label="Fechar"
+            >
+              <span aria-hidden="true">&times;</span>
+            </button>
+          </div>
+          <div class="modal-body">
+            <p>Escolha em qual seção do JSON deseja substituir um determinado campo e valor.</p>
+            <div class="form-group">
+              <label>Seção do Arquivo</label>
+              <select class="form-control" id="scriptScope">
+                <option value="evento">Evento (campos básicos do topo)</option>
+                <option value="pagto">Pagamentos</option>
+                <option value="periodo">Períodos</option>
+                <option value="estab">Estabelecimentos</option>
+                <option value="remu">Remunerações</option>
+                <option value="item">Itens (Rubricas)</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Nome do Campo</label>
+              <input
+                type="text"
+                class="form-control"
+                id="scriptField"
+                placeholder="Ex: anoApur, ideDmDev, qtdMesesRRA, codRubr..."
+              />
+            </div>
+            <div class="form-group">
+              <label>Valor Antigo (opcional)</label>
+              <input
+                type="text"
+                class="form-control"
+                id="scriptOldValue"
+                placeholder="Ex: *vazio*"
+              />
+            </div>
+            <div class="form-group">
+              <label>Novo Valor</label>
+              <input
+                type="text"
+                class="form-control"
+                id="scriptNewValue"
+                placeholder="Ex: 2023-01-01 ou *vazio*"
+              />
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button
+              type="button"
+              class="btn btn-secondary"
+              data-dismiss="modal"
+            >
+              Fechar
+            </button>
+            <button type="button" class="btn btn-primary" id="applyScriptBtn">
+              Aplicar
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal para Verificar Períodos e configurar RRA -->
+    <div
+      class="modal fade"
+      id="verificarModal"
+      tabindex="-1"
+      aria-labelledby="verificarModalLabel"
+      aria-hidden="true"
+    >
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="verificarModalLabel">Verificar Períodos / RRA</h5>
+            <button
+              type="button"
+              class="close"
+              data-dismiss="modal"
+              aria-label="Fechar"
+            >
+              <span aria-hidden="true">&times;</span>
+            </button>
+          </div>
+          <div class="modal-body">
+            <!-- Configurações para RRA -->
+            <div class="form-group">
+              <label>Texto para descRRA (sugestão: "Diferencas processadas apos encerramento da folha")</label>
+              <input type="text" class="form-control" id="verifDescRRA" value="Diferencas processadas apos encerramento da folha">
+            </div>
+            <div class="form-group">
+              <label>Tipo Processo RRA (sugestão: 1)</label>
+              <input type="text" class="form-control" id="verifTpProcRRA" value="1">
+            </div>
+
+            <div class="form-group form-check">
+              <input type="checkbox" class="form-check-input" id="verifRRA032023">
+              <label class="form-check-label" for="verifRRA032023">
+                Aplicar “Opção RRA 03/2023” (não informar RRA nos pagamentos)
+              </label>
+            </div>
+
+            <hr>
+            <p>
+              <strong>Regras:</strong><br>
+              1) "Possui Período Anterior?" = "S" se qualquer 'Per Ref' for mês anterior ao 'Período Apuração' (comparação ano/mês). Senão "N".<br>
+              2) Para RRA, comparar apenas o <strong>ano</strong>: se perRef tiver ano < ano do perApur => indRRA="S", senão "*vazio*".<br>
+              3) Ajusta “descRRA”, “qtdMesesRRA”, “tpProcRRA” se “indRRA=S”.<br>
+              4) Ajusta “indApurIR” = "0".<br>
+              5) Se “RRA 03/2023” estiver ativo, ignora as demais regras e zera (indRRA, qtdMesesRRA, tpProcRRA, descRRA).
+            </p>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-dismiss="modal">
+              Fechar
+            </button>
+            <button type="button" class="btn btn-primary" id="applyVerificarBtn">
+              Aplicar
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal para Informar Estabelecimentos -->
+    <div
+      class="modal fade"
+      id="estabModal"
+      tabindex="-1"
+      aria-labelledby="estabModalLabel"
+      aria-hidden="true"
+    >
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="estabModalLabel">Informar Estabelecimentos</h5>
+            <button
+              type="button"
+              class="close"
+              data-dismiss="modal"
+              aria-label="Fechar"
+            >
+              <span aria-hidden="true">&times;</span>
+            </button>
+          </div>
+          <div class="modal-body">
+            <!-- Configurações para Estabelecimento -->
+            <div class="form-group">
+              <label>iniValid (sugestão: 2021-07-01)</label>
+              <input type="text" class="form-control" id="estabIniValid" value="2021-07-01">
+            </div>
+            <div class="form-group">
+              <label>nrInsc (sugestão: 11239018000167)</label>
+              <input type="text" class="form-control" id="estabNrInsc" value="11239018000167">
+            </div>
+            <div class="form-group">
+              <label>tpInsc (sugestão: 1)</label>
+              <input type="text" class="form-control" id="estabTpInsc" value="1">
+            </div>
+            <p>
+              Ao clicar em “Aplicar”, todos os eventos terão seus estabelecimentos
+              preenchidos com os valores informados (se já existirem, serão sobrescritos).
+            </p>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-dismiss="modal">
+              Fechar
+            </button>
+            <button type="button" class="btn btn-primary" id="applyEstabBtn">
+              Aplicar
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+		<!-- Modal de Código de Remuneração -->
+		<div class="modal fade" id="categRemuModal" tabindex="-1" aria-hidden="true">
+		  <div class="modal-dialog">
+			<div class="modal-content">
+			  <div class="modal-header">
+				<h5 class="modal-title">Informar Código Categoria</h5>
+				<button type="button" class="close" data-dismiss="modal">
+				  <span>&times;</span>
+				</button>
+			  </div>
+			  <div class="modal-body">
+				<div class="form-group">
+				  <label>codCateg (numérico):</label>
+				  <input type="text" id="categRemuValue" value="301" class="form-control" placeholder="Ex: 301">
+				</div>
+				<p>
+				  Ao aplicar, todos os remu.contrato.codCateg.categoria == "*numerovazio*"
+				  serão substituídos pelo valor informado.
+				</p>
+			  </div>
+			  <div class="modal-footer">
+				<button class="btn btn-secondary" data-dismiss="modal">Fechar</button>
+				<button id="applyCategRemuBtn" class="btn btn-primary">Aplicar</button>
+			  </div>
+			</div>
+		  </div>
+		</div>
+
+  </div><!-- container -->
+
+  <!-- JS (jQuery, Popper, Bootstrap) -->
+  <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+  <script
+    src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js"
+  ></script>
+  <script
+    src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"
+  ></script>
+
+  <!-- Script principal (toda a lógica do editor) -->
+  <script>
+    // ======================================================================
+    // 1) Definir dados iniciais
+    window.esocialData = {
+      "s1202RemuTrabRPPSGroup": {
+        "s1202RemuTrabRPPS": []
+      }
+    };
+
+    // ======================================================================
+    // 2) ESTRUTURA PARA OBTER EVENTOS
+    function getEventos() {
+      if (!window.esocialData.s1202RemuTrabRPPSGroup) {
+        window.esocialData.s1202RemuTrabRPPSGroup = { s1202RemuTrabRPPS: [] };
+      }
+      return window.esocialData.s1202RemuTrabRPPSGroup.s1202RemuTrabRPPS;
+    }
+
+    // ----------------------------------------------------------------------
+    // Converte "YYYY-MM" ou "YYYYMM" em número (ex.: 2023-03 => 202303) p/ comparar mês anterior
+    function parseYearMonth(str) {
+      if (!str) return 0;
+      let clean = str.replace("-", "");
+      clean = clean.substring(0,6);
+      const num = parseInt(clean, 10);
+      return isNaN(num) ? 0 : num;
+    }
+
+    // Retorna apenas o ANO de "YYYY-MM"/"YYYYMM"
+    function parseYear(str) {
+      if (!str) return 0;
+      return parseInt(str.substring(0,4), 10) || 0;
+    }
+
+    // ----------------------------------------------------------------------
+    // FUNÇÃO AUXILIAR: mergeDeep
+    function mergeDeep(target, source) {
+      for (let key in source) {
+        if (source.hasOwnProperty(key)) {
+          if (source[key] && typeof source[key] === "object" && !Array.isArray(source[key])) {
+            if (!target[key]) target[key] = {};
+            mergeDeep(target[key], source[key]);
+          } else if (Array.isArray(source[key])) {
+            if (source[key].length > 0) {
+              target[key] = source[key];
+            }
+          } else {
+            target[key] = source[key];
+          }
+        }
+      }
+      return target;
+    }
+
+    // ----------------------------------------------------------------------
+    // PLACEHOLDER CONFIG
+    const placeholdersMap = {
+      "cnpjOrgaoAntComplem": ["*vazio*"],
+      "dtExercicioComplem": ["*datavazia*"],
+      "dtNasctoComplem": ["*datavazia*"],
+      "matricAntComplem": ["*vazio*"],
+      "observacaoComplem": ["*vazio*"],
+      "descRRA": ["*vazio*"],
+      "indRRA": ["*vazio*"],  // Ajustado: não tem 'N'
+      "nrProcRRA": ["*vazio*"],
+      "qtdMesesRRA": ["*numerovazio*"],
+      "tpProcRRA": ["*vazio*"],
+      "vlrDespAdvogados": ["*numerovazio*"],
+      "vlrDespCustas": ["*numerovazio*"],
+      "contratoTSV": ["*vazio*"],
+      "dtAdm": ["*datavazia*"],
+      "codCateg": ["*numerovazio*"],
+      "fatorRubr": ["*numerovazio*"],
+      "codRubr": ["*numerovazio*"],
+      "iniValid": ["*datavazia*"]
+    };
+
+    // ----------------------------------------------------------------------
+    // Pegar valor de input com segurança
+    function safeValue(parent, selector) {
+      const el = parent.querySelector(selector);
+      return el ? el.value.trim() : "";
+    }
+
+    // ----------------------------------------------------------------------
+    // 3) TABELA DE EVENTOS
+    function renderEventosTable() {
+      const tbody = document.querySelector("#eventosTable tbody");
+      tbody.innerHTML = "";
+      const eventos = getEventos();
+      const searchValue = (document.getElementById("searchInput").value || "").toLowerCase();
+
+      eventos.forEach((evt, index) => {
+        if (typeof evt._selected === "undefined") {
+          evt._selected = false;
+        }
+        // Filtragem
+        const combinedText = JSON.stringify(evt).toLowerCase();
+        if (!searchValue || combinedText.includes(searchValue)) {
+          const tr = document.createElement("tr");
+
+          // Seleção
+          const tdCheck = document.createElement("td");
+          tdCheck.style.textAlign = "center";
+          const checkbox = document.createElement("input");
+          checkbox.type = "checkbox";
+          checkbox.checked = !!evt._selected;
+          checkbox.addEventListener("change", () => {
+            evt._selected = checkbox.checked;
+          });
+          tdCheck.appendChild(checkbox);
+          tr.appendChild(tdCheck);
+
+          // Ordem Registro
+          const tdOrdem = document.createElement("td");
+          tdOrdem.textContent = evt.ordemRegistro || "";
+          tr.appendChild(tdOrdem);
+
+          // CPF
+          const tdCpf = document.createElement("td");
+          tdCpf.textContent = evt.trabalhador?.cpfTrab || "";
+          tr.appendChild(tdCpf);
+
+          // Ano
+          const tdAno = document.createElement("td");
+          tdAno.textContent = evt.anoApur || "";
+          tr.appendChild(tdAno);
+
+          // Período
+          const tdPerApur = document.createElement("td");
+          tdPerApur.textContent = evt.perApur || "";
+          tr.appendChild(tdPerApur);
+
+          // Ações
+          const tdAcoes = document.createElement("td");
+          const btnEdit = document.createElement("button");
+          btnEdit.className = "btn btn-sm btn-warning mr-2";
+          btnEdit.textContent = "Editar";
+          btnEdit.addEventListener("click", () => openEventoModal(index));
+          tdAcoes.appendChild(btnEdit);
+
+          const btnRemove = document.createElement("button");
+          btnRemove.className = "btn btn-sm btn-danger";
+          btnRemove.textContent = "Remover";
+          btnRemove.addEventListener("click", () => {
+            if (confirm("Deseja remover este evento?")) {
+              getEventos().splice(index, 1);
+              renderEventosTable();
+            }
+          });
+          tdAcoes.appendChild(btnRemove);
+
+          tr.appendChild(tdAcoes);
+          tbody.appendChild(tr);
+        }
+      });
+    }
+    document.getElementById("searchInput").addEventListener("input", renderEventosTable);
+
+    // ----------------------------------------------------------------------
+    // 4) MODAL DE EDIÇÃO
+    let currentEditingEventIndex = null;
+    let currentEditingEventOriginal = null;
+
+    function openEventoModal(index) {
+      const isNew = index === null || index === undefined;
+      const baseEvento = {
+        ordemRegistro: "",
+        chaveIntegracao: "",
+        anoApur: "",
+        cnpjOrgaoAntComplem: "*vazio*",
+        dtExercicioComplem: "*datavazia*",
+        dtNasctoComplem: "*datavazia*",
+        empregador: { nrInsc: "", tpInsc: { tipo: "" } },
+        indApuracao: "",
+        indPossuiPerAnt: "",
+        matricAntComplem: "*vazio*",
+        nmTrabComplem: "*vazio*",
+        observacaoComplem: "*vazio*",
+        perApur: "",
+        trabalhador: { cpfTrab: "" },
+        s1202RemuTrabRPPSPagtos: []
+      };
+
+      let evt;
+      if (isNew) {
+        evt = JSON.parse(JSON.stringify(baseEvento));
+      } else {
+        evt = JSON.parse(JSON.stringify(getEventos()[index]));
+      }
+
+      currentEditingEventIndex = isNew ? null : index;
+      currentEditingEventOriginal = evt;
+
+      // Preenche campos
+      document.getElementById("ordemRegistro").value = evt.ordemRegistro || "";
+      document.getElementById("chaveIntegracao").value = evt.chaveIntegracao || "";
+      document.getElementById("anoApur").value = evt.anoApur || "";
+      document.getElementById("indApuracao").value = evt.indApuracao || "";
+      document.getElementById("indPossuiPerAnt").value = evt.indPossuiPerAnt || "";
+      document.getElementById("perApur").value = evt.perApur || "";
+      document.getElementById("empregador_nrInsc").value = evt.empregador.nrInsc || "";
+      document.getElementById("empregador_tpInsc_tipo").value = evt.empregador.tpInsc.tipo || "";
+      document.getElementById("trabalhador_cpfTrab").value = evt.trabalhador.cpfTrab || "";
+      document.getElementById("nmTrabComplem").value = evt.nmTrabComplem || "";
+
+      // Renderiza pagamentos
+      const pagamentosContainer = document.getElementById("pagamentosContainer");
+      pagamentosContainer.innerHTML = "";
+      evt.s1202RemuTrabRPPSPagtos.forEach((p) => addPagamentoCard(pagamentosContainer, p));
+
+      document.getElementById("addPagamentoBtn").onclick = () => {
+        const newPagto = {
+          codCateg: { categoria: "" },
+          descRRA: "",
+          ideDmDev: "",
+          indRRA: "",
+          nrProcRRA: "",
+          qtdMesesRRA: "",
+          remunOrgSuc: "",
+          tpProcRRA: "",
+          vlrDespAdvogados: "",
+          vlrDespCustas: "",
+          s1202RemuTrabRPPSIdeAdv: [],
+          s1202RemuTrabRPPSPer: []
+        };
+        if (!currentEditingEventOriginal.s1202RemuTrabRPPSPagtos) {
+          currentEditingEventOriginal.s1202RemuTrabRPPSPagtos = [];
+        }
+        currentEditingEventOriginal.s1202RemuTrabRPPSPagtos.push(newPagto);
+        addPagamentoCard(pagamentosContainer, newPagto);
+      };
+
+      addPlaceholderDropdowns();
+      $("#eventoModal").modal("show");
+    }
+
+    // ----------------------------------------------------------------------
+    // 5) PLACEHOLDER DROPDOWNS
+    function addPlaceholderDropdowns() {
+      const allInputs = document.querySelectorAll("#eventoModal input.has-placeholder");
+      allInputs.forEach((input) => {
+        const fieldName = input.id || "";
+        let pureField = fieldName.includes("_") ? fieldName.split("_").slice(-1)[0] : fieldName;
+        const placeholders = placeholdersMap[pureField];
+        if (!placeholders) return;
+        if (input.parentElement.querySelector(".placeholder-select")) return;
+        const select = document.createElement("select");
+        select.className = "form-control placeholder-select";
+        select.style.minWidth = "100px";
+        select.setAttribute("data-field", "#" + fieldName);
+        const optDefault = document.createElement("option");
+        optDefault.value = "";
+        optDefault.textContent = "(Digite valor)";
+        select.appendChild(optDefault);
+        placeholders.forEach((ph) => {
+          const opt = document.createElement("option");
+          opt.value = ph;
+          opt.textContent = ph;
+          select.appendChild(opt);
+        });
+        let wrapper = input.parentElement;
+        if (!wrapper.classList.contains("input-group")) return;
+        let appendDiv = wrapper.querySelector(".input-group-append");
+        if (!appendDiv) {
+          appendDiv = document.createElement("div");
+          appendDiv.className = "input-group-append";
+          wrapper.appendChild(appendDiv);
+        }
+        appendDiv.appendChild(select);
+      });
+    }
+
+    // ----------------------------------------------------------------------
+    // FUNÇÕES PARA OBTER DADOS DE SUBNÍVEIS (IdeAdv, Períodos, etc.)
+    function getIdeAdvFromCard(card) {
+      const container = card.querySelector(".ideadv-container");
+      if (!container) return null;
+      const ideAdvCards = container.querySelectorAll(".ideadv-card");
+      if (ideAdvCards.length === 0) return null;
+      let arr = [];
+      ideAdvCards.forEach((card) => {
+        const obj = {
+          nrInsc: safeValue(card, ".ideadv-nrInsc"),
+          tpInsc: { tipo: safeValue(card, ".ideadv-tpInsc") },
+          vlrAdv: safeValue(card, ".ideadv-vlrAdv")
+        };
+        arr.push(obj);
+      });
+      return arr;
+    }
+
+    function getPeriodsFromCard(card) {
+      const periodRows = card.querySelectorAll(".period-row");
+      if (periodRows.length === 0) return null;
+      let periods = [];
+      periodRows.forEach((row) => {
+        const period = {
+          anoRef: safeValue(row, ".period-anoRef"),
+          perRef: safeValue(row, ".period-perRef"),
+          tpRegistro: safeValue(row, ".period-tpRegistro"),
+          s1202RemuTrabRPPSEstab: getEstabsFromPeriodRow(row)
+        };
+        periods.push(period);
+      });
+      return periods;
+    }
+
+    function getEstabsFromPeriodRow(row) {
+      const container = row.querySelector(".estabs-container");
+      const estabRows = container ? container.querySelectorAll(".estab-row") : [];
+      if (estabRows.length === 0) return null;
+      let estabs = [];
+      estabRows.forEach((estRow) => {
+        const estab = {
+          nrInsc: {
+            iniValid: safeValue(estRow, ".estab-iniValid"),
+            nrInsc: safeValue(estRow, ".estab-nrInsc"),
+            tpInsc: { tipo: safeValue(estRow, ".estab-tpInsc") }
+          },
+          s1202RemuTrabRPPSRemu: getRemusFromEstabRow(estRow)
+        };
+        estabs.push(estab);
+      });
+      return estabs;
+    }
+
+    function getRemusFromEstabRow(estRow) {
+      const container = estRow.querySelector(".remu-container");
+      const remuRows = container ? container.querySelectorAll(".remu-row") : [];
+      if (remuRows.length === 0) return null;
+      let remus = [];
+      remuRows.forEach((remRow) => {
+        const remu = {
+          contrato: {
+            codCateg: { categoria: safeValue(remRow, ".remu-codCateg") },
+            contratoTSV: safeValue(remRow, ".remu-contratoTSV"),
+            dtAdm: safeValue(remRow, ".remu-dtAdm"),
+            matricula: safeValue(remRow, ".remu-matricula")
+          },
+          s1202RemuTrabRPPSItens: getItemsFromRemuRow(remRow)
+        };
+        remus.push(remu);
+      });
+      return remus;
+    }
+
+    function getItemsFromRemuRow(remRow) {
+      const container = remRow.querySelector(".itens-container");
+      const itemRows = container ? container.querySelectorAll(".item-row") : [];
+      if (itemRows.length === 0) return null;
+      let items = [];
+      itemRows.forEach((itemRow) => {
+        const item = {
+          codRubr: {
+            codRubr: safeValue(itemRow, ".item-codRubr"),
+            iniValid: safeValue(itemRow, ".item-iniValid")
+          },
+          fatorRubr: safeValue(itemRow, ".item-fatorRubr"),
+          ideTabRubr: safeValue(itemRow, ".item-ideTabRubr"),
+          indApurIR: safeValue(itemRow, ".item-indApurIR"),
+          qtdRubr: safeValue(itemRow, ".item-qtdRubr"),
+          vrRubr: safeValue(itemRow, ".item-vrRubr")
+        };
+        items.push(item);
+      });
+      return items;
+    }
+
+    // ----------------------------------------------------------------------
+    // 6) ADIÇÃO DE CARTÕES (Pagamentos, IdeAdv, Períodos etc.)
+    function addPagamentoCard(container, pagto) {
+      const card = document.createElement("div");
+      card.className = "card mb-3 pagamento-card";
+      card.dataset.original = JSON.stringify(pagto);
+      card.innerHTML = `
+        <div class="card-body">
+          <h6>Pagamento</h6>
+          <div class="form-row">
+            <div class="form-group col-md-4">
+              <label>Categoria</label>
+              <input type="text" class="form-control pagto-categoria has-placeholder" value="${pagto.codCateg.categoria || ''}">
+            </div>
+            <div class="form-group col-md-4">
+              <label>ideDmDev</label>
+              <input type="text" class="form-control pagto-ideDmDev" value="${pagto.ideDmDev || ''}">
+            </div>
+            <div class="form-group col-md-4">
+              <label>indRRA</label>
+              <input type="text" class="form-control pagto-indRRA has-placeholder" value="${pagto.indRRA || ''}">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group col-md-4">
+              <label>descRRA</label>
+              <input type="text" class="form-control pagto-descRRA has-placeholder" value="${pagto.descRRA || ''}">
+            </div>
+            <div class="form-group col-md-4">
+              <label>nrProcRRA</label>
+              <input type="text" class="form-control pagto-nrProcRRA" value="${pagto.nrProcRRA || ''}">
+            </div>
+            <div class="form-group col-md-4">
+              <label>qtdMesesRRA</label>
+              <input type="text" class="form-control pagto-qtdMesesRRA has-placeholder" value="${pagto.qtdMesesRRA || ''}">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group col-md-4">
+              <label>remunOrgSuc</label>
+              <input type="text" class="form-control pagto-remunOrgSuc" value="${pagto.remunOrgSuc || ''}">
+            </div>
+            <div class="form-group col-md-4">
+              <label>tpProcRRA</label>
+              <input type="text" class="form-control pagto-tpProcRRA has-placeholder" value="${pagto.tpProcRRA || ''}">
+            </div>
+            <div class="form-group col-md-4">
+              <label>vlrDespAdvogados</label>
+              <input type="text" class="form-control pagto-vlrDespAdvogados has-placeholder" value="${pagto.vlrDespAdvogados || ''}">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group col-md-4">
+              <label>vlrDespCustas</label>
+              <input type="text" class="form-control pagto-vlrDespCustas has-placeholder" value="${pagto.vlrDespCustas || ''}">
+            </div>
+            <div class="form-group col-md-4 d-flex align-items-end">
+              <button type="button" class="btn btn-outline-danger remove-pagto-btn">Remover Pagamento</button>
+            </div>
+          </div>
+          <!-- IdeAdv -->
+          <h6>IdeAdv</h6>
+          <div class="ideadv-container"></div>
+          <button type="button" class="btn btn-sm btn-outline-secondary add-ideadv-btn">Adicionar IdeAdv</button>
+          <hr>
+          <!-- Períodos -->
+          <h6>Períodos</h6>
+          <div class="periods-container"></div>
+          <button type="button" class="btn btn-sm btn-outline-primary add-period-btn">Adicionar Período</button>
+        </div>
+      `;
+      container.appendChild(card);
+
+      card.querySelector(".remove-pagto-btn").onclick = () => {
+        if (confirm("Remover este pagamento?")) {
+          card.remove();
+        }
+      };
+
+      // IdeAdv
+      const ideadvContainer = card.querySelector(".ideadv-container");
+      if (pagto.s1202RemuTrabRPPSIdeAdv && pagto.s1202RemuTrabRPPSIdeAdv.length) {
+        pagto.s1202RemuTrabRPPSIdeAdv.forEach((ideadv) => addIdeAdvCard(ideadvContainer, ideadv));
+      }
+      card.querySelector(".add-ideadv-btn").onclick = () => {
+        const newIdeAdv = {
+          nrInsc: "*vazio*",
+          tpInsc: { tipo: "*numerovazio*" },
+          vlrAdv: "*numerovazio*"
+        };
+        if (!pagto.s1202RemuTrabRPPSIdeAdv) {
+          pagto.s1202RemuTrabRPPSIdeAdv = [];
+        }
+        pagto.s1202RemuTrabRPPSIdeAdv.push(newIdeAdv);
+        addIdeAdvCard(ideadvContainer, newIdeAdv);
+      };
+
+      // Períodos
+      const periodsContainer = card.querySelector(".periods-container");
+      if (pagto.s1202RemuTrabRPPSPer && pagto.s1202RemuTrabRPPSPer.length) {
+        pagto.s1202RemuTrabRPPSPer.forEach((per) => addPeriodRow(periodsContainer, per));
+      }
+      card.querySelector(".add-period-btn").onclick = () => {
+        const newPeriod = {
+          anoRef: "",
+          perRef: "",
+          tpRegistro: "",
+          s1202RemuTrabRPPSEstab: []
+        };
+        if (!pagto.s1202RemuTrabRPPSPer) {
+          pagto.s1202RemuTrabRPPSPer = [];
+        }
+        pagto.s1202RemuTrabRPPSPer.push(newPeriod);
+        addPeriodRow(periodsContainer, newPeriod);
+      };
+
+      addPlaceholderDropdowns();
+    }
+
+    function addIdeAdvCard(container, ideadv) {
+      const card = document.createElement("div");
+      card.className = "card mb-2 ideadv-card p-2";
+      card.dataset.original = JSON.stringify(ideadv);
+      card.innerHTML = `
+        <div class="form-row">
+          <div class="form-group col-md-4">
+            <label>nrInsc</label>
+            <input type="text" class="form-control ideadv-nrInsc has-placeholder" value="${ideadv.nrInsc || ''}">
+          </div>
+          <div class="form-group col-md-4">
+            <label>tpInsc</label>
+            <input type="text" class="form-control ideadv-tpInsc has-placeholder" value="${ideadv.tpInsc.tipo || ''}">
+          </div>
+          <div class="form-group col-md-4">
+            <label>vlrAdv</label>
+            <input type="text" class="form-control ideadv-vlrAdv has-placeholder" value="${ideadv.vlrAdv || ''}">
+          </div>
+        </div>
+        <button type="button" class="btn btn-outline-danger btn-sm remove-ideadv-btn">Remover IdeAdv</button>
+      `;
+      container.appendChild(card);
+      card.querySelector(".remove-ideadv-btn").onclick = () => {
+        if (confirm("Remover este IdeAdv?")) {
+          card.remove();
+        }
+      };
+      addPlaceholderDropdowns();
+    }
+
+    function addPeriodRow(container, period) {
+      const row = document.createElement("div");
+      row.className = "border p-2 mb-2 period-row";
+      row.innerHTML = `
+        <div class="form-row">
+          <div class="form-group col-md-3">
+            <label>Ano Ref</label>
+            <input type="text" class="form-control period-anoRef has-placeholder" value="${period.anoRef || ''}">
+          </div>
+          <div class="form-group col-md-3">
+            <label>Per Ref</label>
+            <input type="text" class="form-control period-perRef has-placeholder" value="${period.perRef || ''}">
+          </div>
+          <div class="form-group col-md-3">
+            <label>tpRegistro</label>
+            <input type="text" class="form-control period-tpRegistro has-placeholder" value="${period.tpRegistro || ''}">
+          </div>
+          <div class="form-group col-md-3 d-flex align-items-end">
+            <button type="button" class="btn btn-outline-danger remove-period-btn">Remover Período</button>
+          </div>
+        </div>
+        <h6>Estabelecimentos</h6>
+        <div class="estabs-container"></div>
+        <button type="button" class="btn btn-sm btn-outline-secondary add-estab-btn">Adicionar Estabelecimento</button>
+      `;
+      container.appendChild(row);
+      row.querySelector(".remove-period-btn").onclick = () => {
+        row.remove();
+      };
+
+      const estabsContainer = row.querySelector(".estabs-container");
+      if (period.s1202RemuTrabRPPSEstab && period.s1202RemuTrabRPPSEstab.length) {
+        period.s1202RemuTrabRPPSEstab.forEach((est) => addEstabRow(estabsContainer, est));
+      }
+      row.querySelector(".add-estab-btn").onclick = () => {
+        const newEstab = {
+          nrInsc: { iniValid: "", nrInsc: "", tpInsc: { tipo: "" } },
+          s1202RemuTrabRPPSRemu: []
+        };
+        if (!period.s1202RemuTrabRPPSEstab) {
+          period.s1202RemuTrabRPPSEstab = [];
+        }
+        period.s1202RemuTrabRPPSEstab.push(newEstab);
+        addEstabRow(estabsContainer, newEstab);
+      };
+
+      addPlaceholderDropdowns();
+    }
+
+    function addEstabRow(container, estab) {
+      const row = document.createElement("div");
+      row.className = "border p-2 mb-2 estab-row";
+      row.innerHTML = `
+        <div class="form-row">
+          <div class="form-group col-md-3">
+            <label>iniValid</label>
+            <input type="text" class="form-control estab-iniValid has-placeholder" value="${estab.nrInsc.iniValid || ''}">
+          </div>
+          <div class="form-group col-md-3">
+            <label>nrInsc</label>
+            <input type="text" class="form-control estab-nrInsc has-placeholder" value="${estab.nrInsc.nrInsc || ''}">
+          </div>
+          <div class="form-group col-md-3">
+            <label>tpInsc</label>
+            <input type="text" class="form-control estab-tpInsc has-placeholder" value="${estab.nrInsc.tpInsc.tipo || ''}">
+          </div>
+          <div class="form-group col-md-3 d-flex align-items-end">
+            <button type="button" class="btn btn-outline-danger remove-estab-btn">Remover Estabelecimento</button>
+          </div>
+        </div>
+        <h6>Remunerações</h6>
+        <div class="remu-container"></div>
+        <button type="button" class="btn btn-sm btn-outline-secondary add-remu-btn">Adicionar Remuneração</button>
+      `;
+      container.appendChild(row);
+      row.querySelector(".remove-estab-btn").onclick = () => {
+        row.remove();
+      };
+
+      const remuContainer = row.querySelector(".remu-container");
+      if (estab.s1202RemuTrabRPPSRemu && estab.s1202RemuTrabRPPSRemu.length) {
+        estab.s1202RemuTrabRPPSRemu.forEach((r) => addRemuRow(remuContainer, r));
+      }
+      row.querySelector(".add-remu-btn").onclick = () => {
+        const newRemu = {
+          contrato: {
+            codCateg: { categoria: "" },
+            contratoTSV: "",
+            dtAdm: "",
+            matricula: ""
+          },
+          s1202RemuTrabRPPSItens: []
+        };
+        if (!estab.s1202RemuTrabRPPSRemu) {
+          estab.s1202RemuTrabRPPSRemu = [];
+        }
+        estab.s1202RemuTrabRPPSRemu.push(newRemu);
+        addRemuRow(remuContainer, newRemu);
+      };
+
+      addPlaceholderDropdowns();
+    }
+
+    function addRemuRow(container, remu) {
+      const row = document.createElement("div");
+      row.className = "border p-2 mb-2 remu-row";
+      row.innerHTML = `
+        <div class="form-row">
+          <div class="form-group col-md-3">
+            <label>codCateg</label>
+            <input type="text" class="form-control remu-codCateg has-placeholder" value="${remu.contrato.codCateg.categoria || ''}">
+          </div>
+          <div class="form-group col-md-3">
+            <label>contratoTSV</label>
+            <input type="text" class="form-control remu-contratoTSV has-placeholder" value="${remu.contrato.contratoTSV || ''}">
+          </div>
+          <div class="form-group col-md-3">
+            <label>dtAdm</label>
+            <input type="text" class="form-control remu-dtAdm has-placeholder" value="${remu.contrato.dtAdm || ''}">
+          </div>
+          <div class="form-group col-md-3">
+            <label>Matrícula</label>
+            <input type="text" class="form-control remu-matricula has-placeholder" value="${remu.contrato.matricula || ''}">
+          </div>
+        </div>
+        <div class="form-group">
+          <button type="button" class="btn btn-outline-danger remove-remu-btn">Remover Remuneração</button>
+        </div>
+        <h6>Itens de Rubrica</h6>
+        <div class="itens-container"></div>
+        <button type="button" class="btn btn-sm btn-outline-secondary add-item-btn">Adicionar Item</button>
+      `;
+      container.appendChild(row);
+      row.querySelector(".remove-remu-btn").onclick = () => {
+        row.remove();
+      };
+
+      const itensContainer = row.querySelector(".itens-container");
+      if (remu.s1202RemuTrabRPPSItens && remu.s1202RemuTrabRPPSItens.length) {
+        remu.s1202RemuTrabRPPSItens.forEach((i) => addItemRow(itensContainer, i));
+      }
+      row.querySelector(".add-item-btn").onclick = () => {
+        const newItem = {
+          codRubr: { codRubr: "", iniValid: "" },
+          fatorRubr: "",
+          ideTabRubr: "",
+          indApurIR: "",
+          qtdRubr: "",
+          vrRubr: ""
+        };
+        if (!remu.s1202RemuTrabRPPSItens) {
+          remu.s1202RemuTrabRPPSItens = [];
+        }
+        remu.s1202RemuTrabRPPSItens.push(newItem);
+        addItemRow(itensContainer, newItem);
+      };
+
+      addPlaceholderDropdowns();
+    }
+
+    function addItemRow(container, item) {
+      const row = document.createElement("div");
+      row.className = "border p-2 mb-2 item-row";
+      row.innerHTML = `
+        <div class="form-row">
+          <div class="form-group col-md-2">
+            <label>codRubr</label>
+            <input type="text" class="form-control item-codRubr has-placeholder" value="${item.codRubr.codRubr || ''}">
+          </div>
+          <div class="form-group col-md-2">
+            <label>iniValid</label>
+            <input type="text" class="form-control item-iniValid has-placeholder" value="${item.codRubr.iniValid || ''}">
+          </div>
+          <div class="form-group col-md-2">
+            <label>fatorRubr</label>
+            <input type="text" class="form-control item-fatorRubr has-placeholder" value="${item.fatorRubr || ''}">
+          </div>
+          <div class="form-group col-md-2">
+            <label>ideTabRubr</label>
+            <input type="text" class="form-control item-ideTabRubr has-placeholder" value="${item.ideTabRubr || ''}">
+          </div>
+          <div class="form-group col-md-2">
+            <label>indApurIR</label>
+            <input type="text" class="form-control item-indApurIR has-placeholder" value="${item.indApurIR || ''}">
+          </div>
+          <div class="form-group col-md-1">
+            <label>qtdRubr</label>
+            <input type="text" class="form-control item-qtdRubr has-placeholder" value="${item.qtdRubr || ''}">
+          </div>
+          <div class="form-group col-md-1">
+            <label>Valor</label>
+            <input type="text" class="form-control item-vrRubr has-placeholder" value="${item.vrRubr || ''}">
+          </div>
+        </div>
+        <button type="button" class="btn btn-outline-danger remove-item-btn">Remover Item</button>
+      `;
+      container.appendChild(row);
+      row.querySelector(".remove-item-btn").onclick = () => {
+        if (confirm("Remover este item?")) {
+          row.remove();
+        }
+      };
+      addPlaceholderDropdowns();
+    }
+ // 7) SALVAR EVENTO
+    document.getElementById("saveEventoBtn").onclick = () => {
+      let evtOriginal = currentEditingEventOriginal;
+      let evtAtualizado = JSON.parse(JSON.stringify(evtOriginal));
+
+      evtAtualizado.ordemRegistro = safeValue(document, "#ordemRegistro");
+      evtAtualizado.chaveIntegracao = safeValue(document, "#chaveIntegracao");
+      evtAtualizado.anoApur = safeValue(document, "#anoApur");
+      evtAtualizado.indApuracao = safeValue(document, "#indApuracao");
+      evtAtualizado.indPossuiPerAnt = safeValue(document, "#indPossuiPerAnt");
+      evtAtualizado.perApur = safeValue(document, "#perApur");
+      evtAtualizado.empregador.nrInsc = safeValue(document, "#empregador_nrInsc");
+      evtAtualizado.empregador.tpInsc.tipo = safeValue(document, "#empregador_tpInsc_tipo");
+      evtAtualizado.trabalhador.cpfTrab = safeValue(document, "#trabalhador_cpfTrab");
+      evtAtualizado.nmTrabComplem = safeValue(document, "#nmTrabComplem");
+
+      // Salvar pagamentos
+      const pagCards = document.querySelectorAll(".pagamento-card");
+      evtAtualizado.s1202RemuTrabRPPSPagtos = Array.from(pagCards).map((card) => {
+        const originalPagto = JSON.parse(card.dataset.original || "{}");
+        const updatedPagto = {
+          codCateg: { categoria: safeValue(card, ".pagto-categoria") },
+          descRRA: safeValue(card, ".pagto-descRRA"),
+          ideDmDev: safeValue(card, ".pagto-ideDmDev"),
+          indRRA: safeValue(card, ".pagto-indRRA"),
+          nrProcRRA: safeValue(card, ".pagto-nrProcRRA"),
+          qtdMesesRRA: safeValue(card, ".pagto-qtdMesesRRA"),
+          remunOrgSuc: safeValue(card, ".pagto-remunOrgSuc"),
+          tpProcRRA: safeValue(card, ".pagto-tpProcRRA"),
+          vlrDespAdvogados: safeValue(card, ".pagto-vlrDespAdvogados"),
+          vlrDespCustas: safeValue(card, ".pagto-vlrDespCustas"),
+          s1202RemuTrabRPPSIdeAdv: getIdeAdvFromCard(card) || originalPagto.s1202RemuTrabRPPSIdeAdv,
+          s1202RemuTrabRPPSPer: getPeriodsFromCard(card) || originalPagto.s1202RemuTrabRPPSPer
+        };
+        return mergeDeep(originalPagto, updatedPagto);
+      });
+
+      // Insere ou atualiza
+      if (currentEditingEventIndex === null) {
+        getEventos().push(evtAtualizado);
+      } else {
+        getEventos()[currentEditingEventIndex] = evtAtualizado;
+      }
+
+      $("#eventoModal").modal("hide");
+      renderEventosTable();
+    };
+
+    // ----------------------------------------------------------------------
+    // 8) CARREGAR ARQUIVO
+    const fileInput = document.getElementById("fileInput");
+    fileInput.addEventListener("change", function () {
+      const file = this.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function (e) {
+        try {
+          window.esocialData = JSON.parse(e.target.result);
+          getEventos().forEach((evt) => {
+            if (typeof evt._selected === "undefined") {
+              evt._selected = false;
+            }
+          });
+          renderEventosTable();
+          alert("Arquivo carregado com sucesso!");
+        } catch (err) {
+          alert("Erro ao ler JSON: " + err);
+        }
+      };
+      reader.readAsText(file);
+    });
+
+    // ----------------------------------------------------------------------
+    // 9) BAIXAR ARQUIVO
+    function gerarArquivoEsocialFormatado(data) {
+      const eventos = data?.s1202RemuTrabRPPSGroup?.s1202RemuTrabRPPS || [];
+      let resultado = '{"s1202RemuTrabRPPSGroup":{"s1202RemuTrabRPPS":[';
+      for (let i = 0; i < eventos.length; i++) {
+        const copia = JSON.parse(JSON.stringify(eventos[i]));
+        delete copia._selected; // remove seleção interna
+        const eStr = JSON.stringify(copia, null, 0);
+        resultado += (i === 0 ? "\n" : "\n,") + eStr;
+      }
+      resultado += "\n]}}";
+      return resultado;
+    }
+
+    function gerarNomeArquivo() {
+      const eventos = getEventos();
+      if (eventos.length > 0) {
+        const evt = eventos[0];
+        const chave = evt.chaveIntegracao || "";
+        // Exemplo de chave: "1#11239018#05668501760#2023#01032023#1"
+        const parts = chave.split("#");
+        if (parts.length >= 6) {
+          const ano = parts[3];
+          const dataRef = parts[4];
+          const tipoApur = parts[5];
+          return `S-1202_${ano}_${dataRef}_${tipoApur}.json`;
+        }
+      }
+      return "S-1202_editor.json";
+    }
+
+    document.getElementById("downloadBtn").addEventListener("click", () => {
+      try {
+        const dataStr = gerarArquivoEsocialFormatado(window.esocialData);
+        const blob = new Blob([dataStr], { type: "application/json;charset=utf-8;" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.setAttribute("href", url);
+        link.setAttribute("download", gerarNomeArquivo());
+        link.click();
+        URL.revokeObjectURL(url);
+      } catch (err) {
+        alert("Erro ao gerar download: " + err);
+      }
+    });
+
+    // ----------------------------------------------------------------------
+    // 10) SCRIPTS (Substituição Global)
+    document.getElementById("applyScriptBtn").addEventListener("click", () => {
+      const scope = document.getElementById("scriptScope").value;
+      const field = document.getElementById("scriptField").value.trim();
+      const oldVal = document.getElementById("scriptOldValue").value.trim();
+      const newVal = document.getElementById("scriptNewValue").value.trim();
+
+      if (!field) {
+        alert("Informe o nome do campo a substituir.");
+        return;
+      }
+
+      function replaceInEvento(evt) {
+        if (scope === "evento") {
+          if (evt.hasOwnProperty(field)) {
+            if (!oldVal || evt[field] === oldVal) {
+              evt[field] = newVal;
+            }
+          }
+        }
+        if (["pagto", "periodo", "estab", "remu", "item"].includes(scope)) {
+          (evt.s1202RemuTrabRPPSPagtos || []).forEach((p) => {
+            if (scope === "pagto") {
+              if (p.hasOwnProperty(field)) {
+                if (!oldVal || p[field] === oldVal) {
+                  p[field] = newVal;
+                }
+              }
+            }
+            (p.s1202RemuTrabRPPSPer || []).forEach((period) => {
+              if (scope === "periodo") {
+                if (period.hasOwnProperty(field)) {
+                  if (!oldVal || period[field] === oldVal) {
+                    period[field] = newVal;
+                  }
+                }
+              }
+              (period.s1202RemuTrabRPPSEstab || []).forEach((est) => {
+                if (scope === "estab") {
+                  if (est.hasOwnProperty(field)) {
+                    if (!oldVal || est[field] === oldVal) {
+                      est[field] = newVal;
+                    }
+                  }
+                  if (est.nrInsc && ["iniValid", "nrInsc", "tipo"].includes(field)) {
+                    if (!oldVal || est.nrInsc[field] === oldVal) {
+                      est.nrInsc[field] = newVal;
+                    }
+                  }
+                }
+                (est.s1202RemuTrabRPPSRemu || []).forEach((r) => {
+                  if (scope === "remu") {
+                    if (r.contrato.hasOwnProperty(field)) {
+                      if (!oldVal || r.contrato[field] === oldVal) {
+                        r.contrato[field] = newVal;
+                      }
+                    }
+                    if (field === "codCateg") {
+                      if (!oldVal || r.contrato.codCateg.categoria === oldVal) {
+                        r.contrato.codCateg.categoria = newVal;
+                      }
+                    }
+                  }
+                  (r.s1202RemuTrabRPPSItens || []).forEach((i) => {
+                    if (scope === "item") {
+                      if (i.hasOwnProperty(field)) {
+                        if (!oldVal || i[field] === oldVal) {
+                          i[field] = newVal;
+                        }
+                      }
+                      if (i.codRubr && ["codRubr", "iniValid"].includes(field)) {
+                        if (!oldVal || i.codRubr[field] === oldVal) {
+                          i.codRubr[field] = newVal;
+                        }
+                      }
+                    }
+                  });
+                });
+              });
+            });
+          });
+        }
+      }
+
+      getEventos().forEach((e) => replaceInEvento(e));
+      $("#scriptsModal").modal("hide");
+      renderEventosTable();
+      alert(`Substituição concluída! Campo '${field}' -> '${newVal}'.`);
+    });
+
+    // ----------------------------------------------------------------------
+	// 11) MARCAR / DESMARCAR TODOS — agora respeitando o filtro de busca
+	function eventoCorrespondeFiltro(evt) {
+	  const search = (document.getElementById("searchInput").value || "")
+					   .toLowerCase();
+	  if (!search) return true;                       // nada digitado? mostra tudo
+	  return JSON.stringify(evt).toLowerCase().includes(search);
+	}
+
+	document.getElementById("selectAllBtn").addEventListener("click", () => {
+	  getEventos().forEach(evt => {
+		if (eventoCorrespondeFiltro(evt)) {
+		  evt._selected = true;                       // marca só os visíveis
+		}
+	  });
+	  renderEventosTable();
+	});
+
+	document.getElementById("deselectAllBtn").addEventListener("click", () => {
+	  getEventos().forEach(evt => {
+		if (eventoCorrespondeFiltro(evt)) {
+		  evt._selected = false;                      // desmarca só os visíveis
+		}
+	  });
+	  renderEventosTable();
+	});
+
+    // ----------------------------------------------------------------------
+    // 12) REMOVER SELECIONADOS
+    document.getElementById("removeSelectedBtn").addEventListener("click", () => {
+      if (!confirm("Deseja remover todos os selecionados?")) return;
+      let eventos = getEventos();
+      let novos = eventos.filter((e) => !e._selected);
+      window.esocialData.s1202RemuTrabRPPSGroup.s1202RemuTrabRPPS = novos;
+      renderEventosTable();
+    });
+
+    // ----------------------------------------------------------------------
+    // 13) AJUSTAR PAGAMENTOS NEGATIVOS
+    document.getElementById("ajustarRubricasBtn").addEventListener("click", ajustarRubricasNegativas);
+
+    function parseToFloat(str) {
+      if (!str) return 0;
+      let val = str.replace(",", ".");
+      let num = parseFloat(val);
+      return isNaN(num) ? 0 : num;
+    }
+
+	function ajustarRubricasNegativas() {
+	  const eventos = getEventos();
+	  let contadorAjustes = 0;
+
+	  eventos.forEach((evt) => {
+		const anoApurEvento = parseYear(evt.perApur);
+
+		(evt.s1202RemuTrabRPPSPagtos || []).forEach((pagto) => {
+		  let soma = 0;
+		  const periodos = pagto.s1202RemuTrabRPPSPer || [];
+
+		  // Soma de todas as rubricas VANT/DESC
+		  periodos.forEach((periodo) => {
+			(periodo.s1202RemuTrabRPPSEstab || []).forEach((estab) => {
+			  (estab.s1202RemuTrabRPPSRemu || []).forEach((remu) => {
+				(remu.s1202RemuTrabRPPSItens || []).forEach((item) => {
+				  if (item.ideTabRubr === "VANT") {
+					soma += parseToFloat(item.vrRubr);
+				  } else if (item.ideTabRubr === "DESC") {
+					soma -= parseToFloat(item.vrRubr);
+				  }
+				});
+			  });
+			});
+		  });
+
+		  // Se a soma for negativa, insere rubrica 998V (somente se > 0 real)
+		  if (soma < 0) {
+			const diferencaNum = Math.abs(soma);
+			// filtra ruído de ponto‑flutuante
+			if (diferencaNum > Number.EPSILON) {
+			  const diferenca = diferencaNum.toFixed(4);
+			  // evita "0.0000" mesmo após toFixed
+			  if (parseFloat(diferenca) > 0) {
+				const ultimoPeriodo = periodos[periodos.length - 1];
+				if (ultimoPeriodo) {
+				  (ultimoPeriodo.s1202RemuTrabRPPSEstab || []).forEach((est) => {
+					(est.s1202RemuTrabRPPSRemu || []).forEach((remu) => {
+					  const anoPerRef = parseYear(ultimoPeriodo.perRef);
+					  const novoItem = {
+						codRubr: {
+						  codRubr: "998V",
+						  iniValid: ultimoPeriodo.perRef
+						},
+						fatorRubr: "*numerovazio*",
+						ideTabRubr: "VANT",
+						indApurIR: "0",
+						qtdRubr: "*numerovazio*",
+						vrRubr: diferenca
+					  };
+					  remu.s1202RemuTrabRPPSItens.push(novoItem);
+					});
+				  });
+				  contadorAjustes++;
+				}
+			  }
+			}
+		  }
+		});
+	  });
+
+	  if (contadorAjustes > 0) {
+		alert(`Rubricas negativas ajustadas em ${contadorAjustes} caso(s).`);
+	  } else {
+		alert("Não foi encontrada nenhuma soma negativa para ajustar.");
+	  }
+	  renderEventosTable();
+	}
+
+
+
+    // ----------------------------------------------------------------------
+    // 14) VERIFICAR PERÍODOS ANTERIORES e RRA
+    document.getElementById("verificarPeriodosBtn").addEventListener("click", () => {
+      // Abre modal para configurar
+      $("#verificarModal").modal("show");
+    });
+
+    document.getElementById("applyVerificarBtn").addEventListener("click", () => {
+      const descRRA = document.getElementById("verifDescRRA").value.trim();
+      const tpProcRRA = document.getElementById("verifTpProcRRA").value.trim();
+      const rra032023 = document.getElementById("verifRRA032023").checked;
+
+      verificarPeriodosAnterioresRRA(descRRA, tpProcRRA, rra032023);
+      $("#verificarModal").modal("hide");
+      renderEventosTable();
+      alert("Verificação de períodos / RRA concluída!");
+    });
+
+    // Lógica atualizada:
+    // 1) "Possui Período Anterior?" => "S" se 'perRef'(YYYYMM) < 'perApur'(YYYYMM)
+    // 2) RRA => se ano(perRef) < ano(perApur) => indRRA="S", senão "*vazio*"
+    // 3) Ajusta descRRA, qtdMesesRRA, tpProcRRA se RRA="S"
+    // 4) Ajusta indApurIR = "0"
+    // 5) Se "RRA 03/2023" => zera tudo
+
+    function verificarPeriodosAnterioresRRA(descRRA, tpProcRRA, rra032023) {
+      const eventos = getEventos();
+
+      eventos.forEach((evt) => {
+        const apurNum = parseYearMonth(evt.perApur); // p/ Passo1
+        const anoApur = parseYear(evt.perApur);      // p/ Passo2
+
+        let possuiMesAnterior = false; // se algum perRefNum < apurNum
+
+        (evt.s1202RemuTrabRPPSPagtos || []).forEach((pagto) => {
+          let existeAnoAnterior = false; // para RRA
+
+          (pagto.s1202RemuTrabRPPSPer || []).forEach((periodo) => {
+            const perRefNum = parseYearMonth(periodo.perRef);
+            const perRefAno = parseYear(periodo.perRef);
+
+            // Passo1: se perRefNum < apurNum => "Possui Período Anterior?"
+            if (perRefNum && apurNum && perRefNum < apurNum) {
+              possuiMesAnterior = true;
+            }
+
+            // Passo2: se perRefAno < anoApur => RRA = S
+            if (perRefAno && anoApur && perRefAno < anoApur) {
+              existeAnoAnterior = true;
+            }
+
+            // Passo4: indApurIR => "0"
+            (periodo.s1202RemuTrabRPPSEstab || []).forEach((est) => {
+              (est.s1202RemuTrabRPPSRemu || []).forEach((remu) => {
+                (remu.s1202RemuTrabRPPSItens || []).forEach((item) => {
+                  if (perRefAno < anoApur) item.indApurIR = "0";
+                  else item.indApurIR = "0";
+                });
+              });
+            });
+          });
+
+          if (rra032023) {
+            // zera indRRA
+            pagto.indRRA = "*vazio*";
+            pagto.descRRA = "*vazio*";
+            pagto.qtdMesesRRA = "*numerovazio*";
+            pagto.tpProcRRA = "*vazio*";
+          } else {
+            if (existeAnoAnterior) {
+              pagto.indRRA = "S";
+              // Preenche descRRA e tals
+              pagto.descRRA = descRRA || "";
+              pagto.tpProcRRA = tpProcRRA || "";
+              // qtdMesesRRA = quantos perRef com ano < anoApur
+              let countAnos = 0;
+              if (pagto.s1202RemuTrabRPPSPer) {
+                pagto.s1202RemuTrabRPPSPer.forEach((per) => {
+                  const pAno = parseYear(per.perRef);
+                  if (pAno && pAno < anoApur) {
+                    countAnos++;
+                  }
+                });
+              }
+              if (countAnos === 0) pagto.qtdMesesRRA = "*numerovazio*";
+              else pagto.qtdMesesRRA = String(countAnos);
+            } else {
+              pagto.indRRA = "*vazio*";
+              pagto.descRRA = "*vazio*";
+              pagto.qtdMesesRRA = "*numerovazio*";
+              pagto.tpProcRRA = "*vazio*";
+            }
+          }
+        });
+
+        // Ao final do for, define se "S" ou "N"
+        evt.indPossuiPerAnt = possuiMesAnterior ? "S" : "N";
+      });
+    }
+
+    // ----------------------------------------------------------------------
+    // 15) MESCLAR EVENTOS PELA MESMA CHAVE
+    document.getElementById("mergeBtn").addEventListener("click", mesclarEventos);
+
+function mesclarEventos() {
+  const eventos = getEventos();
+  let agrupados = {};
+
+  // 1) Agrupa eventos pela chaveIntegracao
+  eventos.forEach((evt) => {
+    const chave = evt.chaveIntegracao || "";
+    if (!agrupados[chave]) {
+      agrupados[chave] = [];
+    }
+    agrupados[chave].push(evt);
+  });
+
+  let novaLista = [];
+
+  // 2) Para cada grupo (chaveIntegracao), mescla e renomeia
+  for (let chave in agrupados) {
+    const lista = agrupados[chave];
+
+    // Pega o primeiro evento do grupo como “base”
+    let eventoBase = lista[0];
+    if (!eventoBase.s1202RemuTrabRPPSPagtos) {
+      eventoBase.s1202RemuTrabRPPSPagtos = [];
+    }
+
+    // Se houver mais de um evento nessa mesma chave, concatena os pagamentos
+    for (let i = 1; i < lista.length; i++) {
+      let outro = lista[i];
+      if (outro.s1202RemuTrabRPPSPagtos && outro.s1202RemuTrabRPPSPagtos.length > 0) {
+        eventoBase.s1202RemuTrabRPPSPagtos.push(...outro.s1202RemuTrabRPPSPagtos);
+      }
+    }
+
+    // 3) Renomeia ideDmDev duplicados
+    //    (inclui caso de somente 1 evento na chave, mas com vários demonstrativos iguais)
+    let vistos = {};
+    eventoBase.s1202RemuTrabRPPSPagtos.forEach((pagto) => {
+      let original = pagto.ideDmDev || "";
+      if (!vistos[original]) {
+        vistos[original] = 1;
+      } else {
+        vistos[original]++;
+        pagto.ideDmDev = original + "-" + vistos[original];
+      }
+    });
+
+    // 4) Adiciona ao resultado final
+    novaLista.push(eventoBase);
+  }
+
+  // 5) Substitui a lista antiga de eventos pela nova
+  window.esocialData.s1202RemuTrabRPPSGroup.s1202RemuTrabRPPS = novaLista;
+  renderEventosTable();
+  alert(
+    "Mesclagem concluída! Eventos com a mesma chaveIntegracao foram unificados e ideDmDev duplicados foram renomeados."
+  );
+}
+
+
+    // ----------------------------------------------------------------------
+    // Informar Estabelecimentos
+    document.getElementById("estabBtn").addEventListener("click", () => {
+      $("#estabModal").modal("show");
+    });
+
+    document.getElementById("applyEstabBtn").addEventListener("click", () => {
+      const iniValid = document.getElementById("estabIniValid").value.trim();
+      const nrInsc = document.getElementById("estabNrInsc").value.trim();
+      const tpInsc = document.getElementById("estabTpInsc").value.trim();
+      aplicarEstabelecimentos(iniValid, nrInsc, tpInsc);
+      $("#estabModal").modal("hide");
+      renderEventosTable();
+      alert("Estabelecimentos informados/atualizados com sucesso!");
+    });
+
+	document.getElementById("categRemuBtn").addEventListener("click", () => {
+	  $("#categRemuModal").modal("show");
+	});
+
+	document.getElementById("applyCategRemuBtn").addEventListener("click", () => {
+	  const codigo = document.getElementById("categRemuValue").value.trim();
+	  getEventos().forEach(evt => {
+		(evt.s1202RemuTrabRPPSPagtos || []).forEach(pagto => {
+		  (pagto.s1202RemuTrabRPPSPer || []).forEach(periodo => {
+			(periodo.s1202RemuTrabRPPSEstab || []).forEach(estab => {
+			  (estab.s1202RemuTrabRPPSRemu || []).forEach(remu => {
+				if (remu.contrato.codCateg.categoria === "*numerovazio*") {
+				  remu.contrato.codCateg.categoria = codigo;
+				}
+			  });
+			});
+		  });
+		});
+	  });
+	  $("#categRemuModal").modal("hide");
+	  renderEventosTable();
+	  alert(`Código de remuneração "${codigo}" aplicado nos placeholders.`);
+	});
+
+    function aplicarEstabelecimentos(iniValid, nrInsc, tpInsc) {
+      const eventos = getEventos();
+      eventos.forEach((evt) => {
+        (evt.s1202RemuTrabRPPSPagtos || []).forEach((pagto) => {
+          (pagto.s1202RemuTrabRPPSPer || []).forEach((periodo) => {
+            (periodo.s1202RemuTrabRPPSEstab || []).forEach((est) => {
+              if (!est.nrInsc) {
+                est.nrInsc = {};
+              }
+              est.nrInsc.iniValid = iniValid;
+              est.nrInsc.nrInsc = nrInsc;
+              if (!est.nrInsc.tpInsc) {
+                est.nrInsc.tpInsc = {};
+              }
+              est.nrInsc.tpInsc.tipo = tpInsc;
+            });
+          });
+        });
+      });
+    }
+
+    // Inicializa a tabela ao carregar
+    renderEventosTable();
+
+    // Variável global para armazenar o mapeamento do CSV (cpfTrab => { matricula, matricula_atual })
+    let csvMapping = {};
+
+    // Função para fazer o parse do CSV
+    function parseCSV(csvText) {
+      const lines = csvText.trim().split("\n");
+      let mapping = {};
+      // Se houver cabeçalho, remova a primeira linha (opcional)
+      if (lines.length > 0 && lines[0].toLowerCase().includes("cpftrab")) {
+        lines.shift();
+      }
+      lines.forEach(line => {
+        const parts = line.split(";");
+        if (parts.length >= 3) {
+          const cpf = parts[0].trim();
+          const matricula = parts[1].trim();
+          const matricula_atual = parts[2].trim();
+          mapping[cpf] = { matricula, matricula_atual };
+        }
+      });
+      return mapping;
+    }
+
+    // Listener para o input do arquivo CSV
+    document.getElementById("csvFileInput").addEventListener("change", function() {
+      const file = this.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          csvMapping = parseCSV(e.target.result);
+          alert("CSV carregado com sucesso!");
+        } catch (err) {
+          alert("Erro ao ler CSV: " + err);
+        }
+      };
+      reader.readAsText(file);
+    });
+
+	// Função para analisar e atualizar as matrículas nos eventos
+	function analisarMatriculas() {
+	  const eventos = getEventos();
+	  let atualizados = 0;
+
+	  eventos.forEach(evt => {
+		const cpf = evt.trabalhador && evt.trabalhador.cpfTrab;
+		if (!cpf || !csvMapping[cpf]) return;
+
+		const csvData = csvMapping[cpf];
+
+		(evt.s1202RemuTrabRPPSPagtos || []).forEach(pagto => {
+		  (pagto.s1202RemuTrabRPPSPer || []).forEach(periodo => {
+			(periodo.s1202RemuTrabRPPSEstab || []).forEach(estab => {
+			  (estab.s1202RemuTrabRPPSRemu || []).forEach(remu => {
+				if (
+				  remu.contrato &&
+				  remu.contrato.matricula === csvData.matricula_atual
+				) {
+				  // Atualiza para o valor correto do CSV
+				  remu.contrato.matricula = csvData.matricula;
+				  atualizados++;
+				}
+			  });
+			});
+		  });
+		});
+	  });
+
+	  alert(`Análise concluída! Matrículas atualizadas: ${atualizados}`);
+	  renderEventosTable();
+	}
+
+
+
+    // Listener para o botão "Analisar Matrículas" do modal CSV
+    document.getElementById("analisarMatriculasBtn").addEventListener("click", function() {
+      analisarMatriculas();
+      $("#csvModal").modal("hide");
+    });
+
+	document.querySelectorAll('.btn-group-custom button').forEach(btn => {
+	  btn.addEventListener('click', () => {
+		// aqui alternamos entre btn-success e btn-secondary
+		btn.classList.toggle('btn-secondary');
+		btn.classList.toggle('btn-success');
+	  });
+	});
+
+  </script>
+</body>
+</html>
