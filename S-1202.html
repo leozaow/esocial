@@ -81,7 +81,7 @@
 
   <!-- Navbar simples -->
   <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
-    <a class="navbar-brand" href="#">Editor Eventos - V1.0.3</a>
+    <a class="navbar-brand" href="#">Editor Eventos - V1.0.2</a>
   </nav>
 
   <!-- Conteúdo principal -->
@@ -218,17 +218,8 @@
           </div>
           <div class="modal-body">
             <div class="form-group">
-              <label for="csvOldFileInput">Base antiga (cpfTrab;matricula) <span class="text-muted">(estático)</span>:</label>
-<input type="file" id="csvOldFileInput" accept=".csv" class="form-control-file" />
-<small class="form-text text-muted">CPF pode vir com 11 dígitos, com máscara, ou sem zeros à esquerda (será normalizado).</small>
-<hr>
-<label for="csvNewFileInput">Base nova (cpfTrab;matricula_atual) <span class="text-muted">(atualize apenas este)</span>:</label>
-<input type="file" id="csvNewFileInput" accept=".csv" class="form-control-file" />
-<small class="form-text text-muted">Use esta base para refletir a matrícula que está vindo atualmente no JSON.</small>
-<hr>
-<label for="csvFileInput">Modo legado: arquivo único (cpfTrab;matricula;matricula_atual):</label>
-<input type="file" id="csvFileInput" accept=".csv" class="form-control-file" />
-<div id="csvStatus" class="small text-muted mt-2">Nenhuma base carregada ainda.</div>
+              <label for="csvFileInput">Selecione o arquivo CSV (cpfTrab;matricula;matricula_atual):</label>
+              <input type="file" id="csvFileInput" accept=".csv" class="form-control-file" />
             </div>
           </div>
           <div class="modal-footer">
@@ -1867,186 +1858,62 @@ function mesclarEventos() {
 	  alert(`Código de remuneração "${codigo}" aplicado nos placeholders.`);
 	});
 
-    function aplicarEs
-// ============================================================================
-    // [CSV Matrículas] - Base de correção de matrícula por CPF
-    // Objetivo: garantir que o campo remu.contrato.matricula seja ajustado para a matrícula "original"
-    // quando o RH passou a trazer sufixos (/01, /02...) e isso impacta a chave do S-1202.
-    //
-    // Modos suportados:
-    //  A) 2 arquivos:
-    //     - Base antiga (cpfTrab;matricula)  [estática]
-    //     - Base nova (cpfTrab;matricula_atual) [atualizável]
-    //  B) Legado (1 arquivo): cpfTrab;matricula;matricula_atual
-    // ============================================================================
-    let csvOldMap = {};      // cpf11 => matricula (antiga / correta)
-    let csvNewMap = {};      // cpf11 => matricula_atual (do RH / atual)
-    let csvLegacyMap = {};   // cpf11 => { matricula, matricula_atual }
-    let csvConflicts = { old:0, new:0, legacy:0 };
-
-    function normalizeCpf(value) {
-      if (value === null || value === undefined) return null;
-      const s = String(value).trim();
-      if (!s) return null;
-
-      // 1) tenta achar um CPF "completo" no texto (11 dígitos)
-      const eleven = s.match(/\d{11}/);
-      if (eleven) return eleven[0];
-
-      // 2) remove tudo que não é dígito e ajusta tamanho (Excel pode cortar zeros à esquerda)
-      let digits = s.replace(/\D+/g, "");
-      if (!digits) return null;
-
-      if (digits.length < 11) digits = digits.padStart(11, "0");
-      if (digits.length > 11) digits = digits.slice(-11); // fallback seguro
-
-      return digits.length === 11 ? digits : null;
-    }
-
-    function stripBom(text){
-      if (!text) return "";
-      return text.charCodeAt(0) === 0xFEFF ? text.slice(1) : text;
-    }
-
-    // Parse CSV 2 colunas: cpfTrab;valor
-    function parseCSV2Cols(csvText, kindLabel) {
-      const text = stripBom(String(csvText || ""));
-      const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
-
-      let map = {};
-      let conflicts = 0;
-
-      if (lines.length > 0 && lines[0].toLowerCase().includes("cpf")) {
-        lines.shift();
-      }
-
-      for (const line of lines) {
-        const parts = line.split(";");
-        if (parts.length < 2) continue;
-
-        const cpf = normalizeCpf(parts[0]);
-        if (!cpf) continue;
-
-        const value = (parts[1] || "").trim();
-        if (!value) continue;
-
-        // Segurança: não sobrescreve automaticamente em caso de divergência
-        if (map[cpf] && map[cpf] !== value) {
-          conflicts++;
-          continue;
-        }
-        map[cpf] = value;
-      }
-
-      csvConflicts[kindLabel] = conflicts;
-      return map;
-    }
-
-    // Parse CSV legado 3 colunas: cpfTrab;matricula;matricula_atual
-    function parseCSVLegacy(csvText) {
-      const text = stripBom(String(csvText || ""));
-      const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
-
-      let map = {};
-      let conflicts = 0;
-
-      if (lines.length > 0 && lines[0].toLowerCase().includes("cpf")) {
-        lines.shift();
-      }
-
-      for (const line of lines) {
-        const parts = line.split(";");
-        if (parts.length < 3) continue;
-
-        const cpf = normalizeCpf(parts[0]);
-        if (!cpf) continue;
-
-        const matricula = (parts[1] || "").trim();
-        const matricula_atual = (parts[2] || "").trim();
-        if (!matricula || !matricula_atual) continue;
-
-        const prev = map[cpf];
-        if (prev && (prev.matricula !== matricula || prev.matricula_atual !== matricula_atual)) {
-          conflicts++;
-          continue; // segurança: ignora linha conflituosa
-        }
-        map[cpf] = { matricula, matricula_atual };
-      }
-
-      csvConflicts.legacy = conflicts;
-      return map;
-    }
-
-    function updateCsvStatus() {
-      const el = document.getElementById("csvStatus");
-      if (!el) return;
-
-      const oldCount = Object.keys(csvOldMap).length;
-      const newCount = Object.keys(csvNewMap).length;
-      const legacyCount = Object.keys(csvLegacyMap).length;
-
-      let html = "";
-      if (oldCount || newCount) {
-        html += `Base antiga: <strong>${oldCount}</strong> CPFs (${csvConflicts.old || 0} conflitos ignorados)<br/>`;
-        html += `Base nova: <strong>${newCount}</strong> CPFs (${csvConflicts.new || 0} conflitos ignorados)<br/>`;
-      }
-      if (legacyCount) {
-        html += `Modo legado: <strong>${legacyCount}</strong> CPFs (${csvConflicts.legacy || 0} conflitos ignorados)<br/>`;
-      }
-      if (!html) html = "Nenhuma base carregada ainda.";
-      el.innerHTML = html;
-    }
-
-    // Listener: Base antiga (cpf;matricula)
-    const csvOldFileInput = document.getElementById("csvOldFileInput");
-    if (csvOldFileInput) {
-      csvOldFileInput.addEventListener("change", function() {
-        const file = this.files && this.files[0];
-        if (!file) return;
-        const reader = new FileReader();
-        reader.onload = function(e) {
-          try {
-            csvOldMap = parseCSV2Cols(e.target.result, "old");
-            alert("Base antiga carregada com sucesso!");
-            updateCsvStatus();
-          } catch (err) {
-            alert("Erro ao ler base antiga: " + err);
-          }
-        };
-        reader.readAsText(file);
+    function aplicarEstabelecimentos(iniValid, nrInsc, tpInsc) {
+      const eventos = getEventos();
+      eventos.forEach((evt) => {
+        (evt.s1202RemuTrabRPPSPagtos || []).forEach((pagto) => {
+          (pagto.s1202RemuTrabRPPSPer || []).forEach((periodo) => {
+            (periodo.s1202RemuTrabRPPSEstab || []).forEach((est) => {
+              if (!est.nrInsc) {
+                est.nrInsc = {};
+              }
+              est.nrInsc.iniValid = iniValid;
+              est.nrInsc.nrInsc = nrInsc;
+              if (!est.nrInsc.tpInsc) {
+                est.nrInsc.tpInsc = {};
+              }
+              est.nrInsc.tpInsc.tipo = tpInsc;
+            });
+          });
+        });
       });
     }
 
-    // Listener: Base nova (cpf;matricula_atual)
-    const csvNewFileInput = document.getElementById("csvNewFileInput");
-    if (csvNewFileInput) {
-      csvNewFileInput.addEventListener("change", function() {
-        const file = this.files && this.files[0];
-        if (!file) return;
-        const reader = new FileReader();
-        reader.onload = function(e) {
-          try {
-            csvNewMap = parseCSV2Cols(e.target.result, "new");
-            alert("Base nova carregada com sucesso!");
-            updateCsvStatus();
-          } catch (err) {
-            alert("Erro ao ler base nova: " + err);
-          }
-        };
-        reader.readAsText(file);
+    // Inicializa a tabela ao carregar
+    renderEventosTable();
+
+    // Variável global para armazenar o mapeamento do CSV (cpfTrab => { matricula, matricula_atual })
+    let csvMapping = {};
+
+    // Função para fazer o parse do CSV
+    function parseCSV(csvText) {
+      const lines = csvText.trim().split("\n");
+      let mapping = {};
+      // Se houver cabeçalho, remova a primeira linha (opcional)
+      if (lines.length > 0 && lines[0].toLowerCase().includes("cpftrab")) {
+        lines.shift();
+      }
+      lines.forEach(line => {
+        const parts = line.split(";");
+        if (parts.length >= 3) {
+          const cpf = parts[0].trim();
+          const matricula = parts[1].trim();
+          const matricula_atual = parts[2].trim();
+          mapping[cpf] = { matricula, matricula_atual };
+        }
       });
+      return mapping;
     }
 
-    // Listener legado (mantém compatibilidade): cpf;matricula;matricula_atual
+    // Listener para o input do arquivo CSV
     document.getElementById("csvFileInput").addEventListener("change", function() {
-      const file = this.files && this.files[0];
+      const file = this.files[0];
       if (!file) return;
       const reader = new FileReader();
       reader.onload = function(e) {
         try {
-          csvLegacyMap = parseCSVLegacy(e.target.result);
-          alert("CSV (modo legado) carregado com sucesso!");
-          updateCsvStatus();
+          csvMapping = parseCSV(e.target.result);
+          alert("CSV carregado com sucesso!");
         } catch (err) {
           alert("Erro ao ler CSV: " + err);
         }
@@ -2054,80 +1921,19 @@ function mesclarEventos() {
       reader.readAsText(file);
     });
 
-    function resolveMatriculaMapForCpf(cpf11) {
-      if (!cpf11) return null;
+	// Função para analisar e atualizar as matrículas nos eventos
+	function analisarMatriculas() {
+	  const eventos = getEventos();
+	  let atualizados = 0;
 
-      // Prioridade: modo legado (caso o usuário opte por usar)
-      if (csvLegacyMap && csvLegacyMap[cpf11]) return csvLegacyMap[cpf11];
+	  eventos.forEach(evt => {
+		const cpf = evt.trabalhador && evt.trabalhador.cpfTrab;
+		if (!cpf || !csvMapping[cpf]) return;
 
-      // Modo 2 arquivos
-      const oldMat = csvOldMap ? csvOldMap[cpf11] : null;
-      const newMat = csvNewMap ? csvNewMap[cpf11] : null;
-      if (oldMat && newMat) return { matricula: oldMat, matricula_atual: newMat };
+		const csvData = csvMapping[cpf];
 
-      return null;
-    }
-
-    // Função para analisar e atualizar as matrículas nos eventos
-    function analisarMatriculas() {
-      const eventos = getEventos();
-
-      let atualizados = 0;
-      let cpfsEncontrados = 0;
-      let cpfsSemPar = 0;
-
-      // Validação de pré-condições (segurança)
-      const hasLegacy = csvLegacyMap && Object.keys(csvLegacyMap).length > 0;
-      const oldLoaded = csvOldMap && Object.keys(csvOldMap).length > 0;
-      const newLoaded = csvNewMap && Object.keys(csvNewMap).length > 0;
-
-      if (!hasLegacy && !oldLoaded && !newLoaded) {
-        alert("Nenhuma base CSV foi carregada. Carregue a Base antiga + Base nova, ou use o modo legado (arquivo único).");
-        return;
-      }
-      if (!hasLegacy && (!oldLoaded || !newLoaded)) {
-        alert("Para o modo de 2 arquivos, é necessário carregar a Base antiga (cpfTrab;matricula) e a Base nova (cpfTrab;matricula_atual).");
-        return;
-      }
-
-      eventos.forEach(evt => {
-        const cpfNorm = normalizeCpf(evt?.trabalhador?.cpfTrab);
-        const csvData = resolveMatriculaMapForCpf(cpfNorm);
-        if (!cpfNorm || !csvData) return;
-
-        cpfsEncontrados++;
-
-        const matriculaOld = (csvData.matricula || "").trim();
-        const matriculaAtual = (csvData.matricula_atual || "").trim();
-        if (!matriculaOld || !matriculaAtual) { cpfsSemPar++; return; }
-
-        (evt.s1202RemuTrabRPPSPagtos || []).forEach(pagto => {
-          (pagto.s1202RemuTrabRPPSPer || []).forEach(periodo => {
-            (periodo.s1202RemuTrabRPPSEstab || []).forEach(estab => {
-              (estab.s1202RemuTrabRPPSRemu || []).forEach(remu => {
-                if (remu?.contrato && remu.contrato.matricula === matriculaAtual) {
-                  remu.contrato.matricula = matriculaOld;
-                  atualizados++;
-                }
-              });
-            });
-          });
-        });
-      });
-
-      alert(`Análise concluída!\nMatrículas atualizadas: ${atualizados}\nCPFs com base encontrada: ${cpfsEncontrados}\nRegistros com par incompleto ignorados: ${cpfsSemPar}`);
-      renderEventosTable();
-    }
-
-    // Listener para o botão "Analisar Matrículas" do modal CSV
-    document.getElementById("analisarMatriculasBtn").addEventListener("click", function() {
-      analisarMatriculas();
-      $("#csvModal").modal("hide");
-    });
-
-    $('#csvModal').on('shown.bs.modal', function () {
-      updateCsvStatus();
-    });2RemuTrabRPPSPer || []).forEach(periodo => {
+		(evt.s1202RemuTrabRPPSPagtos || []).forEach(pagto => {
+		  (pagto.s1202RemuTrabRPPSPer || []).forEach(periodo => {
 			(periodo.s1202RemuTrabRPPSEstab || []).forEach(estab => {
 			  (estab.s1202RemuTrabRPPSRemu || []).forEach(remu => {
 				if (
