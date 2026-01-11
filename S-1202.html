@@ -81,7 +81,7 @@
 
   <!-- Navbar simples -->
   <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
-    <a class="navbar-brand" href="#">Editor Eventos - V1.0.2</a>
+    <a class="navbar-brand" href="#">Editor Eventos - V1.0.4</a>
   </nav>
 
   <!-- Conteúdo principal -->
@@ -216,11 +216,36 @@
               <span aria-hidden="true">&times;</span>
             </button>
           </div>
-          <div class="modal-body">
+                    <div class="modal-body">
             <div class="form-group">
-              <label for="csvFileInput">Selecione o arquivo CSV (cpfTrab;matricula;matricula_atual):</label>
+              <label for="csvOldFileInput">Base antiga (cpfTrab;matricula) <span class="text-muted">(estático)</span>:</label>
+              <input type="file" id="csvOldFileInput" accept=".csv" class="form-control-file" />
+              <small class="form-text text-muted">CPF pode vir com 11 dígitos, com máscara, ou sem zeros à esquerda (será normalizado).</small>
+
+              <hr>
+
+              <label for="csvNewFileInput">Base nova (cpfTrab;matricula_atual) <span class="text-muted">(atualize apenas este)</span>:</label>
+              <input type="file" id="csvNewFileInput" accept=".csv" class="form-control-file" />
+              <small class="form-text text-muted">Use esta base para refletir a matrícula que está vindo atualmente no JSON gerado pelo RH.</small>
+
+              <hr>
+
+              <div class="form-check">
+                <input type="checkbox" class="form-check-input" id="csvHeuristicSuffix">
+                <label class="form-check-label" for="csvHeuristicSuffix">
+                  Tentar correção automática quando a matrícula terminar em <code>/NN</code> (ex.: <code>12345/01</code> → <code>12345</code>) caso não exista base para o CPF
+                </label>
+                <small class="form-text text-muted">Opcional e conservador: só aplica para o padrão final <code>/</code> + 2 dígitos e apenas quando não houver mapeamento por CPF.</small>
+              </div>
+
+              <hr>
+
+              <label for="csvFileInput">Modo legado: arquivo único (cpfTrab;matricula;matricula_atual):</label>
               <input type="file" id="csvFileInput" accept=".csv" class="form-control-file" />
+
+              <div id="csvStatus" class="small text-muted mt-2">Nenhuma base carregada ainda.</div>
             </div>
+          </div>
           </div>
           <div class="modal-footer">
             <button type="button" class="btn btn-secondary" data-dismiss="modal">Fechar</button>
@@ -613,7 +638,44 @@
       }
     };
 
+    
+
     // ======================================================================
+    // Controle de arquivo carregado (para salvar com o mesmo nome + "_editado")
+    let loadedFileName = null;
+
+    function stripUtf8Bom(text) {
+      if (!text) return "";
+      const s = String(text);
+      return s.charCodeAt(0) === 0xFEFF ? s.slice(1) : s;
+    }
+
+    // Parse de JSON com tolerância mínima (BOM e vírgula sobrando no final de objetos/arrays).
+    // Observação: só tenta "reparo" se o JSON padrão falhar.
+    function parseJsonSafely(rawText) {
+      const t = stripUtf8Bom(rawText);
+      try {
+        return { data: JSON.parse(t), repaired: false };
+      } catch (err1) {
+        const repairedText = String(t).replace(/,\s*([}\]])/g, "$1");
+        try {
+          return { data: JSON.parse(repairedText), repaired: true };
+        } catch (err2) {
+          throw err1;
+        }
+      }
+    }
+
+    function buildEditedFileName(originalName) {
+      if (!originalName) return null;
+      const name = String(originalName);
+      const dot = name.lastIndexOf(".");
+      const base = dot > 0 ? name.slice(0, dot) : name;
+      const ext = dot > 0 ? name.slice(dot) : ".json";
+      return base + "_editado" + ext;
+    }
+
+// ======================================================================
     // 2) ESTRUTURA PARA OBTER EVENTOS
     function getEventos() {
       if (!window.esocialData.s1202RemuTrabRPPSGroup) {
@@ -1378,24 +1440,39 @@
     // 8) CARREGAR ARQUIVO
     const fileInput = document.getElementById("fileInput");
     fileInput.addEventListener("change", function () {
-      const file = this.files[0];
+      const file = this.files && this.files[0];
       if (!file) return;
+
+      loadedFileName = file.name || null;
+
       const reader = new FileReader();
       reader.onload = function (e) {
         try {
-          window.esocialData = JSON.parse(e.target.result);
+          const parsed = parseJsonSafely(e.target.result);
+          window.esocialData = parsed.data;
+
+          // Garante estrutura e marcação interna
           getEventos().forEach((evt) => {
             if (typeof evt._selected === "undefined") {
               evt._selected = false;
             }
           });
+
           renderEventosTable();
-          alert("Arquivo carregado com sucesso!");
+
+          if (parsed.repaired) {
+            alert("Arquivo carregado com sucesso (foi aplicado um reparo mínimo para leitura: BOM e/ou vírgula sobrando). Recomenda-se validar o conteúdo antes da transmissão.");
+          } else {
+            alert("Arquivo carregado com sucesso!");
+          }
         } catch (err) {
           alert("Erro ao ler JSON: " + err);
         }
       };
       reader.readAsText(file);
+
+      // Permite recarregar o mesmo arquivo sem precisar selecionar outro
+      this.value = "";
     });
 
     // ----------------------------------------------------------------------
@@ -1437,7 +1514,8 @@
         const url = URL.createObjectURL(blob);
         const link = document.createElement("a");
         link.setAttribute("href", url);
-        link.setAttribute("download", gerarNomeArquivo());
+        const suggestedName = buildEditedFileName(loadedFileName) || gerarNomeArquivo();
+        link.setAttribute("download", suggestedName);
         link.click();
         URL.revokeObjectURL(url);
       } catch (err) {
@@ -1882,94 +1960,239 @@ function mesclarEventos() {
     // Inicializa a tabela ao carregar
     renderEventosTable();
 
-    // Variável global para armazenar o mapeamento do CSV (cpfTrab => { matricula, matricula_atual })
-    let csvMapping = {};
+    
+    // ======================================================================
+    // CSV MATRÍCULAS (base antiga + base nova + legado)
+    // ======================================================================
 
-    // Função para fazer o parse do CSV
-    function parseCSV(csvText) {
-      const lines = csvText.trim().split("\n");
-      let mapping = {};
-      // Se houver cabeçalho, remova a primeira linha (opcional)
-      if (lines.length > 0 && lines[0].toLowerCase().includes("cpftrab")) {
-        lines.shift();
+    // Bases
+    let csvMappingLegacy = {};  // cpf -> { matricula, matricula_atual }
+    let csvBaseOld = {};        // cpf -> matricula (antiga)
+    let csvBaseNew = {};        // cpf -> matricula_atual (atual)
+    let csvLastLoadedInfo = { old: 0, neu: 0, legacy: 0 };
+
+    function normalizeCpf(raw) {
+      const digits = String(raw || "").replace(/\D/g, "");
+      if (!digits) return "";
+      // Se vier com menos dígitos, completa à esquerda; se vier com mais, mantém (mas isso indica entrada inconsistente).
+      return digits.length < 11 ? digits.padStart(11, "0") : digits;
+    }
+
+    function updateCsvStatus(extraMessage) {
+      const el = document.getElementById("csvStatus");
+      if (!el) return;
+      const parts = [];
+      if (csvLastLoadedInfo.old) parts.push(`Base antiga: ${csvLastLoadedInfo.old} CPFs`);
+      if (csvLastLoadedInfo.neu) parts.push(`Base nova: ${csvLastLoadedInfo.neu} CPFs`);
+      if (csvLastLoadedInfo.legacy) parts.push(`Legado: ${csvLastLoadedInfo.legacy} CPFs`);
+      el.textContent = (parts.length ? parts.join(" | ") : "Nenhuma base carregada ainda.") + (extraMessage ? ` — ${extraMessage}` : "");
+    }
+
+    // CSV com separador ';' e possível cabeçalho. Aceita 2 ou 3 colunas, conforme modo.
+    function parseCsvLines(csvText) {
+      const t = stripUtf8Bom(String(csvText || ""));
+      const lines = t.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+      return lines;
+    }
+
+    function looksLikeHeader(firstCell) {
+      const v = String(firstCell || "").toLowerCase();
+      return v.includes("cpf") || v.includes("cpftrab");
+    }
+
+    function loadCsvBaseOld(csvText) {
+      const lines = parseCsvLines(csvText);
+      const mapping = {};
+      for (let i = 0; i < lines.length; i++) {
+        const cols = lines[i].split(";").map(c => c.trim());
+        if (cols.length < 2) continue;
+        if (i === 0 && looksLikeHeader(cols[0])) continue;
+        const cpf = normalizeCpf(cols[0]);
+        if (!cpf) continue;
+        const matricula = cols[1];
+        if (!matricula) continue;
+        mapping[cpf] = matricula;
       }
-      lines.forEach(line => {
-        const parts = line.split(";");
-        if (parts.length >= 3) {
-          const cpf = parts[0].trim();
-          const matricula = parts[1].trim();
-          const matricula_atual = parts[2].trim();
-          mapping[cpf] = { matricula, matricula_atual };
-        }
-      });
       return mapping;
     }
 
-    // Listener para o input do arquivo CSV
-    document.getElementById("csvFileInput").addEventListener("change", function() {
-      const file = this.files[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = function(e) {
+    function loadCsvBaseNew(csvText) {
+      const lines = parseCsvLines(csvText);
+      const mapping = {};
+      for (let i = 0; i < lines.length; i++) {
+        const cols = lines[i].split(";").map(c => c.trim());
+        if (cols.length < 2) continue;
+        if (i === 0 && looksLikeHeader(cols[0])) continue;
+        const cpf = normalizeCpf(cols[0]);
+        if (!cpf) continue;
+        const matriculaAtual = cols[1];
+        if (!matriculaAtual) continue;
+        mapping[cpf] = matriculaAtual;
+      }
+      return mapping;
+    }
+
+    function loadCsvLegacy(csvText) {
+      const lines = parseCsvLines(csvText);
+      const mapping = {};
+      for (let i = 0; i < lines.length; i++) {
+        const cols = lines[i].split(";").map(c => c.trim());
+        if (cols.length < 3) continue;
+        if (i === 0 && looksLikeHeader(cols[0])) continue;
+        const cpf = normalizeCpf(cols[0]);
+        if (!cpf) continue;
+        mapping[cpf] = {
+          matricula: cols[1] || "",
+          matricula_atual: cols[2] || ""
+        };
+      }
+      return mapping;
+    }
+
+    async function readFileAsText(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (e) => resolve(e.target.result);
+        reader.onerror = () => reject(reader.error || new Error("Falha ao ler arquivo"));
+        reader.readAsText(file);
+      });
+    }
+
+    // Listeners dos inputs
+    const oldInput = document.getElementById("csvOldFileInput");
+    const newInput = document.getElementById("csvNewFileInput");
+    const legacyInput = document.getElementById("csvFileInput");
+
+    if (oldInput) {
+      oldInput.addEventListener("change", async function () {
+        const file = this.files && this.files[0];
+        if (!file) return;
         try {
-          csvMapping = parseCSV(e.target.result);
-          alert("CSV carregado com sucesso!");
+          const txt = await readFileAsText(file);
+          csvBaseOld = loadCsvBaseOld(txt);
+          csvLastLoadedInfo.old = Object.keys(csvBaseOld).length;
+          updateCsvStatus("Base antiga carregada.");
         } catch (err) {
-          alert("Erro ao ler CSV: " + err);
+          alert("Erro ao ler Base antiga (CSV): " + err);
+        } finally {
+          this.value = "";
         }
-      };
-      reader.readAsText(file);
+      });
+    }
+
+    if (newInput) {
+      newInput.addEventListener("change", async function () {
+        const file = this.files && this.files[0];
+        if (!file) return;
+        try {
+          const txt = await readFileAsText(file);
+          csvBaseNew = loadCsvBaseNew(txt);
+          csvLastLoadedInfo.neu = Object.keys(csvBaseNew).length;
+          updateCsvStatus("Base nova carregada.");
+        } catch (err) {
+          alert("Erro ao ler Base nova (CSV): " + err);
+        } finally {
+          this.value = "";
+        }
+      });
+    }
+
+    if (legacyInput) {
+      legacyInput.addEventListener("change", async function () {
+        const file = this.files && this.files[0];
+        if (!file) return;
+        try {
+          const txt = await readFileAsText(file);
+          csvMappingLegacy = loadCsvLegacy(txt);
+          csvLastLoadedInfo.legacy = Object.keys(csvMappingLegacy).length;
+          updateCsvStatus("Base legada carregada.");
+        } catch (err) {
+          alert("Erro ao ler CSV legado: " + err);
+        } finally {
+          this.value = "";
+        }
+      });
+    }
+
+    function tryHeuristicOldMatricula(matriculaAtual) {
+      const s = String(matriculaAtual || "");
+      // padrão final "/NN" (2 dígitos), ex.: "12345/01"
+      const m = s.match(/^(.*)\/\d{2}$/);
+      if (!m) return null;
+      const base = (m[1] || "").trim();
+      return base || null;
+    }
+
+    // Execução: percorre eventos e substitui matrícula atual pela antiga (baseado no CPF)
+    document.getElementById("analisarMatriculasBtn").addEventListener("click", function () {
+      try {
+        const eventos = getEventos();
+        const useHeuristic = !!(document.getElementById("csvHeuristicSuffix") && document.getElementById("csvHeuristicSuffix").checked);
+
+        let totalAlterados = 0;
+        let totalSemBase = 0;
+
+        eventos.forEach((evt) => {
+          const cpf = normalizeCpf(evt.cpfTrab);
+          if (!cpf) return;
+
+          const remus = evt.s1202RemuTrabRPPS || [];
+          remus.forEach((remu) => {
+            const contrato = remu && remu.contrato ? remu.contrato : null;
+            if (!contrato) return;
+
+            const matriculaAtualNoJson = String(contrato.matricula || "");
+
+            // 1) Preferência: base antiga + base nova (2 arquivos)
+            const oldMat = csvBaseOld[cpf];
+            const newMat = csvBaseNew[cpf];
+
+            if (oldMat && newMat) {
+              if (matriculaAtualNoJson === String(newMat)) {
+                contrato.matricula = String(oldMat);
+                totalAlterados++;
+              } else {
+                // Se a matrícula atual do JSON não bater com a base nova, não altera (segurança)
+              }
+              return;
+            }
+
+            // 2) Legado: 3 colunas
+            const legacy = csvMappingLegacy[cpf];
+            if (legacy && legacy.matricula && legacy.matricula_atual) {
+              if (matriculaAtualNoJson === String(legacy.matricula_atual)) {
+                contrato.matricula = String(legacy.matricula);
+                totalAlterados++;
+              }
+              return;
+            }
+
+            // 3) Heurística opcional (somente quando não há base)
+            if (useHeuristic && matriculaAtualNoJson) {
+              const h = tryHeuristicOldMatricula(matriculaAtualNoJson);
+              if (h && h !== matriculaAtualNoJson) {
+                contrato.matricula = h;
+                totalAlterados++;
+              } else {
+                totalSemBase++;
+              }
+            } else {
+              totalSemBase++;
+            }
+          });
+        });
+
+        renderEventosTable();
+        updateCsvStatus(`Matrículas atualizadas: ${totalAlterados}. Sem base (ou não aplicável): ${totalSemBase}.`);
+        alert("Análise concluída! Matrículas atualizadas: " + totalAlterados + ". Sem base (ou não aplicável): " + totalSemBase + ".");
+      } catch (err) {
+        alert("Erro ao analisar matrículas: " + err);
+      }
     });
 
-	// Função para analisar e atualizar as matrículas nos eventos
-	function analisarMatriculas() {
-	  const eventos = getEventos();
-	  let atualizados = 0;
+    // Status inicial
+    updateCsvStatus();
 
-	  eventos.forEach(evt => {
-		const cpf = evt.trabalhador && evt.trabalhador.cpfTrab;
-		if (!cpf || !csvMapping[cpf]) return;
-
-		const csvData = csvMapping[cpf];
-
-		(evt.s1202RemuTrabRPPSPagtos || []).forEach(pagto => {
-		  (pagto.s1202RemuTrabRPPSPer || []).forEach(periodo => {
-			(periodo.s1202RemuTrabRPPSEstab || []).forEach(estab => {
-			  (estab.s1202RemuTrabRPPSRemu || []).forEach(remu => {
-				if (
-				  remu.contrato &&
-				  remu.contrato.matricula === csvData.matricula_atual
-				) {
-				  // Atualiza para o valor correto do CSV
-				  remu.contrato.matricula = csvData.matricula;
-				  atualizados++;
-				}
-			  });
-			});
-		  });
-		});
-	  });
-
-	  alert(`Análise concluída! Matrículas atualizadas: ${atualizados}`);
-	  renderEventosTable();
-	}
-
-
-
-    // Listener para o botão "Analisar Matrículas" do modal CSV
-    document.getElementById("analisarMatriculasBtn").addEventListener("click", function() {
-      analisarMatriculas();
-      $("#csvModal").modal("hide");
-    });
-
-	document.querySelectorAll('.btn-group-custom button').forEach(btn => {
-	  btn.addEventListener('click', () => {
-		// aqui alternamos entre btn-success e btn-secondary
-		btn.classList.toggle('btn-secondary');
-		btn.classList.toggle('btn-success');
-	  });
-	});
-
-  </script>
+</script>
 </body>
 </html>
