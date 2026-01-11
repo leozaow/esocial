@@ -81,7 +81,7 @@
 
   <!-- Navbar simples -->
   <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
-    <a class="navbar-brand" href="#">Editor Eventos - V1.11</a>
+    <a class="navbar-brand" href="#">Editor Eventos - V1.13</a>
   </nav>
 
   <!-- Conteúdo principal -->
@@ -106,29 +106,30 @@
       <div class="card-header">Funções Principais</div>
       <div class="card-body">
         <div class="btn-group-custom">
-          <button id="mergeBtn" style="display:none;" class="btn btn-primary">
-            Mesclar por chaveIntegracao
-          </button>
-			<button id="estabBtn" style="display:none;" class="btn btn-primary" data-toggle="modal" data-target="#estabModal">
-			  Informar Estabelecimentos
-			</button>
-		  <button id="categRemuBtn" class="btn btn-primary">
-			 Informar Categoria
-		  </button>
-          <button id="ajustarRubricasBtn" class="btn btn-primary">
-            Ajustar Pagamentos Negativos
-          </button>
-          <button id="verificarPeriodosBtn" class="btn btn-primary">
-            Verificar Períodos / RRA
+          <button id="cpfFilterModalBtn" class="btn btn-primary" data-toggle="modal" data-target="#cpfFilterModal">
+            Filtrar / Excluir CPFs
           </button>
           <button id="csvModalBtn" class="btn btn-primary" data-toggle="modal" data-target="#csvModal">
             Analisar Matrículas CSV
           </button>
-          
-          <button id="cpfFilterModalBtn" class="btn btn-primary" data-toggle="modal" data-target="#cpfFilterModal">
-            Filtrar / Excluir CPFs
+          <button id="categRemuBtn" class="btn btn-primary">
+            Informar Categoria e Estabelecimento
           </button>
-<button type="button" class="btn btn-dark" style="display:none;" data-toggle="modal" data-target="#scriptsModal">
+          <button id="mergeDmDevModalBtn" class="btn btn-primary" data-toggle="modal" data-target="#mergeDmDevModal">
+            Mesclar rubricas por ideDmDev
+          </button>
+          <button id="ajustarRubricasBtn" class="btn btn-primary">
+            Ajustar Pagamentos Negativos
+          </button>
+          <button id="verificarPeriodosBtn" class="btn btn-primary">
+            Verificar RRA
+          </button>
+
+          <!-- Funções ocultas / legado -->
+          <button id="mergeBtn" style="display:none;" class="btn btn-primary">
+            Mesclar por chaveIntegracao
+          </button>
+          <button type="button" class="btn btn-dark" style="display:none;" data-toggle="modal" data-target="#scriptsModal">
             Substituir Campos
           </button>
         </div>
@@ -303,6 +304,44 @@
         </div>
       </div>
     </div>
+    <!-- Modal: Mesclar rubricas por ideDmDev -->
+    <div class="modal fade" id="mergeDmDevModal" tabindex="-1" role="dialog" aria-labelledby="mergeDmDevModalLabel" aria-hidden="true">
+      <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="mergeDmDevModalLabel">Mesclar rubricas por ideDmDev</h5>
+            <button type="button" class="close" data-dismiss="modal" aria-label="Fechar">
+              <span aria-hidden="true">&times;</span>
+            </button>
+          </div>
+          <div class="modal-body">
+            <p class="text-muted mb-2">
+              Esta ferramenta consolida pagamentos/demonstrativos dentro de cada trabalhador.
+              Ela (i) mescla pagamentos com <strong>ideDmDev idêntico</strong> (união de rubricas), e (ii) remove pagamentos
+              <strong>equivalentes</strong> que diferem apenas no ideDmDev (sem perder rubricas).
+            </p>
+            <div class="form-check mb-3">
+              <input class="form-check-input" type="checkbox" id="mergeDmDevAlsoEquivalent" checked>
+              <label class="form-check-label" for="mergeDmDevAlsoEquivalent">
+                Também remover duplicados equivalentes (difere apenas ideDmDev)
+              </label>
+            </div>
+
+            <div class="alert alert-info" id="mergeDmDevPreviewAlert" style="display:none;"></div>
+
+            <div class="form-group">
+              <label for="mergeDmDevPreview" class="font-weight-bold">Resumo</label>
+              <textarea id="mergeDmDevPreview" class="form-control" rows="12" readonly></textarea>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline-secondary" id="refreshMergeDmDevPreviewBtn">Atualizar resumo</button>
+            <button type="button" class="btn btn-primary" id="applyMergeDmDevBtn">Aplicar mesclagem</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
 <!-- Modal de Edição de Evento -->
     <div
       class="modal fade"
@@ -621,8 +660,7 @@
               <input type="text" class="form-control" id="estabTpInsc" value="1">
             </div>
             <p>
-              Ao clicar em “Aplicar”, todos os eventos terão seus estabelecimentos
-              preenchidos com os valores informados (se já existirem, serão sobrescritos).
+              Ao clicar em “Aplicar”, por padrão serão preenchidos apenas os estabelecimentos vazios/placeholder com os valores informados.
             </p>
           </div>
           <div class="modal-footer">
@@ -637,35 +675,150 @@
       </div>
     </div>
 
-		<!-- Modal de Código de Remuneração -->
-		<div class="modal fade" id="categRemuModal" tabindex="-1" aria-hidden="true">
-		  <div class="modal-dialog">
-			<div class="modal-content">
-			  <div class="modal-header">
-				<h5 class="modal-title">Informar Código Categoria</h5>
-				<button type="button" class="close" data-dismiss="modal">
-				  <span>&times;</span>
-				</button>
-			  </div>
-			  <div class="modal-body">
-				<div class="form-group">
-				  <label>codCateg (numérico):</label>
-				  <input type="text" id="categRemuValue" value="301" class="form-control" placeholder="Ex: 301">
-				</div>
-				<p>
-				  Ao aplicar, todos os remu.contrato.codCateg.categoria == "*numerovazio*"
-				  serão substituídos pelo valor informado.
-				</p>
-			  </div>
-			  <div class="modal-footer">
-				<button class="btn btn-secondary" data-dismiss="modal">Fechar</button>
-				<button id="applyCategRemuBtn" class="btn btn-primary">Aplicar</button>
-			  </div>
-			</div>
-		  </div>
-		</div>
+		<!-- Modal: Informar Categoria e Estabelecimento -->
+<div class="modal fade" id="categRemuModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Informar Categoria e Estabelecimento</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Fechar">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
 
-  </div><!-- container -->
+      <div class="modal-body">
+        <div class="alert alert-info small mb-3">
+          Esta ferramenta preenche <strong>somente placeholders/vazios</strong> por padrão, para reduzir impactos e preservar integridade/auditoria.
+          Você pode habilitar sobrescrita explicitamente.
+        </div>
+
+        <div class="row">
+          <div class="col-md-6">
+            <div class="card mb-3">
+              <div class="card-header"><strong>Categoria</strong></div>
+              <div class="card-body">
+                <div class="form-group mb-2">
+                  <label class="mb-1">codCateg (numérico)</label>
+                  <input type="text" id="categRemuValue" value="301" class="form-control" placeholder="Ex: 301">
+                  <small class="text-muted">Aplicado em <code>remu.contrato.codCateg.categoria</code> quando estiver <code>*numerovazio*</code>.</small>
+                </div>
+                <div class="custom-control custom-checkbox">
+                  <input type="checkbox" class="custom-control-input" id="applyCategoriaChk" checked>
+                  <label class="custom-control-label" for="applyCategoriaChk">Aplicar categoria nos placeholders</label>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="col-md-6">
+            <div class="card mb-3">
+              <div class="card-header"><strong>Estabelecimento</strong></div>
+              <div class="card-body">
+                <div class="form-group mb-2">
+                  <label class="mb-1">iniValid (YYYY-MM-DD)</label>
+                  <input type="text" class="form-control" id="categEstabIniValid" value="2021-07-01" placeholder="Ex: 2021-07-01">
+                </div>
+                <div class="form-group mb-2">
+                  <label class="mb-1">nrInsc (CNPJ – 14 dígitos)</label>
+                  <input type="text" class="form-control" id="categEstabNrInsc" value="11239018000167" placeholder="Ex: 11239018000167">
+                </div>
+                <div class="form-group mb-2">
+                  <label class="mb-1">tpInsc (sugestão: 1 = CNPJ)</label>
+                  <input type="text" class="form-control" id="categEstabTpInsc" value="1" placeholder="Ex: 1">
+                </div>
+
+                <div class="custom-control custom-checkbox">
+                  <input type="checkbox" class="custom-control-input" id="applyEstabChk" checked>
+                  <label class="custom-control-label" for="applyEstabChk">Preencher estabelecimentos vazios</label>
+                </div>
+                <div class="custom-control custom-checkbox mt-1">
+                  <input type="checkbox" class="custom-control-input" id="overwriteEstabChk">
+                  <label class="custom-control-label" for="overwriteEstabChk">Sobrescrever estabelecimentos já preenchidos</label>
+                </div>
+                <small class="text-muted d-block mt-2">
+                  Por padrão, o editor só preenche quando <code>nrInsc</code> está ausente/vazio (ou placeholder). Se habilitar sobrescrita, todos serão atualizados.
+                </small>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="border rounded p-2 small bg-light" id="categEstabPreview">
+          Carregue um arquivo para ver o resumo aqui.
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-dismiss="modal">Fechar</button>
+        <button id="applyCategRemuBtn" class="btn btn-primary">Aplicar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+
+  
+
+<!-- Modal: Ajustar Pagamentos Negativos (prévia + confirmação) -->
+<div class="modal fade" id="negativosModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Ajustar Pagamentos Negativos</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Fechar">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+
+      <div class="modal-body">
+        <div class="alert alert-warning small">
+          <strong>O que esta rotina faz:</strong> para cada demonstrativo (<code>ideDmDev</code>), calcula o saldo
+          <code>VANT - DESC</code> somando as rubricas. Se o saldo for <strong>negativo</strong>, o editor adiciona uma rubrica
+          <code>998V</code> (VANT) com o valor exato para zerar o saldo, no <strong>último período</strong> (<code>perRef</code>)
+          do demonstrativo. A rotina não altera rubricas existentes.
+        </div>
+
+        <div class="custom-control custom-checkbox mb-2">
+          <input type="checkbox" class="custom-control-input" id="negSkipIfExistsChk" checked>
+          <label class="custom-control-label" for="negSkipIfExistsChk">Não adicionar se já existir rubrica 998V no mesmo perRef</label>
+        </div>
+
+        <div class="border rounded p-2 bg-light small mb-3" id="negativosPreview">
+          Carregue um arquivo para visualizar a prévia.
+        </div>
+
+        <div class="table-responsive">
+          <table class="table table-sm table-bordered mb-0">
+            <thead class="thead-light">
+              <tr>
+                <th>CPF</th>
+                <th>ideDmDev</th>
+                <th>perRef (alvo)</th>
+                <th class="text-right">Saldo</th>
+                <th class="text-right">Ajuste (998V)</th>
+              </tr>
+            </thead>
+            <tbody id="negativosTableBody">
+              <tr><td colspan="5" class="text-muted">—</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="text-muted small mt-2">
+          Observação: por auditoria, o editor apenas adiciona o item necessário; campos estruturais (ex.: <code>DescFolha</code>) são mantidos no padrão do arquivo.
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-dismiss="modal">Fechar</button>
+        <button id="applyNegativosBtn" class="btn btn-primary">Aplicar ajuste</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+</div><!-- container -->
 
   <!-- JS (jQuery, Popper, Bootstrap) -->
   <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
@@ -1844,88 +1997,220 @@ const dataStr = gerarArquivoEsocialFormatado(window.esocialData);
     });
 
     // ----------------------------------------------------------------------
-    // 13) AJUSTAR PAGAMENTOS NEGATIVOS
-    document.getElementById("ajustarRubricasBtn").addEventListener("click", ajustarRubricasNegativas);
-
-    function parseToFloat(str) {
-      if (!str) return 0;
-      let val = str.replace(",", ".");
-      let num = parseFloat(val);
-      return isNaN(num) ? 0 : num;
-    }
-
-	function ajustarRubricasNegativas() {
-	  const eventos = getEventos();
-	  let contadorAjustes = 0;
-
-	  eventos.forEach((evt) => {
-		const anoApurEvento = parseYear(evt.perApur);
-
-		(evt.s1202RemuTrabRPPSPagtos || []).forEach((pagto) => {
-		  let soma = 0;
-		  const periodos = pagto.s1202RemuTrabRPPSPer || [];
-
-		  // Soma de todas as rubricas VANT/DESC
-		  periodos.forEach((periodo) => {
-			(periodo.s1202RemuTrabRPPSEstab || []).forEach((estab) => {
-			  (estab.s1202RemuTrabRPPSRemu || []).forEach((remu) => {
-				(remu.s1202RemuTrabRPPSItens || []).forEach((item) => {
-				  if (item.ideTabRubr === "VANT") {
-					soma += parseToFloat(item.vrRubr);
-				  } else if (item.ideTabRubr === "DESC") {
-					soma -= parseToFloat(item.vrRubr);
-				  }
-				});
-			  });
-			});
-		  });
-
-		  // Se a soma for negativa, insere rubrica 998V (somente se > 0 real)
-		  if (soma < 0) {
-			const diferencaNum = Math.abs(soma);
-			// filtra ruído de ponto‑flutuante
-			if (diferencaNum > Number.EPSILON) {
-			  const diferenca = diferencaNum.toFixed(4);
-			  // evita "0.0000" mesmo após toFixed
-			  if (parseFloat(diferenca) > 0) {
-				const ultimoPeriodo = periodos[periodos.length - 1];
-				if (ultimoPeriodo) {
-				  (ultimoPeriodo.s1202RemuTrabRPPSEstab || []).forEach((est) => {
-					(est.s1202RemuTrabRPPSRemu || []).forEach((remu) => {
-					  const anoPerRef = parseYear(ultimoPeriodo.perRef);
-					  const novoItem = {
-						codRubr: {
-						  codRubr: "998V",
-						  iniValid: ultimoPeriodo.perRef
-						},
-						fatorRubr: "*numerovazio*",
-						ideTabRubr: "VANT",
-						indApurIR: "0",
-						qtdRubr: "*numerovazio*",
-						vrRubr: diferenca
-					  };
-					  remu.s1202RemuTrabRPPSItens.push(novoItem);
-					});
-				  });
-				  contadorAjustes++;
-				}
-			  }
-			}
-		  }
-		});
-	  });
-
-	  if (contadorAjustes > 0) {
-		alert(`Rubricas negativas ajustadas em ${contadorAjustes} caso(s).`);
-	  } else {
-		alert("Não foi encontrada nenhuma soma negativa para ajustar.");
-	  }
-	  renderEventosTable();
-	}
-
-
-
     // ----------------------------------------------------------------------
+// 13) AJUSTAR PAGAMENTOS NEGATIVOS (com modal, prévia e confirmação)
+const ajustarBtn = document.getElementById("ajustarRubricasBtn");
+if (ajustarBtn) {
+  ajustarBtn.addEventListener("click", () => {
+    buildNegativosPreview();
+    $("#negativosModal").modal("show");
+  });
+}
+
+const applyNegBtn = document.getElementById("applyNegativosBtn");
+if (applyNegBtn) {
+  applyNegBtn.addEventListener("click", () => {
+    const skipIfExists = !!document.getElementById("negSkipIfExistsChk")?.checked;
+    const prev = analyzeNegativos(5000);
+    if (!prev.cases.length) {
+      alert("Não foi encontrada nenhuma soma negativa para ajustar.");
+      $("#negativosModal").modal("hide");
+      return;
+    }
+    if (!confirm(`Foram encontrados ${prev.cases.length} demonstrativo(s) com saldo negativo. Deseja aplicar o ajuste (998V) agora?`)) return;
+
+    const res = aplicarAjusteNegativos(skipIfExists);
+    $("#negativosModal").modal("hide");
+    renderEventosTable();
+    if (typeof refreshJsonLoadInfo === "function") refreshJsonLoadInfo();
+    alert(`Concluído. Ajustes aplicados: ${res.aplicados}. Ignorados (já existia 998V no mesmo perRef): ${res.ignoradosExistente}.`);
+  });
+}
+
+function parseToFloat(str) {
+  if (!str) return 0;
+  let val = String(str).replace(",", ".");
+  let num = parseFloat(val);
+  return isNaN(num) ? 0 : num;
+}
+
+function formatNumberBR(num, decimals = 4) {
+  const n = Number(num || 0);
+  try {
+    return n.toLocaleString("pt-BR", { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+  } catch {
+    return n.toFixed(decimals);
+  }
+}
+
+function analyzeNegativos(maxRows = 200) {
+  const casos = [];
+  let totalAjuste = 0;
+
+  getEventos().forEach((evt) => {
+    const cpf = normalizeCpf(evt?.trabalhador?.cpfTrab || "");
+
+    (evt.s1202RemuTrabRPPSPagtos || []).forEach((pagto) => {
+      let soma = 0;
+      const periodos = pagto.s1202RemuTrabRPPSPer || [];
+
+      periodos.forEach((periodo) => {
+        (periodo.s1202RemuTrabRPPSEstab || []).forEach((estab) => {
+          (estab.s1202RemuTrabRPPSRemu || []).forEach((remu) => {
+            (remu.s1202RemuTrabRPPSItens || []).forEach((item) => {
+              if (item.ideTabRubr === "VANT") soma += parseToFloat(item.vrRubr);
+              else if (item.ideTabRubr === "DESC") soma -= parseToFloat(item.vrRubr);
+            });
+          });
+        });
+      });
+
+      if (soma < 0) {
+        const ajuste = Math.abs(soma);
+        totalAjuste += ajuste;
+
+        const ultimoPeriodo = periodos.length ? periodos[periodos.length - 1] : null;
+        const perRefAlvo = ultimoPeriodo ? (ultimoPeriodo.perRef || "") : "";
+
+        casos.push({
+          cpf: cpf || "(sem CPF)",
+          ideDmDev: (pagto.ideDmDev || "(sem ideDmDev)"),
+          perRef: perRefAlvo || "(sem perRef)",
+          saldo: soma,
+          ajuste
+        });
+      }
+    });
+  });
+
+  // ordena por maior ajuste (desc)
+  casos.sort((a, b) => b.ajuste - a.ajuste);
+
+  return { cases: casos.slice(0, maxRows), totalCases: casos.length, totalAjuste };
+}
+
+function buildNegativosPreview() {
+  const box = document.getElementById("negativosPreview");
+  const tbody = document.getElementById("negativosTableBody");
+  if (!box || !tbody) return;
+
+  if (!loadedFileMeta) {
+    box.innerHTML = '<span class="text-muted">Carregue um arquivo para visualizar a prévia.</span>';
+    tbody.innerHTML = '<tr><td colspan="5" class="text-muted">—</td></tr>';
+    return;
+  }
+
+  const res = analyzeNegativos(200);
+  box.innerHTML = `
+    <div><strong>Prévia</strong></div>
+    <div>Demonstrativos com saldo negativo: <strong>${res.totalCases}</strong></div>
+    <div>Total a ajustar (somatório): <strong>${formatNumberBR(res.totalAjuste, 4)}</strong></div>
+    <div class="text-muted mt-1">A tabela abaixo mostra até 200 casos (ordenados por maior ajuste).</div>
+  `;
+
+  if (!res.cases.length) {
+    tbody.innerHTML = '<tr><td colspan="5" class="text-muted">Nenhum caso encontrado.</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = res.cases.map(c => `
+    <tr>
+      <td>${escapeHtml(c.cpf)}</td>
+      <td class="text-muted">${escapeHtml(c.ideDmDev)}</td>
+      <td>${escapeHtml(c.perRef)}</td>
+      <td class="text-right">${escapeHtml(formatNumberBR(c.saldo, 4))}</td>
+      <td class="text-right">${escapeHtml(formatNumberBR(c.ajuste, 4))}</td>
+    </tr>
+  `).join("");
+}
+
+function item998vJaExisteNoPerRef(ultimoPeriodo) {
+  const perRef = ultimoPeriodo?.perRef || "";
+  let existe = false;
+
+  (ultimoPeriodo?.s1202RemuTrabRPPSEstab || []).forEach((est) => {
+    (est.s1202RemuTrabRPPSRemu || []).forEach((remu) => {
+      (remu.s1202RemuTrabRPPSItens || []).forEach((item) => {
+        const cod = item?.codRubr?.codRubr || "";
+        const ini = item?.codRubr?.iniValid || "";
+        if (String(cod).toUpperCase() === "998V" && String(ini) === String(perRef)) {
+          existe = true;
+        }
+      });
+    });
+  });
+
+  return existe;
+}
+
+function aplicarAjusteNegativos(skipIfExists = true) {
+  let aplicados = 0;
+  let ignoradosExistente = 0;
+
+  getEventos().forEach((evt) => {
+    (evt.s1202RemuTrabRPPSPagtos || []).forEach((pagto) => {
+      let soma = 0;
+      const periodos = pagto.s1202RemuTrabRPPSPer || [];
+
+      periodos.forEach((periodo) => {
+        (periodo.s1202RemuTrabRPPSEstab || []).forEach((estab) => {
+          (estab.s1202RemuTrabRPPSRemu || []).forEach((remu) => {
+            (remu.s1202RemuTrabRPPSItens || []).forEach((item) => {
+              if (item.ideTabRubr === "VANT") soma += parseToFloat(item.vrRubr);
+              else if (item.ideTabRubr === "DESC") soma -= parseToFloat(item.vrRubr);
+            });
+          });
+        });
+      });
+
+      if (soma >= 0) return;
+
+      const ultimoPeriodo = periodos.length ? periodos[periodos.length - 1] : null;
+      if (!ultimoPeriodo) return;
+
+      if (skipIfExists && item998vJaExisteNoPerRef(ultimoPeriodo)) {
+        ignoradosExistente++;
+        return;
+      }
+
+      const diferencaNum = Math.abs(soma);
+      if (!(diferencaNum > Number.EPSILON)) return;
+
+      const diferenca = diferencaNum.toFixed(4);
+      if (parseFloat(diferenca) <= 0) return;
+
+      // Alvo: adicionar 998V em apenas um ponto (primeira remuneração disponível do último período)
+      let aplicadoAqui = false;
+      (ultimoPeriodo.s1202RemuTrabRPPSEstab || []).some((est) => {
+        return (est.s1202RemuTrabRPPSRemu || []).some((remu) => {
+          if (!remu.s1202RemuTrabRPPSItens) remu.s1202RemuTrabRPPSItens = [];
+
+          const novoItem = {
+            codRubr: { codRubr: "998V", iniValid: ultimoPeriodo.perRef },
+            fatorRubr: "*numerovazio*",
+            ideTabRubr: "VANT",
+            indApurIR: "0",
+            qtdRubr: "*numerovazio*",
+            vrRubr: diferenca,
+            // Campo estrutural que costuma existir no arquivo original (evita falhas de importação)
+            s1202RemuTrabRPPSDescFolha: [
+              { descFolha: "*vazio*" }
+            ]
+          };
+
+          remu.s1202RemuTrabRPPSItens.push(novoItem);
+          aplicadoAqui = true;
+          return true;
+        });
+      });
+
+      if (aplicadoAqui) aplicados++;
+    });
+  });
+
+  return { aplicados, ignoradosExistente };
+}
+
     // 14) VERIFICAR PERÍODOS ANTERIORES e RRA
     document.getElementById("verificarPeriodosBtn").addEventListener("click", () => {
       // Abre modal para configurar
@@ -2089,65 +2374,223 @@ function mesclarEventos() {
 
 
     // ----------------------------------------------------------------------
-    // Informar Estabelecimentos
-    document.getElementById("estabBtn").addEventListener("click", () => {
-      $("#estabModal").modal("show");
+    // ----------------------------------------------------------------------
+// Informar Categoria e Estabelecimento (modal unificado, com integridade)
+// Observação: o antigo modal/botão de Estabelecimentos foi mantido como legado (oculto),
+// mas o fluxo recomendado é via "Informar Categoria e Estabelecimento".
+
+function onlyDigits(v) {
+  return String(v || "").replace(/\D+/g, "");
+}
+
+function isPlaceholderValue(v) {
+  const s = String(v || "").trim();
+  return s === "" || s === "*vazio*" || s === "*numerovazio*" || s === "*datavazia*";
+}
+
+function isValidIsoDate(d) {
+  const s = String(d || "").trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return false;
+  const dt = new Date(s + "T00:00:00");
+  if (Number.isNaN(dt.getTime())) return false;
+  // Checa se a data "volta" igual (evita 2024-02-31 virar março automaticamente)
+  const [y, m, dd] = s.split("-").map(Number);
+  return dt.getUTCFullYear() === y && (dt.getUTCMonth() + 1) === m && dt.getUTCDate() === dd;
+}
+
+function aplicarEstabelecimentos(iniValid, nrInscRaw, tpInscRaw, overwrite = false) {
+  const nrInsc = onlyDigits(nrInscRaw);
+  const tpInsc = String(tpInscRaw || "").trim();
+
+  let totalEstabs = 0;
+  let alterados = 0;
+
+  const eventos = getEventos();
+  eventos.forEach((evt) => {
+    (evt.s1202RemuTrabRPPSPagtos || []).forEach((pagto) => {
+      (pagto.s1202RemuTrabRPPSPer || []).forEach((periodo) => {
+        (periodo.s1202RemuTrabRPPSEstab || []).forEach((est) => {
+          totalEstabs++;
+
+          // Detecta "vazio" com segurança
+          const atualNr = est && est.nrInsc && est.nrInsc.nrInsc ? String(est.nrInsc.nrInsc) : "";
+          const atualIni = est && est.nrInsc && est.nrInsc.iniValid ? String(est.nrInsc.iniValid) : "";
+          const atualTp  = est && est.nrInsc && est.nrInsc.tpInsc && est.nrInsc.tpInsc.tipo ? String(est.nrInsc.tpInsc.tipo) : "";
+
+          const precisa = overwrite || isPlaceholderValue(atualNr);
+
+          if (!precisa) return;
+
+          if (!est.nrInsc) est.nrInsc = {};
+          est.nrInsc.iniValid = iniValid;
+          est.nrInsc.nrInsc = nrInsc;
+          if (!est.nrInsc.tpInsc) est.nrInsc.tpInsc = {};
+          est.nrInsc.tpInsc.tipo = tpInsc;
+
+          alterados++;
+        });
+      });
     });
+  });
 
-    document.getElementById("applyEstabBtn").addEventListener("click", () => {
-      const iniValid = document.getElementById("estabIniValid").value.trim();
-      const nrInsc = document.getElementById("estabNrInsc").value.trim();
-      const tpInsc = document.getElementById("estabTpInsc").value.trim();
-      aplicarEstabelecimentos(iniValid, nrInsc, tpInsc);
-      $("#estabModal").modal("hide");
-      renderEventosTable();
-      alert("Estabelecimentos informados/atualizados com sucesso!");
+  return { totalEstabs, alterados };
+}
+
+function countCategPlaceholders() {
+  let total = 0;
+  getEventos().forEach(evt => {
+    (evt.s1202RemuTrabRPPSPagtos || []).forEach(pagto => {
+      (pagto.s1202RemuTrabRPPSPer || []).forEach(periodo => {
+        (periodo.s1202RemuTrabRPPSEstab || []).forEach(estab => {
+          (estab.s1202RemuTrabRPPSRemu || []).forEach(remu => {
+            const cur = remu && remu.contrato && remu.contrato.codCateg ? remu.contrato.codCateg.categoria : "";
+            if (cur === "*numerovazio*" || cur === "" || cur == null) total++;
+          });
+        });
+      });
     });
+  });
+  return total;
+}
 
-	document.getElementById("categRemuBtn").addEventListener("click", () => {
-	  $("#categRemuModal").modal("show");
-	});
+function countEstabsVazios() {
+  let vazios = 0;
+  let total = 0;
+  getEventos().forEach(evt => {
+    (evt.s1202RemuTrabRPPSPagtos || []).forEach(pagto => {
+      (pagto.s1202RemuTrabRPPSPer || []).forEach(periodo => {
+        (periodo.s1202RemuTrabRPPSEstab || []).forEach(est => {
+          total++;
+          const atualNr = est && est.nrInsc && est.nrInsc.nrInsc ? String(est.nrInsc.nrInsc) : "";
+          if (isPlaceholderValue(atualNr)) vazios++;
+        });
+      });
+    });
+  });
+  return { total, vazios };
+}
 
-	document.getElementById("applyCategRemuBtn").addEventListener("click", () => {
-	  const codigo = document.getElementById("categRemuValue").value.trim();
-	  getEventos().forEach(evt => {
-		(evt.s1202RemuTrabRPPSPagtos || []).forEach(pagto => {
-		  (pagto.s1202RemuTrabRPPSPer || []).forEach(periodo => {
-			(periodo.s1202RemuTrabRPPSEstab || []).forEach(estab => {
-			  (estab.s1202RemuTrabRPPSRemu || []).forEach(remu => {
-				if (remu.contrato.codCateg.categoria === "*numerovazio*") {
-				  remu.contrato.codCateg.categoria = codigo;
-				}
-			  });
-			});
-		  });
-		});
-	  });
-	  $("#categRemuModal").modal("hide");
-	  renderEventosTable();
-	  alert(`Código de remuneração "${codigo}" aplicado nos placeholders.`);
-	});
+function buildCategEstabPreview() {
+  const box = document.getElementById("categEstabPreview");
+  if (!box) return;
 
-    function aplicarEstabelecimentos(iniValid, nrInsc, tpInsc) {
-      const eventos = getEventos();
-      eventos.forEach((evt) => {
-        (evt.s1202RemuTrabRPPSPagtos || []).forEach((pagto) => {
-          (pagto.s1202RemuTrabRPPSPer || []).forEach((periodo) => {
-            (periodo.s1202RemuTrabRPPSEstab || []).forEach((est) => {
-              if (!est.nrInsc) {
-                est.nrInsc = {};
-              }
-              est.nrInsc.iniValid = iniValid;
-              est.nrInsc.nrInsc = nrInsc;
-              if (!est.nrInsc.tpInsc) {
-                est.nrInsc.tpInsc = {};
-              }
-              est.nrInsc.tpInsc.tipo = tpInsc;
+  if (!loadedFileMeta) {
+    box.innerHTML = '<span class="text-muted">Carregue um arquivo para visualizar a prévia.</span>';
+    return;
+  }
+
+  const cat = countCategPlaceholders();
+  const est = countEstabsVazios();
+
+  box.innerHTML = `
+    <div><strong>Prévia</strong></div>
+    <div>Categoria com placeholder/vazio: <strong>${cat}</strong></div>
+    <div>Estabelecimentos vazios: <strong>${est.vazios}</strong> de <strong>${est.total}</strong></div>
+    <div class="text-muted mt-1">Dica: por padrão o editor só preenche vazios. Habilite sobrescrita apenas quando necessário.</div>
+  `;
+}
+
+// Legado: botão/modal de estabelecimentos (oculto)
+const estabBtnLegacy = document.getElementById("estabBtn");
+if (estabBtnLegacy) {
+  estabBtnLegacy.addEventListener("click", () => $("#estabModal").modal("show"));
+}
+
+const applyEstabLegacy = document.getElementById("applyEstabBtn");
+if (applyEstabLegacy) {
+  applyEstabLegacy.addEventListener("click", () => {
+    const iniValid = document.getElementById("estabIniValid").value.trim();
+    const nrInsc = document.getElementById("estabNrInsc").value.trim();
+    const tpInsc = document.getElementById("estabTpInsc").value.trim();
+
+    if (!isValidIsoDate(iniValid)) {
+      alert("iniValid inválido. Use o formato YYYY-MM-DD (ex.: 2021-07-01).");
+      return;
+    }
+    const cnpj = onlyDigits(nrInsc);
+    if (cnpj.length !== 14) {
+      alert("nrInsc inválido. Informe um CNPJ com 14 dígitos.");
+      return;
+    }
+
+    aplicarEstabelecimentos(iniValid, cnpj, tpInsc, false);
+    $("#estabModal").modal("hide");
+    renderEventosTable();
+    if (typeof refreshJsonLoadInfo === "function") refreshJsonLoadInfo();
+    alert("Estabelecimentos preenchidos (apenas vazios).");
+  });
+}
+
+// Modal unificado (categoria + estabelecimento)
+const categBtn = document.getElementById("categRemuBtn");
+if (categBtn) {
+  categBtn.addEventListener("click", () => {
+    buildCategEstabPreview();
+    $("#categRemuModal").modal("show");
+  });
+}
+
+const applyCategBtn = document.getElementById("applyCategRemuBtn");
+if (applyCategBtn) {
+  applyCategBtn.addEventListener("click", () => {
+    const applyCategoria = !!document.getElementById("applyCategoriaChk")?.checked;
+    const applyEstab = !!document.getElementById("applyEstabChk")?.checked;
+
+    const codigo = (document.getElementById("categRemuValue").value || "").trim();
+    const iniValid = (document.getElementById("categEstabIniValid").value || "").trim();
+    const nrInscRaw = (document.getElementById("categEstabNrInsc").value || "").trim();
+    const tpInsc = (document.getElementById("categEstabTpInsc").value || "").trim();
+    const overwrite = !!document.getElementById("overwriteEstabChk")?.checked;
+
+    let catAlterados = 0;
+    let estabAlterados = 0;
+
+    if (applyCategoria) {
+      if (!/^\d+$/.test(codigo)) {
+        alert("codCateg inválido. Informe apenas números (ex.: 301).");
+        return;
+      }
+
+      getEventos().forEach(evt => {
+        (evt.s1202RemuTrabRPPSPagtos || []).forEach(pagto => {
+          (pagto.s1202RemuTrabRPPSPer || []).forEach(periodo => {
+            (periodo.s1202RemuTrabRPPSEstab || []).forEach(estab => {
+              (estab.s1202RemuTrabRPPSRemu || []).forEach(remu => {
+                if (remu && remu.contrato && remu.contrato.codCateg) {
+                  const cur = remu.contrato.codCateg.categoria;
+                  if (cur === "*numerovazio*" || cur === "" || cur == null) {
+                    remu.contrato.codCateg.categoria = codigo;
+                    catAlterados++;
+                  }
+                }
+              });
             });
           });
         });
       });
     }
+
+    if (applyEstab) {
+      if (!isValidIsoDate(iniValid)) {
+        alert("iniValid inválido. Use o formato YYYY-MM-DD (ex.: 2021-07-01).");
+        return;
+      }
+      const cnpj = onlyDigits(nrInscRaw);
+      if (cnpj.length !== 14) {
+        alert("nrInsc inválido. Informe um CNPJ com 14 dígitos.");
+        return;
+      }
+      const r = aplicarEstabelecimentos(iniValid, cnpj, tpInsc, overwrite);
+      estabAlterados = r.alterados;
+    }
+
+    $("#categRemuModal").modal("hide");
+    renderEventosTable();
+    if (typeof refreshJsonLoadInfo === "function") refreshJsonLoadInfo();
+
+    alert(`Concluído. Categoria alterada em ${catAlterados} ponto(s). Estabelecimentos atualizados em ${estabAlterados} ponto(s).`);
+  });
+}
 
     // Inicializa a tabela ao carregar
     renderEventosTable();
@@ -2379,179 +2822,218 @@ function mesclarEventos() {
     }
 
     function extractFolhaKey(ideDmDev) {
-      const s = String(ideDmDev || "").trim();
-      if (!s) return "Sem ideDmDev";
-      const up = s.toUpperCase();
+  const s = String(ideDmDev || "").trim();
+  if (!s) return "Sem ideDmDev";
+  const up = s.toUpperCase();
 
-      // Pega a ÚLTIMA ocorrência do padrão "-TIPO-XXXXXX" (XXXXXX = MMYYYY ou YYYYMM, conforme o sistema)
-      const re = /-([A-Z0-9_]+)-(\d{6})(?!\d)/g;
-      let last = null;
-      let m;
-      while ((m = re.exec(up)) !== null) {
-        last = m;
-      }
-      if (last) return `${last[1]}-${last[2]}`;
+  // Prioridade: captura o sufixo do tipo "-NN-TIPO-XXXXXX" (NN = 1-3 dígitos) e mantém o restante até o fim.
+  // Ex.: "...-1-NORMAL-122024", "...-11-NORMAL-122024", "...-02-NORMAL-122024-DETALHE"
+  const re = /-\d{1,3}-[A-Z0-9_]+-\d{6}/g;
+  let last = null;
+  let m;
+  while ((m = re.exec(up)) !== null) {
+    last = m;
+  }
+  if (last) {
+    return up.substring(last.index); // inclui o '-' inicial
+  }
 
-      return "Outros";
+  // Fallback: "-TIPO-XXXXXX"
+  const re2 = /-[A-Z0-9_]+-\d{6}/g;
+  let last2 = null;
+  while ((m = re2.exec(up)) !== null) {
+    last2 = m;
+  }
+  if (last2) return up.substring(last2.index);
+
+  return "Outros";
+}
+
+function refreshJsonLoadInfo() {
+  const container = document.getElementById("jsonLoadInfo");
+  if (!container) return;
+
+  if (!loadedFileMeta) {
+    container.innerHTML = `<div class="alert alert-secondary p-2 mb-0 small">Nenhum arquivo carregado.</div>`;
+    return;
+  }
+
+  const eventos = getEventos();
+  const totalEventos = eventos.length;
+
+  // CPFs únicos
+  const cpfSetGlobal = new Set();
+  let eventosSemCpf = 0;
+  let eventosSemPeriodo = 0;
+  let eventosSemInd = 0;
+
+  // Agrupamento IndApuração + Período
+  const indPerMap = new Map(); // key -> { eventos, cpfSet }
+  let minYm = null, maxYm = null;
+
+  // Agrupamento folha (por ideDmDev)
+  const folhaMap = new Map(); // folhaKey -> { demonstrativos, cpfSet, vantSum, descSum }
+  let totalDemonstrativos = 0;
+  let demonstrativosSemIde = 0;
+
+  eventos.forEach((evt) => {
+    const cpf = normalizeCpf(evt?.trabalhador?.cpfTrab || "");
+    if (cpf) cpfSetGlobal.add(cpf); else eventosSemCpf++;
+
+    const ind = (evt.indApuracao || "").trim();
+    if (!ind) eventosSemInd++;
+    const per = (evt.perApur || "").trim();
+    if (!per) eventosSemPeriodo++;
+
+    const ym = parseYearMonth(per);
+    if (ym) {
+      if (minYm === null || ym < minYm) minYm = ym;
+      if (maxYm === null || ym > maxYm) maxYm = ym;
     }
 
-    function refreshJsonLoadInfo() {
-      const container = document.getElementById("jsonLoadInfo");
-      if (!container) return;
+    const key = `${ind || "(vazio)"}|${per || "(vazio)"}`;
+    if (!indPerMap.has(key)) indPerMap.set(key, { eventos: 0, cpfSet: new Set() });
+    const rec = indPerMap.get(key);
+    rec.eventos++;
+    if (cpf) rec.cpfSet.add(cpf);
 
-      if (!loadedFileMeta) {
-        container.innerHTML = `<div class="alert alert-secondary p-2 mb-0 small">Nenhum arquivo carregado.</div>`;
-        return;
-      }
+    // demonstrativos (pagtos) por folha
+    (evt.s1202RemuTrabRPPSPagtos || []).forEach((pagto) => {
+      totalDemonstrativos++;
+      const ide = pagto?.ideDmDev ? String(pagto.ideDmDev) : "";
+      if (!ide) demonstrativosSemIde++;
 
-      const eventos = getEventos();
-      const totalEventos = eventos.length;
+      const folhaKey = extractFolhaKey(ide);
+      if (!folhaMap.has(folhaKey)) folhaMap.set(folhaKey, { demonstrativos: 0, cpfSet: new Set(), vantSum: 0, descSum: 0 });
+      const f = folhaMap.get(folhaKey);
+      f.demonstrativos++;
+      if (cpf) f.cpfSet.add(cpf);
 
-      // CPFs únicos
-      const cpfSetGlobal = new Set();
-      let eventosSemCpf = 0;
-      let eventosSemPeriodo = 0;
-      let eventosSemInd = 0;
+      // Totais por demonstrativo
+      let vant = 0;
+      let desc = 0;
 
-      // Agrupamento IndApuração + Período
-      const indPerMap = new Map(); // key -> { eventos, cpfSet }
-      let minYm = null, maxYm = null;
-
-      // Agrupamento folha (por ideDmDev)
-      const folhaMap = new Map(); // folhaKey -> { demonstrativos, cpfSet, exemplosIde: Set }
-      let totalDemonstrativos = 0;
-      let demonstrativosSemIde = 0;
-
-      eventos.forEach((evt) => {
-        const cpf = normalizeCpf(evt.trabalhador && evt.trabalhador.cpfTrab ? evt.trabalhador.cpfTrab : "");
-        if (cpf) cpfSetGlobal.add(cpf); else eventosSemCpf++;
-
-        const ind = (evt.indApuracao || "").trim();
-        if (!ind) eventosSemInd++;
-        const per = (evt.perApur || "").trim();
-        if (!per) eventosSemPeriodo++;
-
-        const ym = parseYearMonth(per);
-        if (ym) {
-          if (minYm === null || ym < minYm) minYm = ym;
-          if (maxYm === null || ym > maxYm) maxYm = ym;
-        }
-
-        const key = `${ind || "(vazio)"}|${per || "(vazio)"}`;
-        if (!indPerMap.has(key)) indPerMap.set(key, { eventos: 0, cpfSet: new Set() });
-        const rec = indPerMap.get(key);
-        rec.eventos++;
-        if (cpf) rec.cpfSet.add(cpf);
-
-        // demonstrativos (pagtos) por folha
-        (evt.s1202RemuTrabRPPSPagtos || []).forEach((pagto) => {
-          totalDemonstrativos++;
-          const ide = pagto && pagto.ideDmDev ? pagto.ideDmDev : "";
-          if (!ide) demonstrativosSemIde++;
-          const folhaKey = extractFolhaKey(ide);
-          if (!folhaMap.has(folhaKey)) folhaMap.set(folhaKey, { demonstrativos: 0, cpfSet: new Set(), exemplosIde: new Set() });
-          const f = folhaMap.get(folhaKey);
-          f.demonstrativos++;
-          if (cpf) f.cpfSet.add(cpf);
-          if (ide && f.exemplosIde.size < 5) f.exemplosIde.add(String(ide));
+      (pagto.s1202RemuTrabRPPSPer || []).forEach((periodo) => {
+        (periodo.s1202RemuTrabRPPSEstab || []).forEach((estab) => {
+          (estab.s1202RemuTrabRPPSRemu || []).forEach((remu) => {
+            (remu.s1202RemuTrabRPPSItens || []).forEach((item) => {
+              if (item?.ideTabRubr === "VANT") vant += parseToFloat(item.vrRubr);
+              else if (item?.ideTabRubr === "DESC") desc += parseToFloat(item.vrRubr);
+            });
+          });
         });
       });
 
-      function ymToStr(ym) {
-        if (!ym) return "";
-        const s = String(ym).padStart(6, "0");
-        return s.substring(0, 4) + "-" + s.substring(4, 6);
-      }
+      f.vantSum += vant;
+      f.descSum += desc;
+    });
+  });
 
-      const indPerRows = Array.from(indPerMap.entries())
-        .map(([k, v]) => {
-          const [ind, per] = k.split("|");
-          return { ind, per, eventos: v.eventos, trabalhadores: v.cpfSet.size };
-        })
-        .sort((a, b) => (a.per.localeCompare(b.per) || a.ind.localeCompare(b.ind)));
+  function ymToStr(ym) {
+    if (!ym) return "";
+    const s = String(ym).padStart(6, "0");
+    return s.substring(0, 4) + "-" + s.substring(4, 6);
+  }
 
-      const folhaRows = Array.from(folhaMap.entries())
-        .map(([folha, v]) => ({ folha, demonstrativos: v.demonstrativos, trabalhadores: v.cpfSet.size, exemplos: Array.from(v.exemplosIde) }))
-        .sort((a, b) => b.demonstrativos - a.demonstrativos);
+  const indPerRows = Array.from(indPerMap.entries())
+    .map(([k, v]) => {
+      const [ind, per] = k.split("|");
+      return { ind, per, eventos: v.eventos, trabalhadores: v.cpfSet.size };
+    })
+    .sort((a, b) => (a.per.localeCompare(b.per) || a.ind.localeCompare(b.ind)));
 
-      const topFolhas = folhaRows.slice(0, 20);
+  const folhaRows = Array.from(folhaMap.entries())
+    .map(([folha, v]) => {
+      const saldo = v.vantSum - v.descSum;
+      return { folha, demonstrativos: v.demonstrativos, trabalhadores: v.cpfSet.size, vantSum: v.vantSum, descSum: v.descSum, saldo };
+    })
+    .sort((a, b) => b.demonstrativos - a.demonstrativos);
 
-      const headerHtml = `
-        <div class="alert alert-secondary p-2 mb-0">
-          <div class="d-flex justify-content-between align-items-center">
-            <div class="small">
-              <div><strong>Arquivo:</strong> ${escapeHtml(loadedFileMeta.name)} <span class="text-muted">(${formatBytes(loadedFileMeta.size)}, modificado em ${escapeHtml(formatDate(loadedFileMeta.lastModified))})</span></div>
-              <div><strong>Eventos:</strong> ${totalEventos} &nbsp;|&nbsp; <strong>Trabalhadores (CPFs únicos):</strong> ${cpfSetGlobal.size} &nbsp;|&nbsp; <strong>Demonstrativos (ideDmDev):</strong> ${totalDemonstrativos}</div>
-              <div class="text-muted">Período apuração (mín → máx): ${escapeHtml(ymToStr(minYm) || "—")} → ${escapeHtml(ymToStr(maxYm) || "—")} &nbsp;|&nbsp; Eventos sem CPF: ${eventosSemCpf} &nbsp;|&nbsp; sem indApur: ${eventosSemInd} &nbsp;|&nbsp; sem perApur: ${eventosSemPeriodo}</div>
-            </div>
-            <button type="button" class="btn btn-sm btn-outline-dark" id="refreshSummaryBtn">Atualizar resumo</button>
-          </div>
+  const topFolhas = folhaRows.slice(0, 25);
 
-          <hr class="my-2">
-
-          <div class="small">
-            <div><strong>Trabalhadores por Ind Apuração e Período Apuração</strong></div>
-            <div class="table-responsive mt-2">
-              <table class="table table-sm table-bordered mb-2">
-                <thead class="thead-light">
-                  <tr>
-                    <th>Ind Apuração</th>
-                    <th>Período</th>
-                    <th>Eventos</th>
-                    <th>Trabalhadores</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  ${indPerRows.map(r => `
-                    <tr>
-                      <td>${escapeHtml(r.ind)}</td>
-                      <td>${escapeHtml(r.per)}</td>
-                      <td>${r.eventos}</td>
-                      <td>${r.trabalhadores}</td>
-                    </tr>
-                  `).join("")}
-                </tbody>
-              </table>
-            </div>
-
-            <div><strong>Demonstrativos por folha (extraído de ideDmDev)</strong> <span class="text-muted">(ex.: NORMAL-122024)</span></div>
-            <div class="table-responsive mt-2">
-              <table class="table table-sm table-bordered mb-0">
-                <thead class="thead-light">
-                  <tr>
-                    <th>Folha</th>
-                    <th>Demonstrativos</th>
-                    <th>Trabalhadores</th>
-                    <th>Exemplos ideDmDev</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  ${topFolhas.map(r => `
-                    <tr>
-                      <td>${escapeHtml(r.folha)}</td>
-                      <td>${r.demonstrativos}</td>
-                      <td>${r.trabalhadores}</td>
-                      <td class="text-muted">${escapeHtml(r.exemplos.join(" | ") || "—")}</td>
-                    </tr>
-                  `).join("")}
-                </tbody>
-              </table>
-            </div>
-
-            <div class="text-muted mt-2">
-              Observação: o agrupamento por folha é inferido pelo sufixo do padrão <code>-TIPO-XXXXXX</code> presente em <code>ideDmDev</code>. Demonstrativos sem <code>ideDmDev</code>: ${demonstrativosSemIde}.
-            </div>
-          </div>
+  const headerHtml = `
+    <div class="alert alert-secondary p-2 mb-0">
+      <div class="d-flex justify-content-between align-items-center">
+        <div class="small">
+          <div><strong>Arquivo:</strong> ${escapeHtml(loadedFileMeta.name)} <span class="text-muted">(${formatBytes(loadedFileMeta.size)}, modificado em ${escapeHtml(formatDate(loadedFileMeta.lastModified))})</span></div>
+          <div><strong>Eventos:</strong> ${totalEventos} &nbsp;|&nbsp; <strong>Trabalhadores (CPFs únicos):</strong> ${cpfSetGlobal.size} &nbsp;|&nbsp; <strong>Demonstrativos (ideDmDev):</strong> ${totalDemonstrativos}</div>
+          <div class="text-muted">Período apuração (mín → máx): ${escapeHtml(ymToStr(minYm) || "—")} → ${escapeHtml(ymToStr(maxYm) || "—")} &nbsp;|&nbsp; Eventos sem CPF: ${eventosSemCpf} &nbsp;|&nbsp; sem indApur: ${eventosSemInd} &nbsp;|&nbsp; sem perApur: ${eventosSemPeriodo}</div>
         </div>
-      `;
+        <button type="button" class="btn btn-sm btn-outline-dark" id="refreshSummaryBtn">Atualizar resumo</button>
+      </div>
 
-      container.innerHTML = headerHtml;
+      <hr class="my-2">
 
-      const btn = document.getElementById("refreshSummaryBtn");
-      if (btn) {
-        btn.onclick = () => refreshJsonLoadInfo();
-      }
-    }
+      <div class="small">
+        <div><strong>Trabalhadores por Ind Apuração e Período Apuração</strong></div>
+        <div class="table-responsive mt-2">
+          <table class="table table-sm table-bordered mb-2">
+            <thead class="thead-light">
+              <tr>
+                <th>Ind Apuração</th>
+                <th>Período</th>
+                <th>Eventos</th>
+                <th>Trabalhadores</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${indPerRows.map(r => `
+                <tr>
+                  <td>${escapeHtml(r.ind)}</td>
+                  <td>${escapeHtml(r.per)}</td>
+                  <td>${r.eventos}</td>
+                  <td>${r.trabalhadores}</td>
+                </tr>
+              `).join("")}
+            </tbody>
+          </table>
+        </div>
+
+        <div><strong>Demonstrativos por folha (sufixo extraído de ideDmDev)</strong> <span class="text-muted">(ex.: -11-NORMAL-122024 ou -02-NORMAL-122024-DETALHE)</span></div>
+        <div class="table-responsive mt-2">
+          <table class="table table-sm table-bordered mb-0">
+            <thead class="thead-light">
+              <tr>
+                <th>Folha (chave)</th>
+                <th>Demonstrativos</th>
+                <th>Trabalhadores</th>
+                <th class="text-right">Total VANT</th>
+                <th class="text-right">Total DESC</th>
+                <th class="text-right">Saldo (VANT-DESC)</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${topFolhas.map(r => `
+                <tr>
+                  <td>${escapeHtml(r.folha)}</td>
+                  <td>${r.demonstrativos}</td>
+                  <td>${r.trabalhadores}</td>
+                  <td class="text-right">${escapeHtml(formatNumberBR(r.vantSum, 4))}</td>
+                  <td class="text-right">${escapeHtml(formatNumberBR(r.descSum, 4))}</td>
+                  <td class="text-right">${escapeHtml(formatNumberBR(r.saldo, 4))}</td>
+                </tr>
+              `).join("")}
+            </tbody>
+          </table>
+        </div>
+
+        <div class="text-muted mt-2">
+          Observação: o agrupamento por folha usa o último sufixo do padrão <code>-NN-TIPO-XXXXXX</code> em <code>ideDmDev</code> (mantendo o restante até o fim).
+          Demonstrativos sem <code>ideDmDev</code>: ${demonstrativosSemIde}.
+        </div>
+      </div>
+    </div>
+  `;
+
+  container.innerHTML = headerHtml;
+
+  const btn = document.getElementById("refreshSummaryBtn");
+  if (btn) {
+    btn.onclick = () => refreshJsonLoadInfo();
+  }
+}
+
+
 
     // ---------------------------------------------------------------------------
     // FERRAMENTA: FILTRAR / EXCLUIR TRABALHADORES POR CPF
@@ -2674,6 +3156,394 @@ function mesclarEventos() {
       });
     })();
 
+
+    // -------------------------------------------------------------
+    // MESCLAR RUBRICAS POR IDEDMDEV
+    (function initMergeDmDevTool() {
+      const modalId = "#mergeDmDevModal";
+      const openBtn = document.getElementById("mergeDmDevModalBtn");
+      const previewEl = document.getElementById("mergeDmDevPreview");
+      const applyBtn = document.getElementById("applyMergeDmDevBtn");
+      const refreshBtn = document.getElementById("refreshMergeDmDevPreviewBtn");
+      const alsoEqEl = document.getElementById("mergeDmDevAlsoEquivalent");
+      const alertEl = document.getElementById("mergeDmDevPreviewAlert");
+
+      if (!openBtn || !previewEl || !applyBtn || !refreshBtn || !alsoEqEl) return;
+
+      function deepClone(obj) {
+        try {
+          if (typeof structuredClone === "function") return structuredClone(obj);
+        } catch (e) {}
+        return JSON.parse(JSON.stringify(obj));
+      }
+
+      function stableStringify(value) {
+        const seen = new WeakSet();
+        const helper = (v) => {
+          if (v === null || typeof v !== "object") return v;
+          if (seen.has(v)) return "[Circular]";
+          seen.add(v);
+          if (Array.isArray(v)) return v.map(helper);
+          const keys = Object.keys(v).sort();
+          const out = {};
+          keys.forEach((k) => (out[k] = helper(v[k])));
+          return out;
+        };
+        return JSON.stringify(helper(value));
+      }
+
+      function normalizeCpfTo11(raw) {
+        const digits = String(raw || "").replace(/\D+/g, "");
+        if (!digits) return "";
+        return digits.padStart(11, "0").slice(-11);
+      }
+
+      function itemKey(item) {
+        // Chave estável para deduplicar rubricas, preservando conteúdo
+        return stableStringify(item);
+      }
+
+      function mergeArrayUnique(targetArr, sourceArr, keyFn) {
+        if (!Array.isArray(sourceArr) || !sourceArr.length) return 0;
+        if (!Array.isArray(targetArr)) targetArr = [];
+        const existing = new Set(targetArr.map(keyFn));
+        let added = 0;
+        sourceArr.forEach((x) => {
+          const k = keyFn(x);
+          if (!existing.has(k)) {
+            targetArr.push(x);
+            existing.add(k);
+            added++;
+          }
+        });
+        return added;
+      }
+
+      function mergeRemuInto(baseRemu, otherRemu) {
+        // Mescla itens de rubrica (e outros blocos existentes) por união
+        let addedItens = 0;
+
+        // Itens
+        if (!Array.isArray(baseRemu.s1202RemuTrabRPPSItens)) baseRemu.s1202RemuTrabRPPSItens = [];
+        addedItens += mergeArrayUnique(
+          baseRemu.s1202RemuTrabRPPSItens,
+          otherRemu.s1202RemuTrabRPPSItens || [],
+          itemKey
+        );
+
+        // InfoRRA (se existir)
+        if (otherRemu.s1202RemuTrabRPPSInfoRRA) {
+          if (!Array.isArray(baseRemu.s1202RemuTrabRPPSInfoRRA)) baseRemu.s1202RemuTrabRPPSInfoRRA = [];
+          mergeArrayUnique(
+            baseRemu.s1202RemuTrabRPPSInfoRRA,
+            otherRemu.s1202RemuTrabRPPSInfoRRA || [],
+            stableStringify
+          );
+        }
+
+        // Outros campos desconhecidos do remu: preserva base (não sobrescreve)
+        return { addedItens };
+      }
+
+      function mergePagtoInto(basePagto, otherPagto) {
+        // Mescla árvore Per > Estab > Remu > Itens por match de chaves de negócio
+        // Per: perRef + anoRef + tpRegistro
+        let addedItens = 0;
+
+        const basePer = Array.isArray(basePagto.s1202RemuTrabRPPSPer) ? basePagto.s1202RemuTrabRPPSPer : [];
+        if (!Array.isArray(basePagto.s1202RemuTrabRPPSPer)) basePagto.s1202RemuTrabRPPSPer = basePer;
+
+        const otherPer = Array.isArray(otherPagto.s1202RemuTrabRPPSPer) ? otherPagto.s1202RemuTrabRPPSPer : [];
+
+        const perKey = (p) => `${p.anoRef || ""}|${p.perRef || ""}|${p.tpRegistro || ""}`;
+
+        const basePerMap = new Map(basePer.map((p) => [perKey(p), p]));
+
+        otherPer.forEach((p) => {
+          const k = perKey(p);
+          if (!basePerMap.has(k)) {
+            basePer.push(p);
+            basePerMap.set(k, p);
+            return;
+          }
+
+          const bp = basePerMap.get(k);
+          if (!Array.isArray(bp.s1202RemuTrabRPPSEstab)) bp.s1202RemuTrabRPPSEstab = [];
+          const beArr = bp.s1202RemuTrabRPPSEstab;
+
+          const otherEst = Array.isArray(p.s1202RemuTrabRPPSEstab) ? p.s1202RemuTrabRPPSEstab : [];
+
+          const estabKey = (e) => {
+            const nr = (e.nrInsc && (e.nrInsc.nrInsc || e.nrInsc)) || "";
+            const tp = (e.nrInsc && e.nrInsc.tpInsc && e.nrInsc.tpInsc.tipo) || (e.tpInsc && e.tpInsc.tipo) || "";
+            const ini = (e.nrInsc && e.nrInsc.iniValid) || e.iniValid || "";
+            return `${tp}|${nr}|${ini}`;
+          };
+
+          const beMap = new Map(beArr.map((e) => [estabKey(e), e]));
+
+          otherEst.forEach((e) => {
+            const ek = estabKey(e);
+            if (!beMap.has(ek)) {
+              beArr.push(e);
+              beMap.set(ek, e);
+              return;
+            }
+
+            const be = beMap.get(ek);
+            if (!Array.isArray(be.s1202RemuTrabRPPSRemu)) be.s1202RemuTrabRPPSRemu = [];
+            const brArr = be.s1202RemuTrabRPPSRemu;
+
+            const otherRemu = Array.isArray(e.s1202RemuTrabRPPSRemu) ? e.s1202RemuTrabRPPSRemu : [];
+
+            const remuKey = (r) => {
+              const mat = (r.contrato && r.contrato.matricula) || "";
+              const cat = (r.codCateg && r.codCateg.categoria) || "";
+              return `${mat}|${cat}`;
+            };
+
+            const brMap = new Map(brArr.map((r) => [remuKey(r), r]));
+
+            otherRemu.forEach((r) => {
+              const rk = remuKey(r);
+              if (!brMap.has(rk)) {
+                brArr.push(r);
+                brMap.set(rk, r);
+                // Conta itens desse remu inteiro como "adicionados"
+                const cnt = Array.isArray(r.s1202RemuTrabRPPSItens) ? r.s1202RemuTrabRPPSItens.length : 0;
+                addedItens += cnt;
+                return;
+              }
+
+              const br = brMap.get(rk);
+              const res = mergeRemuInto(br, r);
+              addedItens += res.addedItens || 0;
+            });
+          });
+        });
+
+        // IdeAdv: união
+        if (otherPagto.s1202RemuTrabRPPSIdeAdv) {
+          if (!Array.isArray(basePagto.s1202RemuTrabRPPSIdeAdv)) basePagto.s1202RemuTrabRPPSIdeAdv = [];
+          mergeArrayUnique(
+            basePagto.s1202RemuTrabRPPSIdeAdv,
+            otherPagto.s1202RemuTrabRPPSIdeAdv || [],
+            stableStringify
+          );
+        }
+
+        // Campos escalares: preserva base (não sobrescreve)
+        return { addedItens };
+      }
+
+      function canonicalizePagtoForSignature(pagto) {
+        // Remove ideDmDev e normaliza arrays para comparar "equivalentes"
+        const clone = deepClone(pagto || {});
+        delete clone.ideDmDev;
+
+        // Ordenações para reduzir falsos negativos
+        const sortBy = (arr, fn) => Array.isArray(arr) ? arr.sort((a,b)=> (fn(a)>fn(b)?1:fn(a)<fn(b)?-1:0)) : arr;
+
+        if (Array.isArray(clone.s1202RemuTrabRPPSIdeAdv)) {
+          sortBy(clone.s1202RemuTrabRPPSIdeAdv, stableStringify);
+        }
+
+        if (Array.isArray(clone.s1202RemuTrabRPPSPer)) {
+          sortBy(clone.s1202RemuTrabRPPSPer, (p)=>`${p.anoRef||""}|${p.perRef||""}|${p.tpRegistro||""}`);
+          clone.s1202RemuTrabRPPSPer.forEach((p) => {
+            if (Array.isArray(p.s1202RemuTrabRPPSEstab)) {
+              sortBy(p.s1202RemuTrabRPPSEstab, (e)=>{
+                const nr=(e.nrInsc && (e.nrInsc.nrInsc||e.nrInsc))||"";
+                const tp=(e.nrInsc && e.nrInsc.tpInsc && e.nrInsc.tpInsc.tipo)||"";
+                const ini=(e.nrInsc && e.nrInsc.iniValid)||"";
+                return `${tp}|${nr}|${ini}`;
+              });
+              p.s1202RemuTrabRPPSEstab.forEach((e) => {
+                if (Array.isArray(e.s1202RemuTrabRPPSRemu)) {
+                  sortBy(e.s1202RemuTrabRPPSRemu, (r)=>`${(r.contrato&&r.contrato.matricula)||""}|${(r.codCateg&&r.codCateg.categoria)||""}`);
+                  e.s1202RemuTrabRPPSRemu.forEach((r) => {
+                    if (Array.isArray(r.s1202RemuTrabRPPSItens)) {
+                      sortBy(r.s1202RemuTrabRPPSItens, (it)=>`${(it.codRubr&&it.codRubr.codRubr)||""}|${(it.codRubr&&it.codRubr.iniValid)||""}|${it.ideTabRubr||""}|${it.indApurIR||""}|${it.vrRubr||""}|${it.qtdRubr||""}|${it.fatorRubr||""}`);
+                      r.s1202RemuTrabRPPSItens.forEach((it) => {
+                        if (Array.isArray(it.s1202RemuTrabRPPSDescFolha)) {
+                          sortBy(it.s1202RemuTrabRPPSDescFolha, stableStringify);
+                        }
+                      });
+                    }
+                    if (Array.isArray(r.s1202RemuTrabRPPSInfoRRA)) {
+                      sortBy(r.s1202RemuTrabRPPSInfoRRA, stableStringify);
+                    }
+                  });
+                }
+              });
+            }
+          });
+        }
+
+        return stableStringify(clone);
+      }
+
+      function runMergeOnEventos(eventos, options) {
+        const alsoEquivalent = !!(options && options.alsoEquivalent);
+
+        let totalPagtoBefore = 0;
+        let totalPagtoAfter = 0;
+        let mergedBySameIde = 0;
+        let removedEquivalent = 0;
+        let totalItensAdded = 0;
+        const details = [];
+
+        (eventos || []).forEach((evt) => {
+          const cpf = normalizeCpfTo11(evt?.trabalhador?.cpfTrab || "");
+          const pagtos = Array.isArray(evt.s1202RemuTrabRPPSPagtos) ? evt.s1202RemuTrabRPPSPagtos : [];
+          totalPagtoBefore += pagtos.length;
+
+          if (pagtos.length <= 1) {
+            totalPagtoAfter += pagtos.length;
+            return;
+          }
+
+          // Passo 1: mesclar por ideDmDev idêntico (união de rubricas)
+          const firstIndexByIde = new Map();
+          const mergedObjectsByIde = new Map();
+          const skip = new Set();
+
+          for (let i = 0; i < pagtos.length; i++) {
+            const ide = (pagtos[i] && pagtos[i].ideDmDev) || "";
+            if (!ide) continue;
+
+            if (!firstIndexByIde.has(ide)) {
+              firstIndexByIde.set(ide, i);
+              mergedObjectsByIde.set(ide, pagtos[i]);
+              continue;
+            }
+
+            const base = mergedObjectsByIde.get(ide);
+            const other = pagtos[i];
+            const res = mergePagtoInto(base, other);
+            totalItensAdded += res.addedItens || 0;
+            mergedBySameIde++;
+            skip.add(i);
+          }
+
+          let mergedList = [];
+          for (let i = 0; i < pagtos.length; i++) {
+            if (skip.has(i)) continue;
+            mergedList.push(pagtos[i]);
+          }
+
+          // Passo 2: remover duplicados equivalentes (difere só ideDmDev)
+          if (alsoEquivalent && mergedList.length > 1) {
+            const sigMap = new Map(); // signature -> index kept
+            const keep = [];
+            for (let i = 0; i < mergedList.length; i++) {
+              const p = mergedList[i];
+              const sig = canonicalizePagtoForSignature(p);
+              if (!sigMap.has(sig)) {
+                sigMap.set(sig, keep.length);
+                keep.push(p);
+              } else {
+                // duplicado: não perde rubrica porque assinatura é idêntica (exceto ideDmDev)
+                removedEquivalent++;
+                details.push(`CPF ${cpf || "(sem CPF)"}: removido pagamento duplicado equivalente (ideDmDev="${p.ideDmDev || ""}")`);
+              }
+            }
+            mergedList = keep;
+          }
+
+          if (mergedList.length !== pagtos.length) {
+            evt.s1202RemuTrabRPPSPagtos = mergedList;
+            details.push(`CPF ${cpf || "(sem CPF)"}: pagamentos ${pagtos.length} → ${mergedList.length}`);
+          }
+
+          totalPagtoAfter += (evt.s1202RemuTrabRPPSPagtos || []).length;
+        });
+
+        return {
+          totalPagtoBefore,
+          totalPagtoAfter,
+          mergedBySameIde,
+          removedEquivalent,
+          totalItensAdded,
+          details
+        };
+      }
+
+      function renderPreview(simResult) {
+        const lines = [];
+        lines.push(`Pagamentos (total): ${simResult.totalPagtoBefore} → ${simResult.totalPagtoAfter}`);
+        lines.push(`Mesclagens por ideDmDev idêntico: ${simResult.mergedBySameIde}`);
+        lines.push(`Rubricas adicionadas por união: ${simResult.totalItensAdded}`);
+        lines.push(`Duplicados equivalentes removidos: ${simResult.removedEquivalent}`);
+        lines.push("");
+        lines.push("Detalhes (amostra):");
+        const max = 50;
+        (simResult.details || []).slice(0, max).forEach((d) => lines.push(`- ${d}`));
+        if ((simResult.details || []).length > max) {
+          lines.push(`... (${(simResult.details || []).length - max} linhas adicionais omitidas)`);
+        }
+        previewEl.value = lines.join("\n");
+
+        if ((simResult.mergedBySameIde || 0) === 0 && (simResult.removedEquivalent || 0) === 0) {
+          alertEl.style.display = "block";
+          alertEl.className = "alert alert-success";
+          alertEl.textContent = "Nenhuma mesclagem necessária. Não foram encontrados pagamentos duplicados por ideDmDev nem equivalentes.";
+        } else {
+          alertEl.style.display = "block";
+          alertEl.className = "alert alert-info";
+          alertEl.textContent = "Prévia calculada. Revise o resumo e aplique para consolidar os pagamentos.";
+        }
+      }
+
+      function computePreview() {
+        if (!window.esocialData) {
+          previewEl.value = "Nenhum arquivo JSON carregado.";
+          alertEl.style.display = "block";
+          alertEl.className = "alert alert-warning";
+          alertEl.textContent = "Carregue um JSON antes de usar esta ferramenta.";
+          return null;
+        }
+        const eventos = getEventos();
+        const simEventos = deepClone(eventos);
+        const sim = runMergeOnEventos(simEventos, { alsoEquivalent: alsoEqEl.checked });
+        renderPreview(sim);
+        return sim;
+      }
+
+      // Ao abrir o modal, calcula a prévia
+      $(modalId).on("shown.bs.modal", function () {
+        computePreview();
+        previewEl.scrollTop = 0;
+      });
+
+      refreshBtn.addEventListener("click", function () {
+        computePreview();
+      });
+
+      applyBtn.addEventListener("click", function () {
+        if (!window.esocialData) {
+          alert("Nenhum arquivo JSON carregado.");
+          return;
+        }
+        const eventos = getEventos();
+        const result = runMergeOnEventos(eventos, { alsoEquivalent: alsoEqEl.checked });
+
+        // Aplica no mesmo nó (apenas pagtos alterados são substituídos)
+        window.esocialData.s1202RemuTrabRPPSGroup.s1202RemuTrabRPPS = eventos;
+
+        renderEventos();
+        refreshJsonLoadInfo();
+        $(modalId).modal("hide");
+
+        alert(
+          `Mesclagem concluída.\n` +
+          `Pagamentos: ${result.totalPagtoBefore} → ${result.totalPagtoAfter}\n` +
+          `Mesclagens por ideDmDev: ${result.mergedBySameIde}\n` +
+          `Rubricas adicionadas: ${result.totalItensAdded}\n` +
+          `Duplicados equivalentes removidos: ${result.removedEquivalent}`
+        );
+      });
+    })();
 </script>
 </body>
 </html>
