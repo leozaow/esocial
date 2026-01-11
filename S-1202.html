@@ -81,7 +81,7 @@
 
   <!-- Navbar simples -->
   <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
-    <a class="navbar-brand" href="#">Editor Eventos - V1.0.5</a>
+    <a class="navbar-brand" href="#">Editor Eventos - V1.11</a>
   </nav>
 
   <!-- Conteúdo principal -->
@@ -124,7 +124,11 @@
           <button id="csvModalBtn" class="btn btn-primary" data-toggle="modal" data-target="#csvModal">
             Analisar Matrículas CSV
           </button>
-          <button type="button" class="btn btn-dark" style="display:none;" data-toggle="modal" data-target="#scriptsModal">
+          
+          <button id="cpfFilterModalBtn" class="btn btn-primary" data-toggle="modal" data-target="#cpfFilterModal">
+            Filtrar / Excluir CPFs
+          </button>
+<button type="button" class="btn btn-dark" style="display:none;" data-toggle="modal" data-target="#scriptsModal">
             Substituir Campos
           </button>
         </div>
@@ -248,7 +252,58 @@
       </div>
     </div>
 
-    <!-- Modal de Edição de Evento -->
+    
+    <!-- Modal: Filtrar Trabalhadores por CPF -->
+    <div class="modal fade" id="cpfFilterModal" tabindex="-1" role="dialog" aria-labelledby="cpfFilterModalLabel" aria-hidden="true">
+      <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="cpfFilterModalLabel">Filtrar Trabalhadores (CPF)</h5>
+            <button type="button" class="close" data-dismiss="modal" aria-label="Fechar">
+              <span aria-hidden="true">&times;</span>
+            </button>
+          </div>
+          <div class="modal-body">
+            <div class="alert alert-info" style="margin-bottom: 12px;">
+              Esta ferramenta remove trabalhadores (eventos <code>s1202RemuTrabRPPS</code>) com base em uma lista de CPFs.
+              O CPF é normalizado (somente dígitos) e sempre tratado com 11 dígitos — zeros à esquerda são ignorados/ajustados automaticamente.
+            </div>
+
+            <div class="form-group">
+              <label><strong>Modo de operação</strong></label>
+              <div>
+                <div class="custom-control custom-radio">
+                  <input type="radio" id="cpfFilterKeep" name="cpfFilterMode" class="custom-control-input" value="keep" checked>
+                  <label class="custom-control-label" for="cpfFilterKeep">Manter somente os CPFs informados (remover todos os demais)</label>
+                </div>
+                <div class="custom-control custom-radio">
+                  <input type="radio" id="cpfFilterExclude" name="cpfFilterMode" class="custom-control-input" value="exclude">
+                  <label class="custom-control-label" for="cpfFilterExclude">Excluir os CPFs informados (manter todos os demais)</label>
+                </div>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="cpfFilterList"><strong>Lista de CPFs</strong> (um por linha, ou separados por vírgula/;)</label>
+              <textarea id="cpfFilterList" class="form-control" rows="9" placeholder="Exemplos:
+12345678909
+01234567890
+123.456.789-09"></textarea>
+              <small class="form-text text-muted">
+                Dica: você pode colar colunas inteiras do Excel. O sistema extrai automaticamente sequências numéricas e normaliza para 11 dígitos.
+              </small>
+            </div>
+
+            <div id="cpfFilterStatus" class="small text-muted"></div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+            <button type="button" id="applyCpfFilterBtn" class="btn btn-danger">Aplicar filtro</button>
+          </div>
+        </div>
+      </div>
+    </div>
+<!-- Modal de Edição de Evento -->
     <div
       class="modal fade"
       id="eventoModal"
@@ -2497,6 +2552,128 @@ function mesclarEventos() {
         btn.onclick = () => refreshJsonLoadInfo();
       }
     }
+
+    // ---------------------------------------------------------------------------
+    // FERRAMENTA: FILTRAR / EXCLUIR TRABALHADORES POR CPF
+    function parseCpfListToSet(rawText) {
+      const set = new Set();
+      const tokens = (rawText || "").match(/\d+/g) || [];
+      let ignoredTooLong = 0;
+
+      for (const t of tokens) {
+        if (t.length > 11) {
+          ignoredTooLong++;
+          continue;
+        }
+        const n = normalizeCpf(t);
+        if (n) set.add(n);
+      }
+
+      return { set, totalTokens: tokens.length, ignoredTooLong };
+    }
+
+    function updateCpfFilterStatusUI() {
+      const statusEl = document.getElementById("cpfFilterStatus");
+      const listEl = document.getElementById("cpfFilterList");
+      if (!statusEl || !listEl) return;
+
+      const { set, totalTokens, ignoredTooLong } = parseCpfListToSet(listEl.value);
+
+      let msg = `CPFs informados (após normalização): <strong>${set.size}</strong>`;
+      if (totalTokens !== set.size) msg += ` (tokens numéricos detectados: ${totalTokens})`;
+      if (ignoredTooLong) msg += ` &mdash; ignorados por terem mais de 11 dígitos: ${ignoredTooLong}`;
+      statusEl.innerHTML = msg;
+    }
+
+    (function setupCpfFilterTool() {
+      const listEl = document.getElementById("cpfFilterList");
+      const applyBtn = document.getElementById("applyCpfFilterBtn");
+      if (!listEl || !applyBtn) return;
+
+      listEl.addEventListener("input", updateCpfFilterStatusUI);
+
+      // Atualiza status ao abrir o modal
+      $("#cpfFilterModal").on("shown.bs.modal", function () {
+        updateCpfFilterStatusUI();
+        listEl.focus();
+      });
+
+      applyBtn.addEventListener("click", function () {
+        if (!window.esocialData) {
+          alert("Nenhum arquivo JSON carregado.");
+          return;
+        }
+
+        const mode = (document.querySelector('input[name="cpfFilterMode"]:checked') || {}).value || "keep";
+        const { set, ignoredTooLong } = parseCpfListToSet(listEl.value);
+
+        if (!set.size) {
+          alert("A lista de CPFs está vazia ou inválida. Informe ao menos um CPF.");
+          return;
+        }
+
+        const eventos = getEventos();
+        const before = eventos.length;
+
+        let matched = 0;
+        let missingCpf = 0;
+
+        const kept = [];
+        for (const ev of eventos) {
+          const cpfRaw = ev?.trabalhador?.cpfTrab;
+          const cpfNorm = normalizeCpf(cpfRaw);
+
+          if (!cpfNorm) {
+            missingCpf++;
+            // Em caso de CPF ausente, por segurança, mantemos o evento.
+            kept.push(ev);
+            continue;
+          }
+
+          const inList = set.has(cpfNorm);
+          if (mode === "keep") {
+            if (inList) {
+              matched++;
+              kept.push(ev);
+            }
+          } else {
+            // exclude
+            if (inList) {
+              matched++;
+            } else {
+              kept.push(ev);
+            }
+          }
+        }
+
+        const after = kept.length;
+        const removed = before - after;
+
+        const modeLabel = mode === "keep" ? "Manter somente CPFs informados" : "Excluir CPFs informados";
+        const confirmMsg =
+          `${modeLabel}\n\n` +
+          `CPFs na lista: ${set.size}\n` +
+          `Correspondências encontradas: ${matched}\n` +
+          `Eventos antes: ${before}\n` +
+          `Eventos removidos: ${removed}\n` +
+          `Eventos após: ${after}` +
+          (missingCpf ? `\n\nAviso: ${missingCpf} evento(s) sem CPF foram mantidos por segurança.` : "") +
+          (ignoredTooLong ? `\n\nObservação: ${ignoredTooLong} token(s) numérico(s) com mais de 11 dígitos foram ignorados.` : "") +
+          `\n\nDeseja aplicar esta alteração?`;
+
+        if (!confirm(confirmMsg)) return;
+
+        // Aplica no mesmo nó, preservando a estrutura do JSON, alterando apenas a lista.
+        window.esocialData.s1202RemuTrabRPPSGroup.s1202RemuTrabRPPS = kept;
+
+        renderEventos();
+        refreshJsonLoadInfo();
+        $("#cpfFilterModal").modal("hide");
+
+        alert(`Filtro aplicado. Removidos ${removed} evento(s).`);
+      });
+    })();
+
 </script>
 </body>
 </html>
