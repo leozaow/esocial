@@ -54,6 +54,7 @@
           <button id="downloadBtn" class="btn btn-info"><i class="fas fa-download"></i> Baixar Edição</button>
           <button id="cpfRemoveBtn" class="btn btn-danger" data-toggle="modal" data-target="#cpfRemoveModal"><i class="fas fa-user-times"></i> Excluir por lista de CPFs</button>
           <button id="depSyncBtn" class="btn btn-primary" data-toggle="modal" data-target="#depSyncModal"><i class="fas fa-user-plus"></i> Sincronizar Dependentes</button>
+          <button id="liqSyncBtn" class="btn btn-success" data-toggle="modal" data-target="#liqSyncModal"><i class="fas fa-coins"></i> Sincronizar Líquidos</button>
         </div>
         <div id="statusArea" class="mt-3"></div>
       </div>
@@ -291,7 +292,62 @@
 
   </div><!-- container -->
 
-  <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+  <!-- Modal: Sincronizar Líquidos (Pagamento / DetPag) por base -->
+    <div class="modal fade" id="liqSyncModal" tabindex="-1" aria-labelledby="liqSyncModalLabel" aria-hidden="true">
+      <div class="modal-dialog modal-lg" style="max-width: 980px;">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="liqSyncModalLabel">Sincronizar Líquidos (Pagamentos / vrLiq)</h5>
+            <button type="button" class="close" data-dismiss="modal" aria-label="Fechar"><span aria-hidden="true">&times;</span></button>
+          </div>
+          <div class="modal-body">
+            <div class="alert alert-info">
+              Objetivo: sincronizar o bloco <strong>Pagamento</strong> (s1210PagtoRendTrabInfo / s1210PagtoRendTrabDetPag),
+              atualizando <strong>vrLiq</strong> e <strong>ideDmDev</strong> conforme a base informada, removendo itens não previstos e
+              cadastrando os ausentes (quando solicitado). O algoritmo trata variações de <em>ideDmDev</em> ignorando o "tipo" do meio,
+              cruzando <strong>matrícula</strong>, <strong>nº folha</strong> e <strong>período</strong>.
+            </div>
+
+            <div class="small-hint mb-3">
+              Formato (1 linha por pagamento): <span class="mono">cpfTrab;tpPgto;perRef;ideDmDev;vrLiq;dtPgto</span><br/>
+              <strong>Exemplo:</strong><br/>
+              <span class="mono">01234567890;4;2024-12-01;855.393-5-11-NORMAL-122024;3419.3400;2025-01-03</span><br/>
+              CPFs são normalizados (Excel pode cortar zeros à esquerda). Datas aceitam <span class="mono">AAAA-MM</span>, <span class="mono">AAAAMM</span> ou <span class="mono">AAAA-MM-DD</span>.
+            </div>
+
+            <div class="form-group">
+              <label><strong>Ou cole a base (uma linha por registro):</strong></label>
+              <textarea id="liqTextarea" class="form-control mono" rows="7" placeholder="Ex:
+01234567890;4;2024-12-01;855.393-5-11-NORMAL-122024;3419.3400;2025-01-03"></textarea>
+            </div>
+
+            <div class="form-group form-check">
+              <input type="checkbox" class="form-check-input" id="liqRemoveMissingCheckbox" checked>
+              <label class="form-check-label" for="liqRemoveMissingCheckbox">Remover pagamentos (DetPag) que não constam na base (por cpfTrab/tpPgto/dtPgto/perRef/ideDmDev)</label>
+            </div>
+            <div class="form-group form-check">
+              <input type="checkbox" class="form-check-input" id="liqDedupCheckbox" checked>
+              <label class="form-check-label" for="liqDedupCheckbox">Consolidar duplicidades em DetPag (mesmo perRef + ideDmDev, ignorando o tipo do meio)</label>
+            </div>
+
+            <div class="small-hint mb-2">Pré-visualização (primeiras 20 linhas válidas):</div>
+            <pre id="liqPreview" class="mono status-box p-2" style="background:#fff;border:1px solid #dee2e6;border-radius:6px; max-height: 220px; overflow:auto;"></pre>
+            <div id="liqStats" class="small-hint mt-2"></div>
+
+            <hr/>
+            <div class="d-flex flex-wrap" style="gap:.5rem;">
+              <button type="button" class="btn btn-outline-secondary" id="liqAnalyzeBtn"><i class="fas fa-search"></i> Analisar</button>
+              <button type="button" class="btn btn-success" id="liqApplyBtn"><i class="fas fa-magic"></i> Aplicar correções</button>
+            </div>
+
+            <div class="small-hint mt-2">Relatório:</div>
+            <pre id="liqReport" class="mono status-box p-2" style="background:#fff;border:1px solid #dee2e6;border-radius:6px; max-height: 260px; overflow:auto;"></pre>
+          </div>
+        </div>
+      </div>
+    </div>
+
+<script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js"></script>
   <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
 
@@ -1636,6 +1692,654 @@ $('#depSyncModal').on('shown.bs.modal', function () {
   document.getElementById("depReport").textContent = "";
   document.getElementById("depDedupCheckbox").checked = false;
   document.getElementById("depIrcrDedupCheckbox").checked = false;
+});
+
+// ============================================================================
+// Sincronizar Líquidos (Pagamento / vrLiq / ideDmDev)
+// ============================================================================
+const LIQ_PAYINFO_TEMPLATE = {
+  dtPgto: "*datavazia*",
+  paisResidExt: { pais: "*vazio*" },
+  tpPgto: "*vazio*",
+  s1210PagtoRendTrabDetPag: [{
+    ideRecPgtoBenef: { ideDmDev: "*vazio*" },
+    ideRecPgtoResc: { ideDmDev: "*vazio*" },
+    ideRecPgtoRescTSV: { ideDmDev: "*vazio*" },
+    ideRecPgtoRGPS: { ideDmDev: "*vazio*" },
+    ideRecPgtoRPPS: { ideDmDev: "*vazio*" },
+    perRef: "*datavazia*",
+    tipoCompetencia: "*vazio*",
+    vrLiq: "*numerovazio*"
+  }],
+  s1210PagtoRendTrabInfoExt: [{
+    BAIRRO: "*vazio*",
+    codPostal: "*vazio*",
+    complem: "*vazio*",
+    dscLograd: "*vazio*",
+    estado: "*vazio*",
+    frmTribut: { codigo: "*vazio*" },
+    indNIF: "*vazio*",
+    nifBenef: "*vazio*",
+    nmCid: "*vazio*",
+    nrLograd: "*vazio*",
+    telef: "*vazio*"
+  }]
+};
+
+function liqDeepClone(obj) {
+  return JSON.parse(JSON.stringify(obj));
+}
+
+function liqNormalizeDateLike(v) {
+  const s = String(v ?? "").trim();
+  if (!s) return s;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  if (/^\d{4}-\d{2}$/.test(s)) return s + "-01";
+  if (/^\d{6}$/.test(s)) return s.slice(0,4) + "-" + s.slice(4,6) + "-01";
+  return s; // mantém como veio (pode já estar no formato do arquivo)
+}
+
+function liqNormalizeMoneyLike(v) {
+  let s = String(v ?? "").trim();
+  if (!s) return s;
+  // normaliza separador decimal (suporta 1.234,56 ou 1234,56)
+  if (s.includes(",") && s.includes(".")) {
+    s = s.replace(/\./g, "").replace(",", ".");
+  } else if (s.includes(",") && !s.includes(".")) {
+    s = s.replace(",", ".");
+  }
+  // formata para 4 casas se for número válido
+  const num = Number(s);
+  if (!Number.isFinite(num)) return String(v).trim();
+  return num.toFixed(4);
+}
+
+function liqNormalizeMatricula(m) {
+  const s = String(m ?? "").trim();
+  if (!s) return s;
+  // normaliza sufixo /01 -> /1
+  const parts = s.split("/");
+  if (parts.length === 2) {
+    const base = parts[0];
+    const suf = parts[1];
+    const n = parseInt(suf, 10);
+    if (Number.isFinite(n)) return base + "/" + String(n);
+  }
+  return s;
+}
+
+// Retorna chave "matricula|folha|periodo" ignorando o "tipo" do meio do ideDmDev.
+function liqIdeKey(ideDmDev) {
+  const s = String(ideDmDev ?? "").trim();
+  if (!s) return "";
+  if (s === "*vazio*") return "";
+  const parts = s.split("-").filter(p => p !== "");
+  if (parts.length < 4) return s; // fallback
+  const matricula = liqNormalizeMatricula(parts[0] + "-" + parts[1]);
+  const folha = parts[2] ?? "";
+  const periodo = parts[parts.length - 1] ?? "";
+  return matricula + "|" + folha + "|" + periodo;
+}
+
+function liqIdeRecField(tpPgto) {
+  const tp = String(tpPgto ?? "").trim();
+  // Mapeamento conforme regra indicada pelo usuário (e prática comum no S-1210):
+  // 1 -> S-1200 (RGPS), 4 -> S-1202 (RPPS), 2 -> S-2299 (Resc), 3 -> S-2399 (Resc TSV), 5 -> S-1207 (Benef).
+  if (tp === "1") return "ideRecPgtoRGPS";
+  if (tp === "4") return "ideRecPgtoRPPS";
+  if (tp === "2") return "ideRecPgtoResc";
+  if (tp === "3") return "ideRecPgtoRescTSV";
+  if (tp === "5") return "ideRecPgtoBenef";
+  return null;
+}
+
+function liqGetIdeDmDev(detPag, tpPgto) {
+  const field = liqIdeRecField(tpPgto);
+  if (field && detPag?.[field]?.ideDmDev !== undefined) return detPag[field].ideDmDev;
+  // fallback: procura o primeiro ideRec com ideDmDev não vazio
+  const candidates = ["ideRecPgtoRGPS","ideRecPgtoRPPS","ideRecPgtoResc","ideRecPgtoRescTSV","ideRecPgtoBenef"];
+  for (const f of candidates) {
+    const v = detPag?.[f]?.ideDmDev;
+    if (v && v !== "*vazio*") return v;
+  }
+  return detPag?.ideRecPgtoRPPS?.ideDmDev ?? "*vazio*";
+}
+
+function liqSetIdeDmDev(detPag, tpPgto, ideDmDev) {
+  const field = liqIdeRecField(tpPgto);
+  if (field) {
+    if (!detPag[field] || typeof detPag[field] !== "object") detPag[field] = { ideDmDev: "*vazio*" };
+    setIfChanged(detPag[field], "ideDmDev", ideDmDev);
+    return;
+  }
+  // fallback: se tpPgto inválido, não arrisca mudar outros campos
+  // (mantém integridade: só altera se houver campo de destino conhecido)
+}
+
+function liqInferTipoCompetencia(ideDmDev) {
+  const s = String(ideDmDev ?? "").toUpperCase();
+  // Heurística: 13º (13, AD13) -> "13"; caso contrário -> "M"
+  if (s.includes("-AD13-") || s.includes("-13-") || s.includes("13SAL") || s.includes("13º")) return "13";
+  return "M";
+}
+
+let liqBaseRows = [];
+let liqBaseIndex = new Map(); // key -> row
+let liqBaseByCpf = new Map(); // cpf -> array rows
+
+function liqIngestText(text) {
+  liqBaseRows = [];
+  liqBaseIndex = new Map();
+  liqBaseByCpf = new Map();
+
+  const lines = String(text ?? "").split(/\r?\n/);
+  for (let i = 0; i < lines.length; i++) {
+    const raw = lines[i].trim();
+    if (!raw) continue;
+    if (raw.startsWith("#")) continue;
+
+    const cols = raw.split(";").map(c => c.trim());
+    if (cols.length < 6) continue;
+
+    const cpfTrab = normalizeCpf(cols[0]);
+    const tpPgto = String(cols[1] ?? "").trim();
+    const perRef = liqNormalizeDateLike(cols[2]);
+    const ideDmDev = String(cols[3] ?? "").trim();
+    const vrLiq = liqNormalizeMoneyLike(cols[4]);
+    const dtPgto = liqNormalizeDateLike(cols[5]);
+
+    if (!cpfTrab || !tpPgto || !perRef || !ideDmDev || !dtPgto) continue;
+
+    const ideKey = liqIdeKey(ideDmDev);
+    const key = `${cpfTrab}|${tpPgto}|${dtPgto}|${perRef}|${ideKey}`;
+
+    const row = { line: i+1, cpfTrab, tpPgto, dtPgto, perRef, ideDmDev, ideKey, vrLiq };
+    liqBaseRows.push(row);
+    liqBaseIndex.set(key, row); // se repetir, a última vence (prática)
+    if (!liqBaseByCpf.has(cpfTrab)) liqBaseByCpf.set(cpfTrab, []);
+    liqBaseByCpf.get(cpfTrab).push(row);
+  }
+}
+
+function liqPreviewUpdate() {
+  const rows = liqBaseRows.slice(0, 20);
+  const txt = rows.map(r => `${r.cpfTrab};${r.tpPgto};${r.perRef};${r.ideDmDev};${r.vrLiq};${r.dtPgto}`).join("\n");
+  document.getElementById("liqPreview").textContent = txt || "(nenhuma linha válida)";
+  document.getElementById("liqStats").textContent = `Linhas válidas: ${liqBaseRows.length}`;
+}
+
+function liqAnalyze() {
+  const removeMissing = !!document.getElementById("liqRemoveMissingCheckbox").checked;
+  const doDedup = !!document.getElementById("liqDedupCheckbox").checked;
+
+  const eventos = getEventos();
+  const plan = {
+    stats: {
+      baseRows: liqBaseRows.length,
+      cpfInBase: liqBaseByCpf.size,
+      cpfNotFound: 0,
+      detToUpdateVrl: 0,
+      detToUpdateIde: 0,
+      detToAdd: 0,
+      detToRemove: 0,
+      payInfoToCreate: 0,
+      payInfoToReuseEmpty: 0,
+      dedupGroups: 0,
+      dedupRemoved: 0
+    },
+    missingCpfs: [],
+    updates: [],
+    adds: [],
+    removes: [],
+    dedups: []
+  };
+
+  const matchedBaseKeys = new Set();
+
+  // Index eventos por cpfTrab
+  const evtByCpf = new Map();
+  for (const evt of eventos) {
+    const cpf = normalizeCpf(evt?.trabalhador?.cpfTrab);
+    if (cpf) evtByCpf.set(cpf, evt);
+  }
+
+  // CPFs na base que não existem no arquivo
+  for (const cpf of liqBaseByCpf.keys()) {
+    if (!evtByCpf.has(cpf)) {
+      plan.stats.cpfNotFound += 1;
+      plan.missingCpfs.push(cpf);
+    }
+  }
+
+  for (const [cpf, evt] of evtByCpf.entries()) {
+    const baseRowsCpf = liqBaseByCpf.get(cpf) || [];
+    const basePayKeySet = new Set(baseRowsCpf.map(r => `${r.tpPgto}|${r.dtPgto}`));
+
+    const payInfos = Array.isArray(evt?.s1210PagtoRendTrabInfo) ? evt.s1210PagtoRendTrabInfo : [];
+    for (let pi = 0; pi < payInfos.length; pi++) {
+      const pay = payInfos[pi];
+      const tp = String(pay?.tpPgto ?? "").trim();
+      const dt = liqNormalizeDateLike(pay?.dtPgto ?? "");
+      const payKey = `${tp}|${dt}`;
+
+      const detList = Array.isArray(pay?.s1210PagtoRendTrabDetPag) ? pay.s1210PagtoRendTrabDetPag : [];
+      // Dedup detect
+      if (doDedup && detList.length > 1 && tp && dt && tp !== "*vazio*" && dt !== "*datavazia*") {
+        const groupMap = new Map();
+        for (let di = 0; di < detList.length; di++) {
+          const det = detList[di];
+          const perRef = liqNormalizeDateLike(det?.perRef ?? "");
+          const ide = liqGetIdeDmDev(det, tp);
+          const k = `${perRef}|${liqIdeKey(ide)}`;
+          if (!groupMap.has(k)) groupMap.set(k, []);
+          groupMap.get(k).push(di);
+        }
+        for (const [k, arr] of groupMap.entries()) {
+          if (arr.length > 1) {
+            plan.stats.dedupGroups += 1;
+            plan.stats.dedupRemoved += (arr.length - 1);
+            plan.dedups.push({ cpf, tpPgto: tp, dtPgto: dt, key: k, indexes: arr });
+          }
+        }
+      }
+
+      // Remoções: se não existe na base para este cpf/tp/dt => (opcional) zera/limpa depois (na aplicação)
+      for (let di = 0; di < detList.length; di++) {
+        const det = detList[di];
+        const perRef = liqNormalizeDateLike(det?.perRef ?? "");
+        const ideEvent = liqGetIdeDmDev(det, tp);
+        const ideKey = liqIdeKey(ideEvent);
+        const compKey = `${cpf}|${tp}|${dt}|${perRef}|${ideKey}`;
+
+        const baseRow = liqBaseIndex.get(compKey);
+        if (baseRow) {
+          matchedBaseKeys.add(compKey);
+
+          // IdeDmDev: se o tipo mudou (ou qualquer diferença), atualiza para o texto da base
+          if (String(ideEvent ?? "").trim() !== String(baseRow.ideDmDev ?? "").trim()) {
+            plan.stats.detToUpdateIde += 1;
+            plan.updates.push({ cpf, tpPgto: tp, dtPgto: dt, perRef, ideFrom: ideEvent, ideTo: baseRow.ideDmDev, field: "ideDmDev", pi, di });
+          }
+
+          // vrLiq
+          const vrEvent = String(det?.vrLiq ?? "").trim();
+          if (String(vrEvent) !== String(baseRow.vrLiq ?? "").trim()) {
+            plan.stats.detToUpdateVrl += 1;
+            plan.updates.push({ cpf, tpPgto: tp, dtPgto: dt, perRef, ide: baseRow.ideDmDev, from: vrEvent, to: baseRow.vrLiq, field: "vrLiq", pi, di });
+          }
+        } else {
+          if (removeMissing && tp && dt && tp !== "*vazio*" && dt !== "*datavazia*" && ideKey) {
+            // só remove se parece ser um item real (não placeholder)
+            plan.stats.detToRemove += 1;
+            plan.removes.push({ cpf, tpPgto: tp, dtPgto: dt, perRef, ideDmDev: ideEvent, pi, di });
+          }
+        }
+      }
+    }
+
+    // Inclusões: baseRow não encontrada no evento
+    for (const r of baseRowsCpf) {
+      const compKey = `${r.cpfTrab}|${r.tpPgto}|${r.dtPgto}|${r.perRef}|${r.ideKey}`;
+      if (!matchedBaseKeys.has(compKey)) {
+        plan.stats.detToAdd += 1;
+        plan.adds.push({ ...r });
+      }
+    }
+
+    // PayInfo to create/reuse counts (estimativa)
+    for (const payKey of basePayKeySet) {
+      const [tp, dt] = payKey.split("|");
+      const payInfos = Array.isArray(evt?.s1210PagtoRendTrabInfo) ? evt.s1210PagtoRendTrabInfo : [];
+      const found = payInfos.some(p => String(p?.tpPgto ?? "").trim() === tp && liqNormalizeDateLike(p?.dtPgto ?? "") === dt);
+      if (!found) {
+        const reusable = payInfos.some(p => String(p?.tpPgto ?? "").trim() === "*vazio*" && liqNormalizeDateLike(p?.dtPgto ?? "") === "*datavazia*");
+        if (reusable) plan.stats.payInfoToReuseEmpty += 1;
+        else plan.stats.payInfoToCreate += 1;
+      }
+    }
+  }
+
+  return plan;
+}
+
+function liqReportText(plan) {
+  const lines = [];
+  lines.push(`BASE: linhas válidas=${plan.stats.baseRows} | cpfs na base=${plan.stats.cpfInBase} | cpfs não encontrados no arquivo=${plan.stats.cpfNotFound}`);
+  if (plan.missingCpfs.length) lines.push(`- CPFs ausentes no arquivo (até 20): ${plan.missingCpfs.slice(0,20).join(", ")}${plan.missingCpfs.length>20?" ...":""}`);
+
+  lines.push("");
+  lines.push(`AÇÕES PREVISTAS:`);
+  lines.push(`- Atualizar ideDmDev: ${plan.stats.detToUpdateIde}`);
+  lines.push(`- Atualizar vrLiq: ${plan.stats.detToUpdateVrl}`);
+  lines.push(`- Incluir DetPag ausentes: ${plan.stats.detToAdd}`);
+  lines.push(`- Remover DetPag não previstos: ${plan.stats.detToRemove}`);
+  lines.push(`- Criar Pagamento (s1210PagtoRendTrabInfo): ${plan.stats.payInfoToCreate} (reusar vazio: ${plan.stats.payInfoToReuseEmpty})`);
+  lines.push(`- Consolidar duplicidades DetPag: grupos=${plan.stats.dedupGroups} | itens removidos=${plan.stats.dedupRemoved}`);
+
+  // Exemplos
+  const exU = plan.updates.slice(0, 6);
+  if (exU.length) {
+    lines.push("");
+    lines.push("EXEMPLOS (até 6) de atualizações:");
+    for (const u of exU) {
+      if (u.field === "ideDmDev") {
+        lines.push(`- cpf=${u.cpf} tp=${u.tpPgto} dt=${u.dtPgto} perRef=${u.perRef} ide: "${u.ideFrom}" -> "${u.ideTo}"`);
+      } else {
+        lines.push(`- cpf=${u.cpf} tp=${u.tpPgto} dt=${u.dtPgto} perRef=${u.perRef} ide=${u.ide} vrLiq: "${u.from}" -> "${u.to}"`);
+      }
+    }
+  }
+  const exA = plan.adds.slice(0, 6);
+  if (exA.length) {
+    lines.push("");
+    lines.push("EXEMPLOS (até 6) de inclusões:");
+    for (const a of exA) {
+      lines.push(`- cpf=${a.cpfTrab} tp=${a.tpPgto} dt=${a.dtPgto} perRef=${a.perRef} ide=${a.ideDmDev} vrLiq=${a.vrLiq}`);
+    }
+  }
+  const exR = plan.removes.slice(0, 6);
+  if (exR.length) {
+    lines.push("");
+    lines.push("EXEMPLOS (até 6) de remoções:");
+    for (const r of exR) {
+      lines.push(`- cpf=${r.cpf} tp=${r.tpPgto} dt=${r.dtPgto} perRef=${r.perRef} ide=${r.ideDmDev}`);
+    }
+  }
+
+  return lines.join("\n");
+}
+
+function liqIsEmptyPayInfo(pay) {
+  return String(pay?.tpPgto ?? "").trim() === "*vazio*" && String(pay?.dtPgto ?? "").trim() === "*datavazia*";
+}
+
+function liqEnsurePayInfos(evt) {
+  if (!evt.s1210PagtoRendTrabInfo || !Array.isArray(evt.s1210PagtoRendTrabInfo)) evt.s1210PagtoRendTrabInfo = [];
+  return evt.s1210PagtoRendTrabInfo;
+}
+
+function liqFindOrCreatePayInfo(evt, tpPgto, dtPgto, planStats) {
+  const payInfos = liqEnsurePayInfos(evt);
+  const tp = String(tpPgto).trim();
+  const dt = liqNormalizeDateLike(dtPgto);
+  // 1) já existe
+  for (const p of payInfos) {
+    if (String(p?.tpPgto ?? "").trim() === tp && liqNormalizeDateLike(p?.dtPgto ?? "") === dt) return p;
+  }
+  // 2) reusar vazio
+  for (const p of payInfos) {
+    if (liqIsEmptyPayInfo(p)) {
+      setIfChanged(p, "tpPgto", tp);
+      setIfChanged(p, "dtPgto", dt);
+      if (!p.s1210PagtoRendTrabDetPag || !Array.isArray(p.s1210PagtoRendTrabDetPag)) p.s1210PagtoRendTrabDetPag = [];
+      if (planStats) planStats.payInfoToReuseEmpty += 0; // já contabilizado na análise
+      return p;
+    }
+  }
+  // 3) criar novo no fim (mantém ordem dos já existentes)
+  const np = liqDeepClone(LIQ_PAYINFO_TEMPLATE);
+  np.tpPgto = tp;
+  np.dtPgto = dt;
+  payInfos.push(np);
+  return np;
+}
+
+function liqGetDetList(pay) {
+  if (!pay.s1210PagtoRendTrabDetPag || !Array.isArray(pay.s1210PagtoRendTrabDetPag)) pay.s1210PagtoRendTrabDetPag = [];
+  return pay.s1210PagtoRendTrabDetPag;
+}
+
+function liqIsPlaceholderDet(det) {
+  const ideAll = ["ideRecPgtoBenef","ideRecPgtoResc","ideRecPgtoRescTSV","ideRecPgtoRGPS","ideRecPgtoRPPS"];
+  const allEmptyIde = ideAll.every(f => String(det?.[f]?.ideDmDev ?? "").trim() === "*vazio*");
+  const per = String(det?.perRef ?? "").trim();
+  const vr = String(det?.vrLiq ?? "").trim();
+  return allEmptyIde && (per === "*datavazia*" || per === "*vazio*" || !per) && (vr === "*numerovazio*" || vr === "*vazio*" || !vr);
+}
+
+function liqBuildDet(tpPgto, perRef, ideDmDev, vrLiq) {
+  const det = liqDeepClone(LIQ_PAYINFO_TEMPLATE.s1210PagtoRendTrabDetPag[0]);
+  setIfChanged(det, "perRef", liqNormalizeDateLike(perRef));
+  setIfChanged(det, "vrLiq", liqNormalizeMoneyLike(vrLiq));
+  const tipo = liqInferTipoCompetencia(ideDmDev);
+  setIfChanged(det, "tipoCompetencia", tipo);
+
+  // limpa todos ideRec (já vem limpo no template) e seta o destino
+  liqSetIdeDmDev(det, tpPgto, ideDmDev);
+  return det;
+}
+
+function liqDedupDetList(pay, tpPgto) {
+  const detList = liqGetDetList(pay);
+  if (detList.length <= 1) return { groups: 0, removed: 0 };
+
+  const groups = new Map();
+  for (let i = 0; i < detList.length; i++) {
+    const det = detList[i];
+    const perRef = liqNormalizeDateLike(det?.perRef ?? "");
+    const ide = liqGetIdeDmDev(det, tpPgto);
+    const k = `${perRef}|${liqIdeKey(ide)}`;
+    if (!groups.has(k)) groups.set(k, []);
+    groups.get(k).push(i);
+  }
+
+  let groupCount = 0;
+  let removed = 0;
+
+  // processa do fim para não bagunçar índices
+  for (const [k, idxs] of groups.entries()) {
+    if (idxs.length <= 1) continue;
+    groupCount += 1;
+
+    // escolhe "keeper": prefere o que não é placeholder
+    let keepIdx = idxs[0];
+    for (const ix of idxs) {
+      if (!liqIsPlaceholderDet(detList[ix])) { keepIdx = ix; break; }
+    }
+    const keeper = detList[keepIdx];
+
+    // mescla (mantém o keeper e incorpora campos não-vazios dos demais)
+    for (const ix of idxs) {
+      if (ix === keepIdx) continue;
+      const other = detList[ix];
+      // Mescla propriedades simples se keeper estiver vazio/placeholder
+      for (const prop of Object.keys(other)) {
+        if (Array.isArray(other[prop])) {
+          if (!Array.isArray(keeper[prop])) keeper[prop] = [];
+          // concat e remove duplicatas por string
+          const before = keeper[prop].map(x => JSON.stringify(x));
+          for (const it of other[prop]) {
+            const s = JSON.stringify(it);
+            if (!before.includes(s)) keeper[prop].push(it);
+          }
+        } else if (other[prop] && typeof other[prop] === "object") {
+          if (!keeper[prop] || typeof keeper[prop] !== "object") keeper[prop] = {};
+          for (const k2 of Object.keys(other[prop])) {
+            const v2 = other[prop][k2];
+            const cur = keeper[prop][k2];
+            if ((cur === undefined || cur === "*vazio*" || cur === "*datavazia*" || cur === "*numerovazio*" || cur === "") &&
+                (v2 !== undefined && v2 !== "*vazio*" && v2 !== "*datavazia*" && v2 !== "*numerovazio*")) {
+              keeper[prop][k2] = v2;
+            }
+          }
+        } else {
+          const cur = keeper[prop];
+          const v2 = other[prop];
+          if ((cur === undefined || cur === "*vazio*" || cur === "*datavazia*" || cur === "*numerovazio*" || cur === "") &&
+              (v2 !== undefined && v2 !== "*vazio*" && v2 !== "*datavazia*" && v2 !== "*numerovazio*")) {
+            keeper[prop] = v2;
+          }
+        }
+      }
+    }
+
+    // remove os demais (do maior para o menor índice)
+    const toRemove = idxs.filter(ix => ix !== keepIdx).sort((a,b)=>b-a);
+    for (const ix of toRemove) {
+      detList.splice(ix, 1);
+      removed += 1;
+    }
+  }
+
+  return { groups: groupCount, removed };
+}
+
+function liqApply(plan) {
+  const removeMissing = !!document.getElementById("liqRemoveMissingCheckbox").checked;
+  const doDedup = !!document.getElementById("liqDedupCheckbox").checked;
+
+  const eventos = getEventos();
+  const evtByCpf = new Map();
+  for (const evt of eventos) {
+    const cpf = normalizeCpf(evt?.trabalhador?.cpfTrab);
+    if (cpf) evtByCpf.set(cpf, evt);
+  }
+
+  // 1) atualiza/ remove existentes
+  for (const [cpf, evt] of evtByCpf.entries()) {
+    const baseRowsCpf = liqBaseByCpf.get(cpf) || [];
+    const basePayKeySet = new Set(baseRowsCpf.map(r => `${r.tpPgto}|${r.dtPgto}`));
+
+    const payInfos = liqEnsurePayInfos(evt);
+
+    for (let pi = 0; pi < payInfos.length; pi++) {
+      const pay = payInfos[pi];
+      const tp = String(pay?.tpPgto ?? "").trim();
+      const dt = liqNormalizeDateLike(pay?.dtPgto ?? "");
+      const payKey = `${tp}|${dt}`;
+
+      const detList = liqGetDetList(pay);
+
+      // atualiza/remover det
+      for (let di = detList.length - 1; di >= 0; di--) {
+        const det = detList[di];
+        const perRef = liqNormalizeDateLike(det?.perRef ?? "");
+        const ideEvent = liqGetIdeDmDev(det, tp);
+        const ideKey = liqIdeKey(ideEvent);
+        const compKey = `${cpf}|${tp}|${dt}|${perRef}|${ideKey}`;
+        const baseRow = liqBaseIndex.get(compKey);
+
+        if (baseRow) {
+          // ideDmDev
+          liqSetIdeDmDev(det, tp, baseRow.ideDmDev);
+          // vrLiq
+          setIfChanged(det, "vrLiq", baseRow.vrLiq);
+          // perRef (mantém se igual; mas ajusta formato se necessário)
+          setIfChanged(det, "perRef", baseRow.perRef);
+          // tipoCompetencia: mantém se já informado; senão aplica heurística
+          if (!det.tipoCompetencia || det.tipoCompetencia === "*vazio*") {
+            setIfChanged(det, "tipoCompetencia", liqInferTipoCompetencia(baseRow.ideDmDev));
+          }
+        } else {
+          if (removeMissing && tp && dt && tp !== "*vazio*" && dt !== "*datavazia*" && ideKey) {
+            detList.splice(di, 1);
+          }
+        }
+      }
+
+      // Se o pagamento (tp/dt) não existe na base deste cpf, e removemos tudo, volta para placeholder em vez de deletar o bloco
+      if (removeMissing && tp && dt && tp !== "*vazio*" && dt !== "*datavazia*" && !basePayKeySet.has(payKey)) {
+        // zera o bloco de pagamento (preserva tamanho e ordem da lista)
+        const np = liqDeepClone(LIQ_PAYINFO_TEMPLATE);
+        // substitui por cópia (sem reordenar outros payInfos)
+        payInfos[pi] = np;
+      } else {
+        // garante pelo menos 1 item (placeholder) se a lista ficou vazia
+        if (detList.length === 0) {
+          detList.push(liqDeepClone(LIQ_PAYINFO_TEMPLATE.s1210PagtoRendTrabDetPag[0]));
+        }
+        // dedup
+        if (doDedup && tp && dt && tp !== "*vazio*" && dt !== "*datavazia*") {
+          liqDedupDetList(pay, tp);
+        }
+      }
+    }
+
+    // 2) adiciona ausentes conforme base
+    // (recalcula matched após remoções/updates)
+    for (const row of baseRowsCpf) {
+      const tp = String(row.tpPgto).trim();
+      const dt = liqNormalizeDateLike(row.dtPgto);
+      const perRef = liqNormalizeDateLike(row.perRef);
+      const ideKey = row.ideKey;
+      const compKey = `${cpf}|${tp}|${dt}|${perRef}|${ideKey}`;
+
+      // procura existente
+      let found = false;
+      const payInfos2 = liqEnsurePayInfos(evt);
+      for (const pay of payInfos2) {
+        if (String(pay?.tpPgto ?? "").trim() !== tp) continue;
+        if (liqNormalizeDateLike(pay?.dtPgto ?? "") !== dt) continue;
+
+        const detList = liqGetDetList(pay);
+        for (const det of detList) {
+          const per = liqNormalizeDateLike(det?.perRef ?? "");
+          const ide = liqGetIdeDmDev(det, tp);
+          if (per === perRef && liqIdeKey(ide) === ideKey) {
+            found = true;
+            break;
+          }
+        }
+        if (found) break;
+      }
+      if (found) continue;
+
+      // cria/reusa payInfo
+      const pay = liqFindOrCreatePayInfo(evt, tp, dt);
+      const detList = liqGetDetList(pay);
+
+      const newDet = liqBuildDet(tp, perRef, row.ideDmDev, row.vrLiq);
+
+      // se existe 1 placeholder, substitui; senão, adiciona
+      if (detList.length === 1 && liqIsPlaceholderDet(detList[0])) {
+        detList[0] = newDet;
+      } else {
+        detList.push(newDet);
+      }
+
+      // dedup após inclusão
+      if (doDedup) liqDedupDetList(pay, tp);
+    }
+  }
+
+  // Atualiza UI
+  renderTable();
+}
+
+document.getElementById("liqAnalyzeBtn").addEventListener("click", () => {
+  liqIngestText(document.getElementById("liqTextarea").value || "");
+  liqPreviewUpdate();
+  const plan = liqAnalyze();
+  document.getElementById("liqReport").textContent = liqReportText(plan);
+
+  setStatus(`<div class="alert alert-info mb-0">
+    Análise concluída: Atualizar ideDmDev: <strong>${plan.stats.detToUpdateIde}</strong> |
+    Atualizar vrLiq: <strong>${plan.stats.detToUpdateVrl}</strong> |
+    Incluir: <strong>${plan.stats.detToAdd}</strong> |
+    Remover: <strong>${plan.stats.detToRemove}</strong>
+  </div>`);
+});
+
+document.getElementById("liqApplyBtn").addEventListener("click", () => {
+  liqIngestText(document.getElementById("liqTextarea").value || "");
+  liqPreviewUpdate();
+  const plan = liqAnalyze();
+
+  if (plan.stats.detToUpdateIde === 0 && plan.stats.detToUpdateVrl === 0 && plan.stats.detToAdd === 0 && plan.stats.detToRemove === 0 && plan.stats.dedupGroups === 0 && plan.stats.payInfoToCreate === 0 && plan.stats.payInfoToReuseEmpty === 0) {
+    setStatus(`<div class="alert alert-secondary mb-0">Nenhuma correção necessária, de acordo com a base informada.</div>`);
+    document.getElementById("liqReport").textContent = liqReportText(plan);
+    return;
+  }
+
+  liqApply(plan);
+
+  setStatus(`<div class="alert alert-success mb-0">
+    Correções aplicadas. Atualizações ideDmDev: <strong>${plan.stats.detToUpdateIde}</strong> |
+    Atualizações vrLiq: <strong>${plan.stats.detToUpdateVrl}</strong> |
+    Inclusões: <strong>${plan.stats.detToAdd}</strong> |
+    Remoções: <strong>${plan.stats.detToRemove}</strong>
+  </div>`);
+  document.getElementById("liqReport").textContent = liqReportText(plan);
 });
 
 document.getElementById("depAnalyzeBtn").addEventListener("click", () => {
