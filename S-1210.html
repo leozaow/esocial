@@ -261,11 +261,16 @@
             </div>
 
             <div class="form-group form-check">
-              <input type="checkbox" class="form-check-input" id="depDedupCheckbox">
+              <input type="checkbox" class="form-check-input" id="depCpfFixCheckbox" checked>
+              <label class="form-check-label" for="depCpfFixCheckbox">Ajustar CPFs de dependentes (cpfDep) para 11 dígitos nos blocos s1210InfoDep / s1210DedDepen / s1210PenAlim (completar zeros à esquerda)</label>
+            </div>
+
+            <div class="form-group form-check">
+              <input type="checkbox" class="form-check-input" id="depDedupCheckbox" checked>
               <label class="form-check-label" for="depDedupCheckbox">Remover duplicidades existentes em s1210InfoDep (mantém a primeira ocorrência)</label>
             </div>
             <div class="form-group form-check">
-              <input type="checkbox" class="form-check-input" id="depIrcrDedupCheckbox">
+              <input type="checkbox" class="form-check-input" id="depIrcrDedupCheckbox" checked>
               <label class="form-check-label" for="depIrcrDedupCheckbox">Consolidar IRCR duplicados por tpCR (mesclar Ded/Pensão e remover itens duplicados)</label>
             </div>
 
@@ -1350,12 +1355,65 @@ function depGetReferencedCpfs(ircr) {
   return { dedSet, penSet };
 }
 
+function depNormalizeCpfStrict(value) {
+  // Correção segura: ajusta CPF com 1 a 11 dígitos (com ou sem máscara) para 11 dígitos,
+  // completando zeros à esquerda. Se tiver mais de 11 dígitos, NÃO corrige (evita truncar).
+  if (value === null || value === undefined) return null;
+  const s = String(value).trim();
+  if (!s) return null;
+  if (EMPTY_TOKENS.has(s)) return null;
+
+  const digits = s.replace(/\D+/g, "");
+  if (!digits) return null;
+
+  if (digits.length >= 1 && digits.length <= 11) return digits.padStart(11, "0");
+  return null;
+}
+
+function depCollectCpfFixCandidatesInBlock(plan, cpfTrab, ordem, blkIndex, blk) {
+  // Varre campos cpfDep em:
+  // - s1210InfoDep
+  // - s1210InfoIRCR.s1210DedDepen
+  // - s1210InfoIRCR.s1210PenAlim
+  const pushCandidate = (section, oldVal, newVal) => {
+    plan.stats.cpfFixCandidates += 1;
+    if (plan.cpfFixCandidatesPreview.length < 80) {
+      plan.cpfFixCandidatesPreview.push({
+        cpfTrab, ordemRegistro: ordem, blkIndex, section, old: String(oldVal ?? ""), new: newVal
+      });
+    }
+  };
+
+  const infoDep = Array.isArray(blk?.s1210InfoDep) ? blk.s1210InfoDep : [];
+  for (const dep of infoDep) {
+    const nv = depNormalizeCpfStrict(dep?.cpfDep);
+    if (nv && String(dep?.cpfDep ?? "").trim() !== nv) pushCandidate("s1210InfoDep.cpfDep", dep?.cpfDep, nv);
+  }
+
+  const ircrArr = Array.isArray(blk?.s1210InfoIRCR) ? blk.s1210InfoIRCR : [];
+      // 3) Candidatos a correção de cpfDep (10 dígitos -> 11 dígitos)
+      depCollectCpfFixCandidatesInBlock(plan, cpfTrab, ordem, blkIndex, blk);
+  for (const ircr of ircrArr) {
+    const ded = Array.isArray(ircr?.s1210DedDepen) ? ircr.s1210DedDepen : [];
+    for (const row of ded) {
+      const nv = depNormalizeCpfStrict(row?.cpfDep);
+      if (nv && String(row?.cpfDep ?? "").trim() !== nv) pushCandidate("s1210DedDepen.cpfDep", row?.cpfDep, nv);
+    }
+    const pen = Array.isArray(ircr?.s1210PenAlim) ? ircr.s1210PenAlim : [];
+    for (const row of pen) {
+      const nv = depNormalizeCpfStrict(row?.cpfDep);
+      if (nv && String(row?.cpfDep ?? "").trim() !== nv) pushCandidate("s1210PenAlim.cpfDep", row?.cpfDep, nv);
+    }
+  }
+}
+
 function depAnalyze() {
   const events = getEventos();
   const plan = {
     toAdd: [],              // { blkRef, cpfTrab, cpfDep, data, reason, ordemRegistro, blkIndex }
     missingInBase: [],      // { cpfTrab, cpfDep, ordemRegistro, blkIndex, reason, why }
     duplicatesInfoDep: [],  // { cpfTrab, ordemRegistro, blkIndex, cpfDep }
+    cpfFixCandidatesPreview: [], // preview limitado (até 80)
     stats: {
       totalReferenced: 0,
       totalToAdd: 0,
@@ -1363,7 +1421,8 @@ function depAnalyze() {
       totalEventsImpacted: 0,
       totalBlocksImpacted: 0,
       referencedDed: 0,
-      referencedPen: 0
+      referencedPen: 0,
+      cpfFixCandidates: 0
     }
   };
 
@@ -1461,23 +1520,26 @@ function depReportText(plan) {
   lines.push(`- Blocos IR Complem impactados: ${plan.stats.totalBlocksImpacted}`);
   lines.push(`- Pendências (não corrigidas): ${plan.stats.totalMissing}`);
   lines.push(`- Duplicidades detectadas (s1210InfoDep): ${plan.duplicatesInfoDep.length}`);
+  lines.push(`- CPFs de dependentes a corrigir (cpfDep com 10 dígitos): ${plan.stats.cpfFixCandidates}`);
   lines.push("");
 
   if (plan.stats.totalMissing) {
     lines.push("Pendências:");
     const grp = new Map();
     for (const it of plan.missingInBase) {
-      const key = `${it.cpfTrab} (ordemRegistro ${it.ordemRegistro}, bloco ${it.blkIndex})`;
+      const key = it.cpfTrab ?? "*cpfTrab_vazio*";
       if (!grp.has(key)) grp.set(key, []);
-      grp.get(key).push(`${it.cpfDep} [${it.reason}] (${it.why})`);
+      const arr = grp.get(key);
+      if (arr.length < 30) arr.push(it.cpfDep);
     }
+
     let shown = 0;
-    grp.forEach((arr, key) => {
-      if (shown >= 60) return;
-      lines.push(`- ${key}: ${arr.join(", ")}`);
+    for (const [cpfTrab, arr] of grp.entries()) {
+      if (shown >= 60) break;
+      lines.push(`- cpfTrab ${cpfTrab}: ${arr.join(", ")}`);
       shown += 1;
-    });
-    if (grp.size > 60) lines.push(`... (${grp.size-60} grupos adicionais omitidos no preview)`);
+    }
+    if (grp.size > 60) lines.push(`... (${grp.size - 60} grupos adicionais omitidos no preview)`);
     lines.push("");
   }
 
@@ -1486,7 +1548,20 @@ function depReportText(plan) {
     plan.duplicatesInfoDep.slice(0, 60).forEach(d => {
       lines.push(`- cpfTrab ${d.cpfTrab} (ordemRegistro ${d.ordemRegistro}, bloco ${d.blkIndex}): cpfDep ${d.cpfDep}`);
     });
-    if (plan.duplicatesInfoDep.length > 60) lines.push(`... (${plan.duplicatesInfoDep.length-60} linhas adicionais omitidas no preview)`);
+    if (plan.duplicatesInfoDep.length > 60) {
+      lines.push(`... (${plan.duplicatesInfoDep.length - 60} linhas adicionais omitidas no preview)`);
+    }
+    lines.push("");
+  }
+
+  if (plan.stats.cpfFixCandidates) {
+    lines.push("CPFs de dependentes com ajuste sugerido (preview):");
+    plan.cpfFixCandidatesPreview.forEach(it => {
+      lines.push(`- cpfTrab ${it.cpfTrab} (ordemRegistro ${it.ordemRegistro}, bloco ${it.blkIndex}) [${it.section}]: "${it.old}" -> "${it.new}"`);
+    });
+    if (plan.stats.cpfFixCandidates > plan.cpfFixCandidatesPreview.length) {
+      lines.push(`... (${plan.stats.cpfFixCandidates - plan.cpfFixCandidatesPreview.length} ocorrências adicionais omitidas no preview)`);
+    }
   }
 
   return lines.join("\n");
@@ -1605,6 +1680,7 @@ function depApplyFixes() {
   const plan = depPlan || depAnalyze();
   const doDedupInfoDep = !!document.getElementById("depDedupCheckbox")?.checked;
   const doConsolidateIrcr = !!document.getElementById("depIrcrDedupCheckbox")?.checked;
+  const doFixCpfDep = !!document.getElementById("depCpfFixCheckbox")?.checked;
 
   const addedKey = new Set();
   let addedCount = 0;
@@ -1675,11 +1751,43 @@ function depApplyFixes() {
 
   document.getElementById("depReport").textContent = rep.join("\n");
 
-  setStatus(`<div class="alert alert-success mb-0">
+  
+  let cpfFixed = 0;
+  if (doFixCpfDep) {
+    const events = getEventos();
+    for (const evt of events) {
+      const complemArr = Array.isArray(evt?.s1210InfoIRComplem) ? evt.s1210InfoIRComplem : [];
+      for (const blk of complemArr) {
+        const infoDep = Array.isArray(blk?.s1210InfoDep) ? blk.s1210InfoDep : [];
+        for (const dep of infoDep) {
+          const nv = depNormalizeCpfStrict(dep?.cpfDep);
+          if (nv && String(dep?.cpfDep ?? "").trim() !== nv) { dep.cpfDep = nv; cpfFixed += 1; }
+        }
+
+        const ircrArr = Array.isArray(blk?.s1210InfoIRCR) ? blk.s1210InfoIRCR : [];
+        for (const ircr of ircrArr) {
+          const ded = Array.isArray(ircr?.s1210DedDepen) ? ircr.s1210DedDepen : [];
+          for (const row of ded) {
+            const nv = depNormalizeCpfStrict(row?.cpfDep);
+            if (nv && String(row?.cpfDep ?? "").trim() !== nv) { row.cpfDep = nv; cpfFixed += 1; }
+          }
+
+          const pen = Array.isArray(ircr?.s1210PenAlim) ? ircr.s1210PenAlim : [];
+          for (const row of pen) {
+            const nv = depNormalizeCpfStrict(row?.cpfDep);
+            if (nv && String(row?.cpfDep ?? "").trim() !== nv) { row.cpfDep = nv; cpfFixed += 1; }
+          }
+        }
+      }
+    }
+  }
+
+setStatus(`<div class="alert alert-success mb-0">
     Dependentes adicionados: <strong>${addedCount}</strong> |
     Pendências: <strong>${plan.missingInBase.length}</strong> |
     InfoDep duplicados removidos: <strong>${dedupRemoved}</strong>
     ${doConsolidateIrcr ? `| IRCR mesclados: <strong>${ircrMerged}</strong>` : ""}
+    ${doFixCpfDep ? `| CPFs cpfDep ajustados: <strong>${cpfFixed}</strong>` : ""}
   </div>`);
 }
 
@@ -1690,8 +1798,9 @@ $('#depSyncModal').on('shown.bs.modal', function () {
   document.getElementById("depPreview").textContent = "(nenhuma linha válida carregada)";
   document.getElementById("depStats").textContent = "";
   document.getElementById("depReport").textContent = "";
-  document.getElementById("depDedupCheckbox").checked = false;
-  document.getElementById("depIrcrDedupCheckbox").checked = false;
+  document.getElementById("depCpfFixCheckbox").checked = true;
+  document.getElementById("depDedupCheckbox").checked = true;
+  document.getElementById("depIrcrDedupCheckbox").checked = true;
 });
 
 // ============================================================================
@@ -2303,7 +2412,7 @@ function liqApply(plan) {
   }
 
   // Atualiza UI
-  renderTable();
+  renderEventosTable();
 }
 
 document.getElementById("liqAnalyzeBtn").addEventListener("click", () => {
@@ -2359,10 +2468,23 @@ document.getElementById("depApplyBtn").addEventListener("click", () => {
   depIngestText(document.getElementById("depTextarea").value || "");
   depPreviewUpdate();
   const plan = depAnalyze();
-  if (plan.stats.totalToAdd === 0 && plan.stats.totalMissing === 0 && plan.duplicatesInfoDep.length === 0) {
+
+  const doDedupInfoDep = !!document.getElementById("depDedupCheckbox")?.checked;
+  const doConsolidateIrcr = !!document.getElementById("depIrcrDedupCheckbox")?.checked;
+  const doFixCpfDep = !!document.getElementById("depCpfFixCheckbox")?.checked;
+
+  const hasAdd = plan.stats.totalToAdd > 0;
+  const hasPend = plan.stats.totalMissing > 0;
+  const hasDedup = doDedupInfoDep && plan.duplicatesInfoDep.length > 0;
+  const hasCpfFix = doFixCpfDep && plan.stats.cpfFixCandidates > 0;
+
+  // Observação: consolidação de IRCR pode ou não gerar alterações; se o usuário marcou,
+  // executamos de qualquer forma (não fazemos "short-circuit").
+  if (!hasAdd && !hasPend && !hasDedup && !hasCpfFix && !doConsolidateIrcr) {
     document.getElementById("depReport").textContent = "Nenhuma ação necessária. Não há pendências detectadas.";
     return;
   }
+
   depApplyFixes();
 });
 
