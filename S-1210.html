@@ -731,7 +731,7 @@
             </div>
           </div>
 
-<div class="soft-box mt-2">
+<div class="soft-box mt-2 pc-box">
   <div class="d-flex justify-content-between align-items-center">
     <h6 class="mb-0">Previdência Complementar (previdCompl)</h6>
     <div class="form-check">
@@ -740,31 +740,40 @@
     </div>
   </div>
   <div class="small-hint mt-1">
-    Inclui <span class="mono">s1210PrevidCompl</span> neste IRCR. O grupo só é gravado se houver valor &gt; 0 em <span class="mono">vlrDedPC</span> ou <span class="mono">vlrDedPC13</span>.
+    O arquivo pode trazer <span class="mono">s1210PrevidCompl</span> como lista. O editor mantém a estrutura e só grava itens com
+    <span class="mono">vlrDedPC</span> ou <span class="mono">vlrDedPC13</span> &gt; 0.
   </div>
+
   <div class="pc-fields mt-2" style="display:none;">
-    <div class="form-row">
-      <div class="form-group col-md-3">
-        <label>tpPrev</label>
-        <select class="form-control pc-tpPrev">
-          <option value="1">1 - Privada</option>
-          <option value="2">2 - FAPI</option>
-          <option value="3">3 - Funpresp</option>
-        </select>
+    <div class="d-flex justify-content-between align-items-center mb-2">
+      <div class="small">
+        Padrão sugerido: <span class="mono">tpPrev=1</span> e <span class="mono">cnpjEntidPC=07146074000180</span>
       </div>
-      <div class="form-group col-md-5">
-        <label>cnpjEntidPC</label>
-        <input type="text" class="form-control pc-cnpj" placeholder="14 dígitos (somente números)"/>
-      </div>
-      <div class="form-group col-md-2">
-        <label>vlrDedPC</label>
-        <input type="text" class="form-control pc-vlrDedPC" placeholder="0,00"/>
-      </div>
-      <div class="form-group col-md-2">
-        <label>vlrDedPC13</label>
-        <input type="text" class="form-control pc-vlrDedPC13" placeholder="0,00"/>
+      <div class="btn-group btn-group-sm">
+        <button type="button" class="btn btn-outline-secondary pc-apply-default-cnpj" title="Aplicar CNPJ padrão em todas as linhas">
+          Aplicar CNPJ padrão
+        </button>
+        <button type="button" class="btn btn-outline-primary pc-add-row">
+          <i class="fas fa-plus"></i> Adicionar
+        </button>
       </div>
     </div>
+
+    <div class="table-responsive">
+      <table class="table table-sm table-bordered mb-2">
+        <thead class="thead-light">
+          <tr>
+            <th style="width:160px;">tpPrev</th>
+            <th>cnpjEntidPC</th>
+            <th style="width:140px;">vlrDedPC</th>
+            <th style="width:150px;">vlrDedPC13</th>
+            <th style="width:70px;">Ação</th>
+          </tr>
+        </thead>
+        <tbody class="pc-tbody"></tbody>
+      </table>
+    </div>
+
     <div class="alert alert-warning pc-warn mb-0" style="display:none;"></div>
   </div>
 </div>
@@ -805,43 +814,97 @@
 
       card.querySelector(".ircr-tpCR").value = ircr.tpCR ?? "";
 
-// Previdência Complementar (s1210PrevidCompl)
+// Previdência Complementar (s1210PrevidCompl) - pode vir como lista
 const pcEnabled = card.querySelector(".pc-enabled");
 const pcFields = card.querySelector(".pc-fields");
 const pcWarn = card.querySelector(".pc-warn");
-const pcTpPrev = card.querySelector(".pc-tpPrev");
-const pcCnpj = card.querySelector(".pc-cnpj");
-const pcVlrPC = card.querySelector(".pc-vlrDedPC");
-const pcVlrPC13 = card.querySelector(".pc-vlrDedPC13");
+const pcTbody = card.querySelector(".pc-tbody");
+const pcAddBtn = card.querySelector(".pc-add-row");
+const pcApplyDefaultCnpjBtn = card.querySelector(".pc-apply-default-cnpj");
 
-const existingPC = (ircr && typeof ircr === "object") ? ircr.s1210PrevidCompl : null;
-
-// Defaults sugeridos
-pcTpPrev.value = String(existingPC?.tpPrev ?? "1");
-pcCnpj.value = String(existingPC?.cnpjEntidPC ?? "07146074000180");
-pcVlrPC.value = existingPC?.vlrDedPC ?? "";
-pcVlrPC13.value = existingPC?.vlrDedPC13 ?? "";
+const DEFAULT_PC_TPPREV = "1";
+const DEFAULT_PC_CNPJ = "07146074000180";
 
 const setPcVisible = (on) => {
   pcFields.style.display = on ? "" : "none";
   if (!on) { pcWarn.style.display = "none"; pcWarn.textContent = ""; }
 };
 
-// Se já existe no evento, manter ligado
-pcEnabled.checked = !!existingPC;
+function addPcRow(tbody, pc, idx=null, isNew=false){
+  const tr = document.createElement("tr");
+  if (idx !== null) tr.dataset.idx = String(idx);
+  if (isNew) tr.dataset.isNew = "1";
+  tr.dataset.template = JSON.stringify(pc || {});
+
+  tr.innerHTML = `
+    <td>
+      <select class="form-control form-control-sm pcrow-tpPrev">
+        <option value="1">1 - Privada</option>
+        <option value="2">2 - FAPI</option>
+        <option value="3">3 - Funpresp</option>
+      </select>
+    </td>
+    <td><input type="text" class="form-control form-control-sm pcrow-cnpj" placeholder="14 dígitos (somente números)"></td>
+    <td><input type="text" class="form-control form-control-sm pcrow-vlrDedPC" placeholder="0,00"></td>
+    <td><input type="text" class="form-control form-control-sm pcrow-vlrDedPC13" placeholder="0,00"></td>
+    <td class="text-center">
+      <button type="button" class="btn btn-sm btn-outline-danger pcrow-remove" title="Remover"><i class="fas fa-trash"></i></button>
+    </td>
+  `;
+
+  const tpPrevEl = tr.querySelector(".pcrow-tpPrev");
+  const cnpjEl = tr.querySelector(".pcrow-cnpj");
+  const vlrEl = tr.querySelector(".pcrow-vlrDedPC");
+  const vlr13El = tr.querySelector(".pcrow-vlrDedPC13");
+
+  // Observação: no arquivo, os campos podem vir como strings numéricas já formatadas.
+  tpPrevEl.value = String(pc?.tpPrev ?? DEFAULT_PC_TPPREV);
+  cnpjEl.value = String(pc?.cnpjEntidPC ?? DEFAULT_PC_CNPJ);
+  vlrEl.value = (pc?.vlrDedPC ?? "");
+  vlr13El.value = (pc?.vlrDedPC13 ?? "");
+
+  tr.querySelector(".pcrow-remove").addEventListener("click", () => tr.remove());
+
+  // Se o usuário começar a digitar valores, liga automaticamente
+  const autoEnableIfValue = () => {
+    const hasAny = String(vlrEl.value || "").trim() || String(vlr13El.value || "").trim();
+    if (hasAny && pcEnabled && !pcEnabled.checked) {
+      pcEnabled.checked = true;
+      setPcVisible(true);
+    }
+  };
+  [vlrEl, vlr13El].forEach(el => el.addEventListener("input", autoEnableIfValue));
+
+  tbody.appendChild(tr);
+}
+
+const existingPCList = (ircr && typeof ircr === "object" && Array.isArray(ircr.s1210PrevidCompl))
+  ? ircr.s1210PrevidCompl
+  : [];
+
+pcEnabled.checked = existingPCList.length > 0;
 setPcVisible(pcEnabled.checked);
 
-pcEnabled.addEventListener("change", () => setPcVisible(pcEnabled.checked));
+existingPCList.forEach((pc, i) => addPcRow(pcTbody, pc, i, false));
 
-// Se o usuário começar a digitar valores, liga automaticamente
-const autoEnableIfValue = () => {
-  const hasAny = String(pcVlrPC.value || "").trim() || String(pcVlrPC13.value || "").trim();
-  if (hasAny && !pcEnabled.checked) {
+pcEnabled.addEventListener("change", () => {
+  setPcVisible(pcEnabled.checked);
+  if (pcEnabled.checked && pcTbody.children.length === 0) {
+    addPcRow(pcTbody, { tpPrev: DEFAULT_PC_TPPREV, cnpjEntidPC: DEFAULT_PC_CNPJ }, null, true);
+  }
+});
+
+pcAddBtn.addEventListener("click", () => {
+  if (!pcEnabled.checked) {
     pcEnabled.checked = true;
     setPcVisible(true);
   }
-};
-[pcVlrPC, pcVlrPC13].forEach(el => el.addEventListener("input", autoEnableIfValue));
+  addPcRow(pcTbody, { tpPrev: DEFAULT_PC_TPPREV, cnpjEntidPC: DEFAULT_PC_CNPJ }, null, true);
+});
+
+pcApplyDefaultCnpjBtn.addEventListener("click", () => {
+  Array.from(pcTbody.querySelectorAll(".pcrow-cnpj")).forEach((el) => { el.value = DEFAULT_PC_CNPJ; });
+});
 
       const dedTbody = card.querySelector(".ded-tbody");
       (ircr.s1210DedDepen || []).forEach((x, xIdx) => addDedRow(dedTbody, x, xIdx));
@@ -1166,14 +1229,11 @@ newDeps.push(dep);
                   else ircr.s1210PenAlim = newPens;
                 }
 
-// Previdência Complementar (s1210PrevidCompl)
+// Previdência Complementar (s1210PrevidCompl) - pode vir como lista
 const pcEnabledEl = ic.querySelector(".pc-enabled");
 const pcFieldsEl = ic.querySelector(".pc-fields");
 const pcWarnEl = ic.querySelector(".pc-warn");
-const pcTpPrevEl = ic.querySelector(".pc-tpPrev");
-const pcCnpjEl = ic.querySelector(".pc-cnpj");
-const pcVlrPCEl = ic.querySelector(".pc-vlrDedPC");
-const pcVlrPC13El = ic.querySelector(".pc-vlrDedPC13");
+const pcTbodyEl = ic.querySelector(".pc-tbody");
 
 const clearPcWarn = () => {
   if (pcWarnEl) { pcWarnEl.style.display = "none"; pcWarnEl.textContent = ""; }
@@ -1190,38 +1250,59 @@ const pcEnabled = !!(pcEnabledEl && pcEnabledEl.checked);
 if (pcEnabledEl && pcFieldsEl) pcFieldsEl.style.display = pcEnabled ? "" : "none";
 
 if (pcEnabled) {
-  const tpPrev = String(pcTpPrevEl?.value ?? "1").trim() || "1";
-  const cnpj = onlyDigits(pcCnpjEl?.value ?? "07146074000180");
-  const vlrDedPC = parseNumberPtBr(pcVlrPCEl?.value);
-  const vlrDedPC13 = parseNumberPtBr(pcVlrPC13El?.value);
+  const rows = pcTbodyEl ? Array.from(pcTbodyEl.querySelectorAll("tr")) : [];
+  const oldList = Array.isArray(ircr.s1210PrevidCompl) ? ircr.s1210PrevidCompl : [];
+  const newList = [];
 
-  const hasVlrPC = (vlrDedPC !== null && vlrDedPC > 0);
-  const hasVlrPC13 = (vlrDedPC13 !== null && vlrDedPC13 > 0);
+  if (rows.length === 0) {
+    setPcWarn("Adicione ao menos uma linha em previdCompl ou desmarque 'Informar'.");
+    throw new Error("PrevidCompl inválido: sem linhas");
+  }
 
-  // Regras eSocial: tpPrev obrigatório; cnpj válido; e ao menos um dos valores > 0
-  if (!["1","2","3"].includes(tpPrev)) {
-    setPcWarn("tpPrev inválido. Use 1 (Privada), 2 (FAPI) ou 3 (Funpresp).");
-    throw new Error("PrevidCompl inválido: tpPrev");
-  }
-  if (cnpj.length !== 14 || !isValidCNPJ(cnpj)) {
-    setPcWarn("cnpjEntidPC inválido. Informe um CNPJ com 14 dígitos válido.");
-    throw new Error("PrevidCompl inválido: CNPJ");
-  }
-  if (!hasVlrPC && !hasVlrPC13) {
-    setPcWarn("Preencha vlrDedPC ou vlrDedPC13 (valor maior que 0). Ou desmarque 'Informar' para não incluir previdCompl.");
+  rows.forEach((tr) => {
+    const ridx = tr.dataset.idx !== undefined ? parseInt(tr.dataset.idx, 10) : null;
+    const rIsNew = tr.dataset.isNew === "1";
+    let pc = (!rIsNew && ridx !== null && oldList[ridx]) ? oldList[ridx] : JSON.parse(tr.dataset.template || "{}");
+
+    const tpPrev = String(tr.querySelector(".pcrow-tpPrev")?.value ?? "1").trim() || "1";
+    const cnpj = onlyDigits(tr.querySelector(".pcrow-cnpj")?.value ?? "07146074000180");
+    const vlrDedPC = parseNumberPtBr(tr.querySelector(".pcrow-vlrDedPC")?.value);
+    const vlrDedPC13 = parseNumberPtBr(tr.querySelector(".pcrow-vlrDedPC13")?.value);
+
+    const hasVlrPC = (vlrDedPC !== null && vlrDedPC > 0);
+    const hasVlrPC13 = (vlrDedPC13 !== null && vlrDedPC13 > 0);
+
+    // Se não houver valores > 0, não gravamos este item (evita lixo estrutural)
+    if (!hasVlrPC && !hasVlrPC13) return;
+
+    // Regras eSocial: tpPrev obrigatório; cnpj válido; e ao menos um dos valores > 0 (já garantido acima)
+    if (!["1","2","3"].includes(tpPrev)) {
+      setPcWarn("tpPrev inválido. Use 1 (Privada), 2 (FAPI) ou 3 (Funpresp).");
+      throw new Error("PrevidCompl inválido: tpPrev");
+    }
+    if (cnpj.length !== 14 || !isValidCNPJ(cnpj)) {
+      setPcWarn("cnpjEntidPC inválido. Informe um CNPJ com 14 dígitos válido.");
+      throw new Error("PrevidCompl inválido: CNPJ");
+    }
+
+    setIfChanged(pc, "tpPrev", tpPrev);
+    setIfChanged(pc, "cnpjEntidPC", cnpj);
+
+    if (hasVlrPC) setIfChanged(pc, "vlrDedPC", formatNumber4(vlrDedPC));
+    else if ("vlrDedPC" in pc) delete pc.vlrDedPC;
+
+    if (hasVlrPC13) setIfChanged(pc, "vlrDedPC13", formatNumber4(vlrDedPC13));
+    else if ("vlrDedPC13" in pc) delete pc.vlrDedPC13;
+
+    newList.push(pc);
+  });
+
+  if (newList.length === 0) {
+    setPcWarn("Preencha vlrDedPC ou vlrDedPC13 (valor maior que 0) em ao menos uma linha. Ou desmarque 'Informar' para não incluir previdCompl.");
     throw new Error("PrevidCompl inválido: valores");
   }
 
-  if (!ircr.s1210PrevidCompl || typeof ircr.s1210PrevidCompl !== "object") ircr.s1210PrevidCompl = {};
-  setIfChanged(ircr.s1210PrevidCompl, "tpPrev", tpPrev);
-  setIfChanged(ircr.s1210PrevidCompl, "cnpjEntidPC", cnpj);
-
-  // Campos mutuamente obrigatórios: se um não estiver preenchido, removemos do JSON para não "forçar" valor inválido
-  if (hasVlrPC) setIfChanged(ircr.s1210PrevidCompl, "vlrDedPC", formatNumber2(vlrDedPC));
-  else if ("vlrDedPC" in ircr.s1210PrevidCompl) delete ircr.s1210PrevidCompl.vlrDedPC;
-
-  if (hasVlrPC13) setIfChanged(ircr.s1210PrevidCompl, "vlrDedPC13", formatNumber2(vlrDedPC13));
-  else if ("vlrDedPC13" in ircr.s1210PrevidCompl) delete ircr.s1210PrevidCompl.vlrDedPC13;
+  ircr.s1210PrevidCompl = newList;
 
 } else {
   // Se existia no JSON e o usuário desmarcou, removemos explicitamente.
@@ -1333,7 +1414,21 @@ function onlyDigits(val) {
 function parseNumberPtBr(val) {
   const s0 = String(val ?? "").trim();
   if (!s0 || s0 === "*numerovazio*") return null;
-  const s = s0.replace(/\./g, "").replace(",", ".");
+
+  // Suporta:
+  // - pt-BR: "12.345,67" / "12345,67"
+  // - decimal com ponto: "12345.6700" / "12345.67"
+  // - eventualmente milhares com vírgula: "12,345.67" (remove vírgulas)
+  let s = s0.replace(/\s+/g, "");
+
+  if (s.includes(",")) {
+    // Assume vírgula como separador decimal e remove pontos de milhar
+    s = s.replace(/\./g, "").replace(",", ".");
+  } else {
+    // Assume ponto como separador decimal; remove vírgulas (se vierem como milhar)
+    s = s.replace(/,/g, "");
+  }
+
   const n = Number(s);
   return Number.isFinite(n) ? n : null;
 }
@@ -1341,6 +1436,11 @@ function parseNumberPtBr(val) {
 // Formata para string com 2 casas, preservando padrão "1234.56" (JSON original costuma aceitar).
 function formatNumber2(n) {
   return (Math.round(n * 100) / 100).toFixed(2);
+}
+
+// Formata para string com 4 casas (útil para campos que chegam com 4 decimais no arquivo)
+function formatNumber4(n) {
+  return (Math.round(n * 10000) / 10000).toFixed(4);
 }
 
 // Validação algorítmica de CNPJ (14 dígitos)
