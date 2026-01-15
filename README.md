@@ -1,6 +1,6 @@
-# eSocial • Editores (S-1202 / S-1210)
+# eSocial • Editores
 
-Este repositório reúne duas ferramentas simples (e bem práticas) para **editar arquivos JSON de eventos do eSocial**, diretamente no navegador, sem backend.
+Este repositório reúne ferramentas simples (e bem práticas) para **editar arquivos JSON de eventos do eSocial**, diretamente no navegador, sem backend.
 
 A ideia aqui é agilizar o saneamento/conferência de arquivos antes da transmissão, mantendo uma abordagem conservadora (evitar mudanças desnecessárias e preservar integridade do conteúdo).
 
@@ -42,7 +42,7 @@ Notas técnicas:
 Ferramentas principais:
 - Excluir eventos por lista de CPFs.
 - Sincronizar dependentes (InfoDep) a partir de uma base.
-- Sincronizar líquidos (`vrLiq`) e `ideDmDev` a partir de uma base.
+- Sincronizar líquidos `vrLiq` e `ideDmDev` a partir de uma base.
 - Busca/seleção em massa para acelerar revisões.
 
 Estrutura esperada (raiz do JSON):
