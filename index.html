@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>eSocial • Editores (S-1202 / S-1210)</title>
+
+  <!-- Bootswatch Cosmo (Bootstrap 4) para manter o visual consistente com os editores -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootswatch@4.5.2/dist/cosmo/bootstrap.min.css"/>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css"/>
+
+  <style>
+    .navbar { box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
+    .hero { padding: 1.25rem 0; }
+    .hero h1 { font-weight: 700; letter-spacing: -0.2px; }
+    .muted { color: #6c757d; }
+    .card { border-radius: 10px; }
+    .soft { background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 10px; }
+    .kbd {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      font-size: .88em;
+      background: #fff;
+      border: 1px solid #dee2e6;
+      padding: .1rem .35rem;
+      border-radius: 6px;
+      white-space: nowrap;
+    }
+    .btn-wide { min-width: 230px; }
+    .badge-last { font-size: .75rem; }
+    .small-note { font-size: .9rem; }
+    .list-tight li { margin-bottom: .35rem; }
+  </style>
+</head>
+
+<body>
+  <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+    <a class="navbar-brand" href="./index.html">eSocial • Editores</a>
+    <div class="ml-auto d-flex align-items-center" style="gap:.5rem;">
+      <span id="lastUsedBadge" class="badge badge-light badge-last" style="display:none;">
+        Último usado: <span id="lastUsedText"></span>
+      </span>
+      <button id="openLastBtn" class="btn btn-sm btn-outline-light" style="display:none;">
+        <i class="fas fa-history"></i> Abrir último
+      </button>
+    </div>
+  </nav>
+
+  <div class="container my-4">
+
+    <div class="hero">
+      <h1 class="mb-2">Editores eSocial (S-1202 e S-1210)</h1>
+      <div class="muted">
+        Ferramentas 100% client-side: você carrega o JSON localmente, edita, e baixa o arquivo ajustado. Nada é enviado para servidor.
+      </div>
+    </div>
+
+    <div class="soft p-3 mb-4">
+      <div class="d-flex flex-wrap align-items-center" style="gap: .75rem;">
+        <div class="small-note">
+          Dica: você pode abrir direto via URL usando <span class="kbd">?open=s1202</span> ou <span class="kbd">?open=s1210</span>.
+        </div>
+        <div class="ml-auto d-flex flex-wrap" style="gap:.5rem;">
+          <a class="btn btn-outline-secondary btn-sm" href="./index.html">
+            <i class="fas fa-home"></i> Início
+          </a>
+          <a class="btn btn-outline-secondary btn-sm" href="./S-1202.html">
+            <i class="fas fa-file-code"></i> S-1202
+          </a>
+          <a class="btn btn-outline-secondary btn-sm" href="./S-1210.html">
+            <i class="fas fa-file-code"></i> S-1210
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="col-lg-6 mb-3">
+        <div class="card h-100">
+          <div class="card-header bg-light">
+            <div class="d-flex align-items-center justify-content-between">
+              <strong><i class="fas fa-pen"></i> Editor S-1202</strong>
+              <span class="badge badge-secondary">Remuneração RPPS</span>
+            </div>
+          </div>
+          <div class="card-body">
+            <p class="mb-2">
+              Editor focado em saneamento de eventos S-1202: filtros, análise de matrícula, ajustes conservadores e rotinas de conferência.
+            </p>
+            <ul class="list-tight mb-0">
+              <li>Filtrar/excluir trabalhadores por CPF</li>
+              <li>Analisar matrículas por CSV</li>
+              <li>Informar categoria e estabelecimento (placeholders)</li>
+              <li>Mesclar rubricas por <span class="kbd">ideDmDev</span> e ajustar pagamentos negativos</li>
+              <li>Verificar RRA</li>
+            </ul>
+          </div>
+          <div class="card-footer bg-white d-flex flex-wrap" style="gap:.5rem;">
+            <a class="btn btn-primary btn-wide" id="openS1202" href="./S-1202.html">
+              <i class="fas fa-play"></i> Abrir S-1202
+            </a>
+            <a class="btn btn-outline-secondary" href="./S-1202.html" target="_blank" rel="noopener">
+              <i class="fas fa-external-link-alt"></i>
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-lg-6 mb-3">
+        <div class="card h-100">
+          <div class="card-header bg-light">
+            <div class="d-flex align-items-center justify-content-between">
+              <strong><i class="fas fa-pen"></i> Editor S-1210</strong>
+              <span class="badge badge-secondary">Pagamentos / IR</span>
+            </div>
+          </div>
+          <div class="card-body">
+            <p class="mb-2">
+              Editor voltado para o S-1210, com rotinas para organizar pagamentos e apoiar saneamento de bases (dependentes e líquidos).
+            </p>
+            <ul class="list-tight mb-0">
+              <li>Excluir por lista de CPFs</li>
+              <li>Sincronizar dependentes (InfoDep) a partir de base</li>
+              <li>Sincronizar líquidos (<span class="kbd">vrLiq</span>) e <span class="kbd">ideDmDev</span> por base</li>
+              <li>Busca rápida + seleção em massa</li>
+              <li>Download remove marcações internas automaticamente</li>
+            </ul>
+          </div>
+          <div class="card-footer bg-white d-flex flex-wrap" style="gap:.5rem;">
+            <a class="btn btn-primary btn-wide" id="openS1210" href="./S-1210.html">
+              <i class="fas fa-play"></i> Abrir S-1210
+            </a>
+            <a class="btn btn-outline-secondary" href="./S-1210.html" target="_blank" rel="noopener">
+              <i class="fas fa-external-link-alt"></i>
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="soft p-3 mt-2">
+      <h5 class="mb-2">Como funciona (bem direto)</h5>
+      <ol class="mb-2">
+        <li>Abra o editor desejado (S-1202 ou S-1210).</li>
+        <li>Clique em <strong>Carregar Arquivo JSON</strong> e selecione o seu evento.</li>
+        <li>Use as ferramentas do editor (filtro, saneamento, ajustes) conforme a necessidade.</li>
+        <li>Baixe o arquivo editado (o editor remove marcações internas no download).</li>
+      </ol>
+      <div class="muted small-note">
+        Observação: se você renomear/mover os arquivos, mantenha os links do <span class="kbd">index.html</span> apontando para
+        <span class="kbd">S-1202.html</span> e <span class="kbd">S-1210.html</span> (ou ajuste os caminhos).
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    function qs(name) {
+      const p = new URLSearchParams(window.location.search);
+      return (p.get(name) || "").trim().toLowerCase();
+    }
+
+    function setLastUsed(tool) {
+      try { localStorage.setItem("esocial_last_tool", tool); } catch(e) {}
+    }
+
+    function getLastUsed() {
+      try { return (localStorage.getItem("esocial_last_tool") || "").trim(); } catch(e) { return ""; }
+    }
+
+    function openTool(tool) {
+      if (tool === "s1202") {
+        setLastUsed("s1202");
+        window.location.href = "./S-1202.html";
+        return;
+      }
+      if (tool === "s1210") {
+        setLastUsed("s1210");
+        window.location.href = "./S-1210.html";
+        return;
+      }
+    }
+
+    // Persistência do "último usado" ao clicar nos botões
+    document.getElementById("openS1202").addEventListener("click", () => setLastUsed("s1202"));
+    document.getElementById("openS1210").addEventListener("click", () => setLastUsed("s1210"));
+
+    // UI do "Abrir último"
+    const last = getLastUsed();
+    if (last === "s1202" || last === "s1210") {
+      const badge = document.getElementById("lastUsedBadge");
+      const text = document.getElementById("lastUsedText");
+      const btn  = document.getElementById("openLastBtn");
+
+      badge.style.display = "inline-block";
+      btn.style.display = "inline-block";
+      text.textContent = last.toUpperCase();
+
+      btn.addEventListener("click", () => openTool(last));
+    }
+
+    // Deep link: ?open=s1202 | ?open=s1210
+    const open = qs("open");
+    if (open === "s1202" || open === "s1210") {
+      openTool(open);
+    }
+  </script>
+</body>
+</html>
