@@ -7,6 +7,7 @@ A ideia aqui é agilizar o saneamento/conferência de arquivos antes da transmis
 ## Como usar (rápido)
 
 1. Abra o GitHub Pages e escolha o editor:
+   - **S-1200**: `esocial/S-1200.html`
    - **S-1202**: `esocial/S-1202.html`
    - **S-1210**: `esocial/S-1210.html`
 2. Clique em **Carregar Arquivo JSON** e selecione o arquivo do evento.
@@ -16,6 +17,27 @@ A ideia aqui é agilizar o saneamento/conferência de arquivos antes da transmis
 Observação: os arquivos são processados **localmente** no navegador.
 
 ## O que cada editor faz
+
+### Editor S-1200 (Remuneração RGPS)
+Objetivo:
+- Abrir o JSON do S-1200 e permitir **edição via modal**, mantendo uma lógica conservadora (preserva campos não editados e evita injetar estruturas desnecessárias).
+
+Recursos (base):
+- Carregar JSON, listar eventos, buscar/selecionar e editar campos no modal.
+- Download do JSON editado.
+
+Estrutura esperada (raiz do JSON):
+```json
+{
+  "s1200RemuTrabRGPSGroup": {
+    "s1200RemuTrabRGPS": []
+  }
+}
+```
+
+Nota de integridade:
+- Mantém abordagem de salvamento conservadora (aplica “patch” no que foi editado e preserva o restante).
+- Blocos vazios (placeholders como *vazio*, *numerovazio*, *datavazia*) podem aparecer recolhidos para melhorar a visualização.
 
 ### Editor S-1202 (Remuneração RPPS)
 Ferramentas principais:

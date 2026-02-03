@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>eSocial • Editores (S-1202 / S-1210)</title>
+  <title>eSocial • Editores (S-1200 / S-1202 / S-1210)</title>
 
   <!-- Bootswatch Cosmo (Bootstrap 4) para manter o visual consistente com os editores -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootswatch@4.5.2/dist/cosmo/bootstrap.min.css"/>
@@ -48,7 +48,7 @@
   <div class="container my-4">
 
     <div class="hero">
-      <h1 class="mb-2">Editores eSocial (S-1202 e S-1210)</h1>
+      <h1 class="mb-2">Editores eSocial (S-1200, S-1202 e S-1210)</h1>
       <div class="muted">
         Ferramentas 100% client-side: você carrega o JSON localmente, edita, e baixa o arquivo ajustado. Nada é enviado para servidor.
       </div>
@@ -57,11 +57,17 @@
     <div class="soft p-3 mb-4">
       <div class="d-flex flex-wrap align-items-center" style="gap: .75rem;">
         <div class="small-note">
-          Dica: você pode abrir direto via URL usando <span class="kbd">?open=s1202</span> ou <span class="kbd">?open=s1210</span>.
+          Dica: você pode abrir direto via URL usando
+          <span class="kbd">?open=s1200</span>,
+          <span class="kbd">?open=s1202</span> ou
+          <span class="kbd">?open=s1210</span>.
         </div>
         <div class="ml-auto d-flex flex-wrap" style="gap:.5rem;">
           <a class="btn btn-outline-secondary btn-sm" href="./index.html">
             <i class="fas fa-home"></i> Início
+          </a>
+          <a class="btn btn-outline-secondary btn-sm" href="./S-1200.html">
+            <i class="fas fa-file-code"></i> S-1200
           </a>
           <a class="btn btn-outline-secondary btn-sm" href="./S-1202.html">
             <i class="fas fa-file-code"></i> S-1202
@@ -74,6 +80,39 @@
     </div>
 
     <div class="row">
+
+      <!-- S-1200 -->
+      <div class="col-lg-6 mb-3">
+        <div class="card h-100">
+          <div class="card-header bg-light">
+            <div class="d-flex align-items-center justify-content-between">
+              <strong><i class="fas fa-pen"></i> Editor S-1200</strong>
+              <span class="badge badge-secondary">Remuneração RGPS</span>
+            </div>
+          </div>
+          <div class="card-body">
+            <p class="mb-2">
+              Editor para o S-1200 com leitura do JSON, listagem dos eventos e modal de edição com abordagem conservadora.
+            </p>
+            <ul class="list-tight mb-0">
+              <li>Carregar JSON e listar eventos</li>
+              <li>Busca e seleção em massa</li>
+              <li>Edição via modal (patch conservador)</li>
+              <li>Blocos vazios podem aparecer recolhidos para melhorar a visualização</li>
+            </ul>
+          </div>
+          <div class="card-footer bg-white d-flex flex-wrap" style="gap:.5rem;">
+            <a class="btn btn-primary btn-wide" id="openS1200" href="./S-1200.html">
+              <i class="fas fa-play"></i> Abrir S-1200
+            </a>
+            <a class="btn btn-outline-secondary" href="./S-1200.html" target="_blank" rel="noopener">
+              <i class="fas fa-external-link-alt"></i>
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <!-- S-1202 -->
       <div class="col-lg-6 mb-3">
         <div class="card h-100">
           <div class="card-header bg-light">
@@ -105,6 +144,7 @@
         </div>
       </div>
 
+      <!-- S-1210 -->
       <div class="col-lg-6 mb-3">
         <div class="card h-100">
           <div class="card-header bg-light">
@@ -135,19 +175,20 @@
           </div>
         </div>
       </div>
+
     </div>
 
     <div class="soft p-3 mt-2">
       <h5 class="mb-2">Como funciona (bem direto)</h5>
       <ol class="mb-2">
-        <li>Abra o editor desejado (S-1202 ou S-1210).</li>
+        <li>Abra o editor desejado (S-1200, S-1202 ou S-1210).</li>
         <li>Clique em <strong>Carregar Arquivo JSON</strong> e selecione o seu evento.</li>
         <li>Use as ferramentas do editor (filtro, saneamento, ajustes) conforme a necessidade.</li>
         <li>Baixe o arquivo editado (o editor remove marcações internas no download).</li>
       </ol>
       <div class="muted small-note">
         Observação: se você renomear/mover os arquivos, mantenha os links do <span class="kbd">index.html</span> apontando para
-        <span class="kbd">S-1202.html</span> e <span class="kbd">S-1210.html</span> (ou ajuste os caminhos).
+        <span class="kbd">S-1200.html</span>, <span class="kbd">S-1202.html</span> e <span class="kbd">S-1210.html</span> (ou ajuste os caminhos).
       </div>
     </div>
 
@@ -168,6 +209,11 @@
     }
 
     function openTool(tool) {
+      if (tool === "s1200") {
+        setLastUsed("s1200");
+        window.location.href = "./S-1200.html";
+        return;
+      }
       if (tool === "s1202") {
         setLastUsed("s1202");
         window.location.href = "./S-1202.html";
@@ -181,12 +227,13 @@
     }
 
     // Persistência do "último usado" ao clicar nos botões
+    document.getElementById("openS1200").addEventListener("click", () => setLastUsed("s1200"));
     document.getElementById("openS1202").addEventListener("click", () => setLastUsed("s1202"));
     document.getElementById("openS1210").addEventListener("click", () => setLastUsed("s1210"));
 
     // UI do "Abrir último"
     const last = getLastUsed();
-    if (last === "s1202" || last === "s1210") {
+    if (last === "s1200" || last === "s1202" || last === "s1210") {
       const badge = document.getElementById("lastUsedBadge");
       const text = document.getElementById("lastUsedText");
       const btn  = document.getElementById("openLastBtn");
@@ -198,9 +245,9 @@
       btn.addEventListener("click", () => openTool(last));
     }
 
-    // Deep link: ?open=s1202 | ?open=s1210
+    // Deep link: ?open=s1200 | ?open=s1202 | ?open=s1210
     const open = qs("open");
-    if (open === "s1202" || open === "s1210") {
+    if (open === "s1200" || open === "s1202" || open === "s1210") {
       openTool(open);
     }
   </script>
