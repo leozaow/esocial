@@ -1,0 +1,1669 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Editor S-1200</title>
+
+  <!-- Tema Cosmo (Bootswatch para Bootstrap 4) -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootswatch@4.5.2/dist/cosmo/bootstrap.min.css" />
+  <!-- Font Awesome para ícones -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" />
+
+  <style>
+    .navbar { box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
+    h2 { margin-top: 1rem; margin-bottom: 1.5rem; font-weight: 600; }
+    .tools-section { margin-bottom: 1.5rem; }
+    .tools-section .card-header { font-weight: bold; font-size: 1rem; }
+    .btn-group-custom { display:flex; flex-wrap:wrap; gap:0.5rem; }
+
+    .card-soft { background-color:#f8f9fa; border:1px solid #dee2e6; border-radius:6px; }
+    .nested { border-left: 4px solid #dee2e6; padding-left: 12px; margin-left: 6px; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+    .small-help { font-size: 12px; color:#6c757d; }
+    .section-title { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-top: 12px; }
+    .section-title h6 { margin:0; font-weight:700; }
+    .pill { display:inline-block; padding:2px 8px; border-radius:999px; background:#e9ecef; font-size: 12px; }
+    .hr-soft { border-top: 1px dashed #dee2e6; }
+  </style>
+</head>
+
+<body>
+  <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+    <a class="navbar-brand" href="#">Editor Eventos - S-1200 | V1.0</a>
+  </nav>
+
+  <div class="container my-4">
+    <h2>Editor S-1200 (Remuneração do Trabalhador - RGPS)</h2>
+
+    <!-- Carregar e Baixar -->
+    <div class="tools-section card">
+      <div class="card-header">Carregar e Baixar Arquivo</div>
+      <div class="card-body">
+        <div class="form-group">
+          <label for="fileInput"><strong>Carregar Arquivo JSON:</strong></label>
+          <input type="file" id="fileInput" accept=".json" class="form-control-file" />
+          <small class="form-text text-muted">
+            Este editor faz leitura/edição e gera novamente o JSON. Ele preserva campos não exibidos no modal (merge profundo) para reduzir impacto.
+          </small>
+        </div>
+        <div id="jsonLoadInfo" class="mt-3"></div>
+        <div class="btn-group-custom mt-2">
+          <button id="addEventoBtn" class="btn btn-success"><i class="fa fa-plus"></i> Adicionar Evento</button>
+          <button id="downloadBtn" class="btn btn-info"><i class="fa fa-download"></i> Baixar Edição</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Seleção em massa -->
+    <div class="tools-section card">
+      <div class="card-header">Seleção em Massa</div>
+      <div class="card-body">
+        <div class="btn-group-custom">
+          <button id="selectAllBtn" class="btn btn-primary">Selecionar Todos</button>
+          <button id="deselectAllBtn" class="btn btn-secondary">Desmarcar Todos</button>
+          <button id="removeSelectedBtn" class="btn btn-danger">Remover Selecionados</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Filtro -->
+    <div class="tools-section card">
+      <div class="card-header">Filtro de Busca</div>
+      <div class="card-body">
+        <div class="form-group">
+          <label for="searchInput">Buscar (CPF, matrícula, ideDmDev etc.):</label>
+          <input type="text" id="searchInput" class="form-control" placeholder="Digite algo para filtrar..." />
+        </div>
+      </div>
+    </div>
+
+    <!-- Tabela -->
+    <div class="tools-section">
+      <table class="table table-bordered" id="eventosTable">
+        <thead class="thead-light">
+          <tr>
+            <th style="width:40px;">Sel.</th>
+            <th>Ordem</th>
+            <th>CPF</th>
+            <th>Ano</th>
+            <th>Período</th>
+            <th style="width:160px;">Ações</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+    <!-- Modal de Edição -->
+    <div class="modal fade" id="eventoModal" tabindex="-1" aria-labelledby="eventoModalLabel" aria-hidden="true">
+      <div class="modal-dialog modal-xl" style="max-width: 92%;">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="eventoModalLabel">Editar Evento S-1200</h5>
+            <button type="button" class="close" data-dismiss="modal" aria-label="Fechar">
+              <span aria-hidden="true">&times;</span>
+            </button>
+          </div>
+
+          <div class="modal-body">
+            <form id="eventoForm">
+              <!-- Topo -->
+              <div class="card-soft p-3 mb-3">
+                <div class="section-title">
+                  <h6>Identificação do Evento</h6>
+                  <span class="pill">campos de topo</span>
+                </div>
+                <hr class="hr-soft"/>
+
+                <div class="form-row">
+                  <div class="form-group col-md-2">
+                    <label>ordemRegistro</label>
+                    <input type="text" class="form-control" id="ordemRegistro">
+                  </div>
+                  <div class="form-group col-md-7">
+                    <label>chaveIntegracao</label>
+                    <input type="text" class="form-control mono" id="chaveIntegracao">
+                  </div>
+                  <div class="form-group col-md-3">
+                  </div>
+                </div>
+
+                <div class="form-row">
+                  <div class="form-group col-md-2">
+                    <label>anoApur</label>
+                    <input type="text" class="form-control" id="anoApur" placeholder="YYYY">
+                  </div>
+                  <div class="form-group col-md-3">
+                    <label>perApur</label>
+                    <input type="text" class="form-control" id="perApur" placeholder="YYYY-MM-DD ou YYYY-MM">
+                  </div>
+                  <div class="form-group col-md-2">
+                    <label>indApuracao</label>
+                    <input type="text" class="form-control" id="indApuracao" placeholder="A/M">
+                  </div>
+                  <div class="form-group col-md-2">
+                    <label>indMV</label>
+                    <input type="text" class="form-control" id="indMV" placeholder="S/N">
+                  </div>
+                  <div class="form-group col-md-3">
+                    <label>indPossuiPerAnt</label>
+                    <input type="text" class="form-control" id="indPossuiPerAnt" placeholder="S/N">
+                  </div>
+                </div>
+
+                <div class="form-row">
+                  <div class="form-group col-md-2">
+                    <label>qtdDiasInterm</label>
+                    <input type="text" class="form-control" id="qtdDiasInterm">
+                  </div>
+                  <div class="form-group col-md-4">
+                    <label>hashEvento</label>
+                    <input type="text" class="form-control mono" id="hashEvento_REMOVIDO">
+                  </div>
+                  <div class="form-group col-md-6">
+                    <label>observacaoComplem</label>
+                    <input type="text" class="form-control" id="observacaoComplem">
+                  </div>
+                </div>
+              </div>
+
+              <!-- Empregador / Trabalhador / Complementares -->
+              <div class="card-soft p-3 mb-3">
+                <div class="section-title">
+                  <h6>Empregador e Trabalhador</h6>
+                  <span class="pill">identificação</span>
+                </div>
+                <hr class="hr-soft"/>
+
+                <div class="form-row">
+                  <div class="form-group col-md-3">
+                    <label>empregador.tpInsc.tipo</label>
+                    <input type="text" class="form-control" id="empregador_tpInsc_tipo">
+                  </div>
+                  <div class="form-group col-md-3">
+                    <label>empregador.nrInsc</label>
+                    <input type="text" class="form-control" id="empregador_nrInsc">
+                  </div>
+                  <div class="form-group col-md-3">
+                    <label>trabalhador.cpfTrab</label>
+                    <input type="text" class="form-control" id="trabalhador_cpfTrab">
+                  </div>
+                  <div class="form-group col-md-3">
+                    <label>nmTrabComplem</label>
+                    <input type="text" class="form-control" id="nmTrabComplem">
+                  </div>
+                </div>
+
+                <div class="form-row">
+                  <div class="form-group col-md-3">
+                    <label>dtNasctoComplem</label>
+                    <input type="text" class="form-control" id="dtNasctoComplem" placeholder="YYYY-MM-DD">
+                  </div>
+                  <div class="form-group col-md-3">
+                    <label>dtAdmComplem</label>
+                    <input type="text" class="form-control" id="dtAdmComplem" placeholder="YYYY-MM-DD">
+                  </div>
+                  <div class="form-group col-md-3">
+                    <label>matricAntComplem</label>
+                    <input type="text" class="form-control" id="matricAntComplem">
+                  </div>
+                  <div class="form-group col-md-3">
+                    <label>cnpjEmpregAntComplem</label>
+                    <input type="text" class="form-control" id="cnpjEmpregAntComplem" placeholder="14 dígitos">
+                  </div>
+                </div>
+
+                <div class="form-row">
+                  <div class="form-group col-md-3">
+                    <label>tpInscAntComplem.tipo</label>
+                    <input type="text" class="form-control" id="tpInscAntComplem_tipo">
+                  </div>
+                  <div class="form-group col-md-9">
+                    <label>Campos complementares (opcionais)</label>
+                    <input type="text" class="form-control" id="cpfTrabComplem" placeholder="cpfTrabComplem (se existir no arquivo)">
+                    <small class="small-help">Se o campo não existir no JSON, ele só será criado se você preencher aqui.</small>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Pagamentos -->
+              <div class="card-soft p-3">
+                <div class="section-title">
+                  <h6>Pagamentos (s1200RemuTrabRGPSPagtos)</h6>
+                  <span class="pill">ideDmDev / rubricas</span>
+                </div>
+                <hr class="hr-soft"/>
+                <div id="pagamentosContainer"></div>
+                <button type="button" class="btn btn-outline-primary mt-2" id="addPagamentoBtn">
+                  <i class="fa fa-plus"></i> Adicionar Pagamento
+                </button>
+              </div>
+            </form>
+          </div>
+
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-dismiss="modal">Fechar</button>
+            <button type="button" class="btn btn-primary" id="saveEventoBtn">Salvar Alterações do Evento</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- container -->
+
+  <!-- JS (jQuery, Popper, Bootstrap) -->
+  <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js"></script>
+  <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+
+  <script>
+    // ======================================================================
+    // 1) Dados iniciais (estrutura padrão)
+    window.esocialData = {
+      "s1200RemuTrabRGPSGroup": {
+        "s1200RemuTrabRGPS": []
+      }
+    };
+
+    // Controle de arquivo carregado
+    let loadedFileName = null;
+    let loadedFileMeta = null;
+
+    function stripUtf8Bom(text) {
+      if (!text) return "";
+      const s = String(text);
+      return s.charCodeAt(0) === 0xFEFF ? s.slice(1) : s;
+    }
+
+    // Parse de JSON com tolerância mínima: BOM e vírgula sobrando no final de objetos/arrays.
+    function parseJsonSafely(rawText) {
+      const t = stripUtf8Bom(rawText);
+      try {
+        return { data: JSON.parse(t), repaired: false };
+      } catch (err1) {
+        const repairedText = String(t).replace(/,\s*([}\]])/g, "$1");
+        try {
+          return { data: JSON.parse(repairedText), repaired: true };
+        } catch (err2) {
+          throw err1;
+        }
+      }
+    }
+
+    function buildEditedFileName(originalName) {
+      if (!originalName) return null;
+      const name = String(originalName);
+      const dot = name.lastIndexOf(".");
+      const base = dot > 0 ? name.slice(0, dot) : name;
+      const ext = dot > 0 ? name.slice(dot) : ".json";
+      return base + "_editado" + ext;
+    }
+
+    // ======================================================================
+    // 2) Estrutura para obter eventos
+    function getEventos() {
+      if (!window.esocialData.s1200RemuTrabRGPSGroup) {
+        window.esocialData.s1200RemuTrabRGPSGroup = { s1200RemuTrabRGPS: [] };
+      }
+      if (!Array.isArray(window.esocialData.s1200RemuTrabRGPSGroup.s1200RemuTrabRGPS)) {
+        window.esocialData.s1200RemuTrabRGPSGroup.s1200RemuTrabRGPS = [];
+      }
+      return window.esocialData.s1200RemuTrabRGPSGroup.s1200RemuTrabRGPS;
+    }
+
+    // Utilitário: getter/setter seguro
+    function safeValue(parent, selector) {
+      const el = parent.querySelector(selector);
+      return el ? String(el.value || "").trim() : "";
+    }
+
+    function ensureObj(obj, pathArr) {
+      let cur = obj;
+      for (let i=0;i<pathArr.length;i++) {
+        const k = pathArr[i];
+        if (typeof cur[k] !== "object" || cur[k] === null || Array.isArray(cur[k])) cur[k] = {};
+        cur = cur[k];
+      }
+      return cur;
+    }
+
+    // Merge profundo preservando campos não exibidos (e evitando trocar o objeto inteiro).
+    function mergeDeep(target, source) {
+      if (!source || typeof source !== "object") return target;
+      if (!target || typeof target !== "object") return source;
+
+      const isArrT = Array.isArray(target);
+      const isArrS = Array.isArray(source);
+      if (isArrT || isArrS) {
+        // Arrays: por segurança, substitui pelo source (o usuário alterou via UI).
+        return source;
+      }
+
+      Object.keys(source).forEach((key) => {
+        const sVal = source[key];
+        const tVal = target[key];
+        if (sVal && typeof sVal === "object") {
+          if (Array.isArray(sVal)) {
+            target[key] = sVal;
+          } else {
+            if (!tVal || typeof tVal !== "object" || Array.isArray(tVal)) {
+              target[key] = {};
+            }
+            mergeDeep(target[key], sVal);
+          }
+        } else {
+          target[key] = sVal;
+        }
+      });
+      return target;
+    }
+
+    // Só grava se (a) o original já tinha a chave ou (b) o novo valor não é vazio
+    function setIfPresentOrNonEmpty(target, key, newVal, originalObj) {
+      const hadKey = originalObj && Object.prototype.hasOwnProperty.call(originalObj, key);
+      if (hadKey || (String(newVal || "").trim() !== "")) {
+        target[key] = newVal;
+      }
+    }
+
+    // ======================================================================
+    // 3) Info do arquivo carregado
+        function refreshJsonLoadInfo() {
+      const el = document.getElementById("jsonLoadInfo");
+      if (!el) return;
+
+      const evts = getEventos();
+      const count = evts.length;
+
+      const name = loadedFileMeta?.name ? loadedFileMeta.name : "(sem arquivo)";
+      const size = loadedFileMeta?.size ? loadedFileMeta.size : 0;
+
+      const comps = Array.from(new Set(
+        evts.map(e => {
+          const ano = String(e?.anoApur ?? "").trim();
+          const per = String(e?.perApur ?? "").trim();
+          if (!ano && !per) return "";
+          if (ano && per) return ano + "-" + per.padStart(2, "0");
+          return ano || per;
+        }).filter(Boolean)
+      ));
+
+      const compHtml = comps.length
+        ? `<div><strong>Competência(s):</strong> ${escapeHtml(comps.slice(0, 6).join(", "))}${comps.length > 6 ? " ..." : ""}</div>`
+        : `<div><strong>Competência(s):</strong> -</div>`;
+
+      el.innerHTML = `
+        <div class="alert alert-secondary mb-0">
+          <div><strong>Arquivo:</strong> ${escapeHtml(name)}</div>
+          <div><strong>Tamanho:</strong> ${size ? (Math.round(size/1024) + " KB") : "-"}</div>
+          <div><strong>Eventos:</strong> ${count}</div>
+          ${compHtml}
+          <div class="small text-muted mt-1">Estrutura esperada: <span class="mono">{"s1200RemuTrabRGPSGroup":{"s1200RemuTrabRGPS":[...]}}</span></div>
+        </div>
+      `;
+    }
+
+    function escapeHtml(str) {
+      return String(str || "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
+
+    
+    // ======================================================================
+    // 3.1) Helpers de "vazio" (melhoria visual)
+    // Considera vazios: "", "*vazio*", "*numerovazio*", "*datavazia*" (com ou sem asteriscos).
+    function normalizeEmptyToken(v) {
+      return String(v ?? "").trim().toLowerCase();
+    }
+    function isEmptyToken(v) {
+      const t = normalizeEmptyToken(v);
+      if (!t) return true;
+      const stripped = t.replace(/\*/g, "");
+      return stripped === "vazio" || stripped === "numerovazio" || stripped === "datavazia";
+    }
+    function allFieldsEmpty(obj, keys) {
+      return keys.every(k => isEmptyToken(obj?.[k]));
+    }
+
+// ======================================================================
+    // 4) Tabela de eventos
+    function renderEventosTable() {
+      const tbody = document.querySelector("#eventosTable tbody");
+      tbody.innerHTML = "";
+      const eventos = getEventos();
+      const searchValue = (document.getElementById("searchInput").value || "").toLowerCase();
+
+      eventos.forEach((evt, index) => {
+        if (typeof evt._selected === "undefined") evt._selected = false;
+
+        const combinedText = JSON.stringify(evt).toLowerCase();
+        if (!searchValue || combinedText.includes(searchValue)) {
+          const tr = document.createElement("tr");
+
+          const tdCheck = document.createElement("td");
+          tdCheck.style.textAlign = "center";
+          const checkbox = document.createElement("input");
+          checkbox.type = "checkbox";
+          checkbox.checked = !!evt._selected;
+          checkbox.addEventListener("change", () => { evt._selected = checkbox.checked; });
+          tdCheck.appendChild(checkbox);
+          tr.appendChild(tdCheck);
+
+          const tdOrdem = document.createElement("td");
+          tdOrdem.textContent = evt.ordemRegistro || "";
+          tr.appendChild(tdOrdem);
+
+          const tdCpf = document.createElement("td");
+          tdCpf.textContent = evt.trabalhador?.cpfTrab || "";
+          tr.appendChild(tdCpf);
+
+          const tdAno = document.createElement("td");
+          tdAno.textContent = evt.anoApur || "";
+          tr.appendChild(tdAno);
+
+          const tdPer = document.createElement("td");
+          tdPer.textContent = evt.perApur || "";
+          tr.appendChild(tdPer);
+
+          const tdAcoes = document.createElement("td");
+          const btnEdit = document.createElement("button");
+          btnEdit.className = "btn btn-sm btn-warning mr-2";
+          btnEdit.textContent = "Editar";
+          btnEdit.addEventListener("click", () => openEventoModal(index));
+          tdAcoes.appendChild(btnEdit);
+
+          const btnRemove = document.createElement("button");
+          btnRemove.className = "btn btn-sm btn-danger";
+          btnRemove.textContent = "Remover";
+          btnRemove.addEventListener("click", () => {
+            if (confirm("Deseja remover este evento?")) {
+              getEventos().splice(index, 1);
+              renderEventosTable();
+              refreshJsonLoadInfo();
+            }
+          });
+          tdAcoes.appendChild(btnRemove);
+
+          tr.appendChild(tdAcoes);
+          tbody.appendChild(tr);
+        }
+      });
+    }
+    document.getElementById("searchInput").addEventListener("input", renderEventosTable);
+
+    // Seleção em massa
+    document.getElementById("selectAllBtn").addEventListener("click", () => {
+      getEventos().forEach(e => e._selected = true);
+      renderEventosTable();
+    });
+    document.getElementById("deselectAllBtn").addEventListener("click", () => {
+      getEventos().forEach(e => e._selected = false);
+      renderEventosTable();
+    });
+    document.getElementById("removeSelectedBtn").addEventListener("click", () => {
+      const eventos = getEventos();
+      const selectedCount = eventos.filter(e => e._selected).length;
+      if (!selectedCount) return alert("Nenhum evento selecionado.");
+      if (!confirm(`Remover ${selectedCount} evento(s) selecionado(s)?`)) return;
+      window.esocialData.s1200RemuTrabRGPSGroup.s1200RemuTrabRGPS = eventos.filter(e => !e._selected);
+      renderEventosTable();
+      refreshJsonLoadInfo();
+    });
+
+    // ======================================================================
+    // 5) Modal de edição (UI dinâmica)
+    let currentEditingEventIndex = null;
+    let currentEditingEventOriginal = null;
+
+    function emptyPagamento() {
+      return {
+        ideDmDev: "",
+        codCateg: { categoria: "" },
+        codCBO: { codigo: "" },
+        natAtividade: "",
+        qtdDiasTrab: "",
+        indRRA: "",
+        tpProcRRA: "",
+        nrProcRRA: "",
+        descRRA: "",
+        qtdMesesRRA: "",
+        vlrDespCustas: "",
+        vlrDespAdvogados: "",
+        s1200RemuTrabRGPSADC: [],
+        s1200RemuTrabRGPSIdeAdv: []
+      };
+    }
+    function emptyADC() {
+      return {
+        dtAcConv: "",
+        tpAcConv: "",
+        tpRegistro: "",
+        dtEfAcConv: "",
+        dsc: "",
+        remunSuc: "",
+        compAcConv: "",
+        s1S1200RemuTrabRGPSPer: []
+      };
+    }
+    function emptyPer() {
+      return { anoRef: "", perRef: "", tpRegistro: "", s1200RemuTrabRGPSEstab: [] };
+    }
+    function emptyEstab() {
+      return {
+        codLotacao: { codLotacao: "", iniValid: "" },
+        nrInsc: { iniValid: "", nrInsc: "", tpInsc: { tipo: "" } },
+        qtdDiasAv: "",
+        s1200RemuTrabRGPSRemu: []
+      };
+    }
+    function emptyRemu() {
+      return {
+        grauExp: { grau: "" },
+        indSimples: "",
+        contrato: {
+          codCateg: { categoria: "" },
+          contratoTSV: "",
+          dtAdm: "",
+          matricula: ""
+        },
+        s1200RemuTrabRGPSItens: [],
+        s1200RemuTrabRGPSOper: [] // opcional
+      };
+    }
+    function emptyItem() {
+      return {
+        ideTabRubr: "",
+        codRubr: { codRubr: "", iniValid: "" },
+        qtdRubr: "",
+        vrRubr: "",
+        vrUnit: "",
+        fatorRubr: "",
+        indApurIR: "",
+        hashEvento: "",
+        s1200RemuTrabRGPSDescFolha: []
+      };
+    }
+    function emptyDescFolha() { return { tpDesc: "", instFinanc: "", nrDoc: "", observacao: "" }; }
+    function emptyIdeAdv() {
+      return { tpInsc: { tipo: "" }, nrInsc: "", vlrAdv: "" };
+    }
+
+    function openEventoModal(index) {
+      currentEditingEventIndex = index;
+      const evt = (index === null || typeof index === "undefined") ? null : getEventos()[index];
+      currentEditingEventOriginal = evt ? JSON.parse(JSON.stringify(evt)) : null;
+
+      // Preenche campos topo
+      fillInput("ordemRegistro", evt?.ordemRegistro || "");
+      fillInput("chaveIntegracao", evt?.chaveIntegracao || "");
+fillInput("anoApur", evt?.anoApur || "");
+      fillInput("perApur", evt?.perApur || "");
+      fillInput("indApuracao", evt?.indApuracao || "");
+      fillInput("indMV", evt?.indMV || "");
+      fillInput("indPossuiPerAnt", evt?.indPossuiPerAnt || "");
+      fillInput("qtdDiasInterm", evt?.qtdDiasInterm || "");
+fillInput("observacaoComplem", evt?.observacaoComplem || "");
+
+      // Empregador / Trabalhador
+      fillInput("empregador_tpInsc_tipo", evt?.empregador?.tpInsc?.tipo || "");
+      fillInput("empregador_nrInsc", evt?.empregador?.nrInsc || "");
+      fillInput("trabalhador_cpfTrab", evt?.trabalhador?.cpfTrab || "");
+      fillInput("nmTrabComplem", evt?.nmTrabComplem || "");
+      fillInput("dtNasctoComplem", evt?.dtNasctoComplem || "");
+      fillInput("dtAdmComplem", evt?.dtAdmComplem || "");
+      fillInput("matricAntComplem", evt?.matricAntComplem || "");
+      fillInput("cnpjEmpregAntComplem", evt?.cnpjEmpregAntComplem || "");
+      fillInput("tpInscAntComplem_tipo", evt?.tpInscAntComplem?.tipo || "");
+
+      // Campo opcional citado pelo usuário (pode não existir no JSON)
+      fillInput("cpfTrabComplem", evt?.cpfTrabComplem || "");
+
+      // Pagamentos
+      const pagamentos = Array.isArray(evt?.s1200RemuTrabRGPSPagtos) ? evt.s1200RemuTrabRGPSPagtos : [];
+      renderPagamentos(pagamentos);
+
+      $("#eventoModal").modal("show");
+    }
+
+    function fillInput(id, val) {
+      const el = document.getElementById(id);
+      if (el) el.value = String(val ?? "");
+    }
+
+    // ======================== RENDER UI NESTED ==============================
+    function renderPagamentos(pagtos) {
+      const container = document.getElementById("pagamentosContainer");
+      container.innerHTML = "";
+
+      (pagtos || []).forEach((p, pIdx) => {
+        const card = document.createElement("div");
+        card.className = "card-soft p-3 mb-3 pagamento-card";
+        card.dataset.pIndex = String(pIdx);
+
+        card.innerHTML = `
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <div>
+              <strong>Pagamento #${pIdx + 1}</strong>
+              <span class="pill ml-2 mono">${escapeHtml(p.ideDmDev || "")}</span>
+            </div>
+            <div class="btn-group">
+              <button type="button" class="btn btn-sm btn-outline-danger btn-remove-pagto"><i class="fa fa-trash"></i></button>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group col-md-5">
+              <label>ideDmDev</label>
+              <input type="text" class="form-control mono pagto-ideDmDev" value="${escapeHtml(p.ideDmDev || "")}">
+            </div>
+            <div class="form-group col-md-2">
+              <label>codCateg.categoria</label>
+              <input type="text" class="form-control pagto-codCateg" value="${escapeHtml(p?.codCateg?.categoria || "")}">
+            </div>
+            <div class="form-group col-md-2">
+              <label>codCBO.codigo</label>
+              <input type="text" class="form-control pagto-codCBO" value="${escapeHtml(p?.codCBO?.codigo || "")}">
+            </div>
+            <div class="form-group col-md-3">
+              <label>natAtividade</label>
+              <input type="text" class="form-control pagto-natAtividade" value="${escapeHtml(p.natAtividade || "")}">
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group col-md-2">
+              <label>qtdDiasTrab</label>
+              <input type="text" class="form-control pagto-qtdDiasTrab" value="${escapeHtml(p.qtdDiasTrab || "")}">
+            </div>
+            <div class="form-group col-md-2">
+              <label>indRRA</label>
+              <input type="text" class="form-control pagto-indRRA" value="${escapeHtml(p.indRRA || "")}">
+            </div>
+            <div class="form-group col-md-2">
+              <label>tpProcRRA</label>
+              <input type="text" class="form-control pagto-tpProcRRA" value="${escapeHtml(p.tpProcRRA || "")}">
+            </div>
+            <div class="form-group col-md-3">
+              <label>nrProcRRA</label>
+              <input type="text" class="form-control mono pagto-nrProcRRA" value="${escapeHtml(p.nrProcRRA || "")}">
+            </div>
+            <div class="form-group col-md-3">
+              <label>qtdMesesRRA</label>
+              <input type="text" class="form-control pagto-qtdMesesRRA" value="${escapeHtml(p.qtdMesesRRA || "")}">
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group col-md-6">
+              <label>descRRA</label>
+              <input type="text" class="form-control pagto-descRRA" value="${escapeHtml(p.descRRA || "")}">
+            </div>
+            <div class="form-group col-md-3">
+              <label>vlrDespCustas</label>
+              <input type="text" class="form-control pagto-vlrDespCustas" value="${escapeHtml(p.vlrDespCustas || "")}">
+            </div>
+            <div class="form-group col-md-3">
+              <label>vlrDespAdvogados</label>
+              <input type="text" class="form-control pagto-vlrDespAdvogados" value="${escapeHtml(p.vlrDespAdvogados || "")}">
+            </div>
+          </div>
+
+          <div class="nested mt-2">
+            <div class="section-title">
+              <h6>IdeAdv (s1200RemuTrabRGPSIdeAdv)</h6>
+              <button type="button" class="btn btn-sm btn-outline-primary btn-add-ideadv"><i class="fa fa-plus"></i> IdeAdv</button>
+            </div>
+            <div class="ideadv-container"></div>
+          </div>
+
+          <div class="nested mt-3">
+            <div class="section-title">
+              <h6>ADC (s1200RemuTrabRGPSADC)</h6>
+              <button type="button" class="btn btn-sm btn-outline-primary btn-add-adc"><i class="fa fa-plus"></i> ADC</button>
+            </div>
+            <div class="adc-container"></div>
+          </div>
+        `;
+
+        // ideAdv
+        const ideadv = Array.isArray(p?.s1200RemuTrabRGPSIdeAdv) ? p.s1200RemuTrabRGPSIdeAdv : [];
+        renderIdeAdv(card.querySelector(".ideadv-container"), ideadv);
+
+        // adc
+        const adcs = Array.isArray(p?.s1200RemuTrabRGPSADC) ? p.s1200RemuTrabRGPSADC : [];
+        renderADCs(card.querySelector(".adc-container"), adcs);
+
+        // handlers
+        card.querySelector(".btn-remove-pagto").addEventListener("click", () => {
+          if (!confirm("Remover este pagamento?")) return;
+          const all = getPagamentosFromUI();
+          all.splice(pIdx, 1);
+          // re-render with modified list
+          renderPagamentos(all);
+        });
+
+        card.querySelector(".btn-add-adc").addEventListener("click", () => {
+          const all = getPagamentosFromUI();
+          all[pIdx].s1200RemuTrabRGPSADC = Array.isArray(all[pIdx].s1200RemuTrabRGPSADC) ? all[pIdx].s1200RemuTrabRGPSADC : [];
+          all[pIdx].s1200RemuTrabRGPSADC.push(emptyADC());
+          renderPagamentos(all);
+        });
+
+        card.querySelector(".btn-add-ideadv").addEventListener("click", () => {
+          const all = getPagamentosFromUI();
+          all[pIdx].s1200RemuTrabRGPSIdeAdv = Array.isArray(all[pIdx].s1200RemuTrabRGPSIdeAdv) ? all[pIdx].s1200RemuTrabRGPSIdeAdv : [];
+          all[pIdx].s1200RemuTrabRGPSIdeAdv.push(emptyIdeAdv());
+          renderPagamentos(all);
+        });
+
+        container.appendChild(card);
+      });
+    }
+
+    function renderIdeAdv(container, ideList) {
+      container.innerHTML = "";
+      (ideList || []).forEach((ia, idx) => {
+        const row = document.createElement("div");
+        row.className = "card-soft p-2 mb-2";
+        row.dataset.ideadvIndex = String(idx);
+        row.innerHTML = `
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <div><strong>IdeAdv #${idx + 1}</strong></div>
+            <button type="button" class="btn btn-sm btn-outline-danger btn-remove-ideadv"><i class="fa fa-trash"></i></button>
+          </div>
+          <div class="form-row">
+            <div class="form-group col-md-3">
+              <label>tpInsc.tipo</label>
+              <input type="text" class="form-control ideadv-tpInsc" value="${escapeHtml(ia?.tpInsc?.tipo || "")}">
+            </div>
+            <div class="form-group col-md-5">
+              <label>nrInsc</label>
+              <input type="text" class="form-control mono ideadv-nrInsc" value="${escapeHtml(ia?.nrInsc || "")}">
+            </div>
+            <div class="form-group col-md-4">
+              <label>vlrAdv</label>
+              <input type="text" class="form-control ideadv-vlrAdv" value="${escapeHtml(ia?.vlrAdv || "")}">
+            </div>
+          </div>
+        `;
+        row.querySelector(".btn-remove-ideadv").addEventListener("click", () => {
+          const all = getPagamentosFromUI();
+          const pIdx = findPagamentoIndexFromChild(container);
+          all[pIdx].s1200RemuTrabRGPSIdeAdv.splice(idx, 1);
+          renderPagamentos(all);
+        });
+        container.appendChild(row);
+      });
+      if (!ideList || !ideList.length) {
+        const hint = document.createElement("div");
+        hint.className = "text-muted small";
+        hint.textContent = "— (sem registros)";
+        container.appendChild(hint);
+      }
+    }
+
+    function renderADCs(container, adcs) {
+      container.innerHTML = "";
+      (adcs || []).forEach((a, aIdx) => {
+        const card = document.createElement("div");
+        card.className = "card-soft p-3 mb-3";
+        card.dataset.adcIndex = String(aIdx);
+
+        card.innerHTML = `
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <div><strong>ADC #${aIdx + 1}</strong></div>
+            <button type="button" class="btn btn-sm btn-outline-danger btn-remove-adc"><i class="fa fa-trash"></i></button>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group col-md-3">
+              <label>dtAcConv</label>
+              <input type="text" class="form-control adc-dtAcConv" value="${escapeHtml(a.dtAcConv || "")}">
+            </div>
+            <div class="form-group col-md-2">
+              <label>tpAcConv</label>
+              <input type="text" class="form-control adc-tpAcConv" value="${escapeHtml(a.tpAcConv || "")}">
+            </div>
+            <div class="form-group col-md-2">
+              <label>tpRegistro</label>
+              <input type="text" class="form-control adc-tpRegistro" value="${escapeHtml(a.tpRegistro || "")}">
+            </div>
+            <div class="form-group col-md-3">
+              <label>dtEfAcConv</label>
+              <input type="text" class="form-control adc-dtEfAcConv" value="${escapeHtml(a.dtEfAcConv || "")}">
+            </div>
+            <div class="form-group col-md-2">
+              <label>remunSuc</label>
+              <input type="text" class="form-control adc-remunSuc" value="${escapeHtml(a.remunSuc || "")}">
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group col-md-6">
+              <label>dsc</label>
+              <input type="text" class="form-control adc-dsc" value="${escapeHtml(a.dsc || "")}">
+            </div>
+            <div class="form-group col-md-6">
+              <label>compAcConv</label>
+              <input type="text" class="form-control adc-compAcConv" value="${escapeHtml(a.compAcConv || "")}">
+            </div>
+          </div>
+
+          <div class="nested mt-2">
+            <div class="section-title">
+              <h6>Períodos (s1S1200RemuTrabRGPSPer)</h6>
+              <button type="button" class="btn btn-sm btn-outline-primary btn-add-per"><i class="fa fa-plus"></i> Período</button>
+            </div>
+            <div class="per-container"></div>
+          </div>
+        `;
+
+        const pers = Array.isArray(a?.s1S1200RemuTrabRGPSPer) ? a.s1S1200RemuTrabRGPSPer : [];
+        renderPers(card.querySelector(".per-container"), pers);
+
+        card.querySelector(".btn-remove-adc").addEventListener("click", () => {
+          const all = getPagamentosFromUI();
+          const pIdx = findPagamentoIndexFromChild(container);
+          all[pIdx].s1200RemuTrabRGPSADC.splice(aIdx, 1);
+          renderPagamentos(all);
+        });
+
+        card.querySelector(".btn-add-per").addEventListener("click", () => {
+          const all = getPagamentosFromUI();
+          const pIdx = findPagamentoIndexFromChild(container);
+          const adc = all[pIdx].s1200RemuTrabRGPSADC[aIdx];
+          adc.s1S1200RemuTrabRGPSPer = Array.isArray(adc.s1S1200RemuTrabRGPSPer) ? adc.s1S1200RemuTrabRGPSPer : [];
+          adc.s1S1200RemuTrabRGPSPer.push(emptyPer());
+          renderPagamentos(all);
+        });
+
+        container.appendChild(card);
+      });
+
+      if (!adcs || !adcs.length) {
+        const hint = document.createElement("div");
+        hint.className = "text-muted small";
+        hint.textContent = "— (sem ADC)";
+        container.appendChild(hint);
+      }
+    }
+
+    function renderPers(container, pers) {
+      container.innerHTML = "";
+      (pers || []).forEach((per, perIdx) => {
+        const card = document.createElement("div");
+        card.className = "card-soft p-3 mb-3";
+        card.dataset.perIndex = String(perIdx);
+
+        card.innerHTML = `
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <div><strong>Período #${perIdx + 1}</strong></div>
+            <button type="button" class="btn btn-sm btn-outline-danger btn-remove-per"><i class="fa fa-trash"></i></button>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group col-md-2">
+              <label>anoRef</label>
+              <input type="text" class="form-control per-anoRef" value="${escapeHtml(per.anoRef || "")}">
+            </div>
+            <div class="form-group col-md-4">
+              <label>perRef</label>
+              <input type="text" class="form-control per-perRef" value="${escapeHtml(per.perRef || "")}">
+            </div>
+            <div class="form-group col-md-2">
+              <label>tpRegistro</label>
+              <input type="text" class="form-control per-tpRegistro" value="${escapeHtml(per.tpRegistro || "")}">
+            </div>
+          </div>
+
+          <div class="nested mt-2">
+            <div class="section-title">
+              <h6>Estabelecimentos (s1200RemuTrabRGPSEstab)</h6>
+              <button type="button" class="btn btn-sm btn-outline-primary btn-add-estab"><i class="fa fa-plus"></i> Estab</button>
+            </div>
+            <div class="estab-container"></div>
+          </div>
+        `;
+
+        const estabs = Array.isArray(per?.s1200RemuTrabRGPSEstab) ? per.s1200RemuTrabRGPSEstab : [];
+        renderEstabs(card.querySelector(".estab-container"), estabs);
+
+        card.querySelector(".btn-remove-per").addEventListener("click", () => {
+          const all = getPagamentosFromUI();
+          const { pIdx, adcIdx } = findPagamentoAndAdcIndexFromChild(container);
+          all[pIdx].s1200RemuTrabRGPSADC[adcIdx].s1S1200RemuTrabRGPSPer.splice(perIdx, 1);
+          renderPagamentos(all);
+        });
+
+        card.querySelector(".btn-add-estab").addEventListener("click", () => {
+          const all = getPagamentosFromUI();
+          const { pIdx, adcIdx } = findPagamentoAndAdcIndexFromChild(container);
+          const perObj = all[pIdx].s1200RemuTrabRGPSADC[adcIdx].s1S1200RemuTrabRGPSPer[perIdx];
+          perObj.s1200RemuTrabRGPSEstab = Array.isArray(perObj.s1200RemuTrabRGPSEstab) ? perObj.s1200RemuTrabRGPSEstab : [];
+          perObj.s1200RemuTrabRGPSEstab.push(emptyEstab());
+          renderPagamentos(all);
+        });
+
+        container.appendChild(card);
+      });
+
+      if (!pers || !pers.length) {
+        const hint = document.createElement("div");
+        hint.className = "text-muted small";
+        hint.textContent = "— (sem períodos)";
+        container.appendChild(hint);
+      }
+    }
+
+    function renderEstabs(container, estabs) {
+      container.innerHTML = "";
+      (estabs || []).forEach((e, eIdx) => {
+        const card = document.createElement("div");
+        card.className = "card-soft p-3 mb-3";
+        card.dataset.estabIndex = String(eIdx);
+
+        card.innerHTML = `
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <div><strong>Estab #${eIdx + 1}</strong></div>
+            <button type="button" class="btn btn-sm btn-outline-danger btn-remove-estab"><i class="fa fa-trash"></i></button>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group col-md-3">
+              <label>nrInsc.nrInsc</label>
+              <input type="text" class="form-control mono estab-nrInsc" value="${escapeHtml(e?.nrInsc?.nrInsc || "")}">
+            </div>
+            <div class="form-group col-md-3">
+              <label>nrInsc.iniValid</label>
+              <input type="text" class="form-control estab-nrInsc_iniValid" value="${escapeHtml(e?.nrInsc?.iniValid || "")}">
+            </div>
+            <div class="form-group col-md-2">
+              <label>nrInsc.tpInsc.tipo</label>
+              <input type="text" class="form-control estab-nrInsc_tpInsc" value="${escapeHtml(e?.nrInsc?.tpInsc?.tipo || "")}">
+            </div>
+            <div class="form-group col-md-2">
+              <label>qtdDiasAv</label>
+              <input type="text" class="form-control estab-qtdDiasAv" value="${escapeHtml(e?.qtdDiasAv || "")}">
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group col-md-3">
+              <label>codLotacao.codLotacao</label>
+              <input type="text" class="form-control estab-codLotacao" value="${escapeHtml(e?.codLotacao?.codLotacao || "")}">
+            </div>
+            <div class="form-group col-md-3">
+              <label>codLotacao.iniValid</label>
+              <input type="text" class="form-control estab-codLotacao_iniValid" value="${escapeHtml(e?.codLotacao?.iniValid || "")}">
+            </div>
+          </div>
+
+          <div class="nested mt-2">
+            <div class="section-title">
+              <h6>Remunerações (s1200RemuTrabRGPSRemu)</h6>
+              <button type="button" class="btn btn-sm btn-outline-primary btn-add-remu"><i class="fa fa-plus"></i> Remu</button>
+            </div>
+            <div class="remu-container"></div>
+          </div>
+        `;
+
+        const remus = Array.isArray(e?.s1200RemuTrabRGPSRemu) ? e.s1200RemuTrabRGPSRemu : [];
+        renderRemus(card.querySelector(".remu-container"), remus);
+
+        card.querySelector(".btn-remove-estab").addEventListener("click", () => {
+          const all = getPagamentosFromUI();
+          const { pIdx, adcIdx, perIdx } = findFullIndexesFromChild(container);
+          all[pIdx].s1200RemuTrabRGPSADC[adcIdx].s1S1200RemuTrabRGPSPer[perIdx].s1200RemuTrabRGPSEstab.splice(eIdx, 1);
+          renderPagamentos(all);
+        });
+
+        card.querySelector(".btn-add-remu").addEventListener("click", () => {
+          const all = getPagamentosFromUI();
+          const { pIdx, adcIdx, perIdx } = findFullIndexesFromChild(container);
+          const estabObj = all[pIdx].s1200RemuTrabRGPSADC[adcIdx].s1S1200RemuTrabRGPSPer[perIdx].s1200RemuTrabRGPSEstab[eIdx];
+          estabObj.s1200RemuTrabRGPSRemu = Array.isArray(estabObj.s1200RemuTrabRGPSRemu) ? estabObj.s1200RemuTrabRGPSRemu : [];
+          estabObj.s1200RemuTrabRGPSRemu.push(emptyRemu());
+          renderPagamentos(all);
+        });
+
+        container.appendChild(card);
+      });
+
+      if (!estabs || !estabs.length) {
+        const hint = document.createElement("div");
+        hint.className = "text-muted small";
+        hint.textContent = "— (sem estabelecimentos)";
+        container.appendChild(hint);
+      }
+    }
+
+    function renderRemus(container, remus) {
+      container.innerHTML = "";
+      (remus || []).forEach((r, rIdx) => {
+        const card = document.createElement("div");
+        card.className = "card-soft p-3 mb-3";
+        card.dataset.remuIndex = String(rIdx);
+
+        card.innerHTML = `
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <div><strong>Remu #${rIdx + 1}</strong></div>
+            <button type="button" class="btn btn-sm btn-outline-danger btn-remove-remu"><i class="fa fa-trash"></i></button>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group col-md-2">
+              <label>grauExp.grau</label>
+              <input type="text" class="form-control remu-grau" value="${escapeHtml(r?.grauExp?.grau || "")}">
+            </div>
+            <div class="form-group col-md-2">
+              <label>indSimples</label>
+              <input type="text" class="form-control remu-indSimples" value="${escapeHtml(r?.indSimples || "")}">
+            </div>
+          </div>
+
+          <div class="nested mt-2">
+            <div class="section-title">
+              <h6>Contrato</h6>
+              <span class="small-help">r.contrato</span>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group col-md-3">
+                <label>matricula</label>
+                <input type="text" class="form-control remu-matricula" value="${escapeHtml(r?.contrato?.matricula || "")}">
+              </div>
+              <div class="form-group col-md-3">
+                <label>dtAdm</label>
+                <input type="text" class="form-control remu-dtAdm" value="${escapeHtml(r?.contrato?.dtAdm || "")}">
+              </div>
+              <div class="form-group col-md-2">
+                <label>contratoTSV</label>
+                <input type="text" class="form-control remu-contratoTSV" value="${escapeHtml(r?.contrato?.contratoTSV || "")}">
+              </div>
+              <div class="form-group col-md-2">
+                <label>codCateg.categoria</label>
+                <input type="text" class="form-control remu-codCateg" value="${escapeHtml(r?.contrato?.codCateg?.categoria || "")}">
+              </div>
+            </div>
+          </div>
+
+          <div class="nested mt-3">
+            <div class="section-title">
+              <h6>Itens (s1200RemuTrabRGPSItens)</h6>
+              <button type="button" class="btn btn-sm btn-outline-primary btn-add-item"><i class="fa fa-plus"></i> Item</button>
+            </div>
+            <div class="item-container"></div>
+          </div>
+        `;
+
+        const itens = Array.isArray(r?.s1200RemuTrabRGPSItens) ? r.s1200RemuTrabRGPSItens : [];
+        renderItens(card.querySelector(".item-container"), itens);
+
+        card.querySelector(".btn-remove-remu").addEventListener("click", () => {
+          const all = getPagamentosFromUI();
+          const { pIdx, adcIdx, perIdx, estabIdx } = findIndexesToRemu(container);
+          all[pIdx].s1200RemuTrabRGPSADC[adcIdx].s1S1200RemuTrabRGPSPer[perIdx].s1200RemuTrabRGPSEstab[estabIdx].s1200RemuTrabRGPSRemu.splice(rIdx, 1);
+          renderPagamentos(all);
+        });
+
+        card.querySelector(".btn-add-item").addEventListener("click", () => {
+          const all = getPagamentosFromUI();
+          const { pIdx, adcIdx, perIdx, estabIdx } = findIndexesToRemu(container);
+          const remuObj = all[pIdx].s1200RemuTrabRGPSADC[adcIdx].s1S1200RemuTrabRGPSPer[perIdx].s1200RemuTrabRGPSEstab[estabIdx].s1200RemuTrabRGPSRemu[rIdx];
+          remuObj.s1200RemuTrabRGPSItens = Array.isArray(remuObj.s1200RemuTrabRGPSItens) ? remuObj.s1200RemuTrabRGPSItens : [];
+          remuObj.s1200RemuTrabRGPSItens.push(emptyItem());
+          renderPagamentos(all);
+        });
+
+        container.appendChild(card);
+      });
+
+      if (!remus || !remus.length) {
+        const hint = document.createElement("div");
+        hint.className = "text-muted small";
+        hint.textContent = "— (sem remunerações)";
+        container.appendChild(hint);
+      }
+    }
+
+    function renderItens(container, itens) {
+      container.innerHTML = "";
+      (itens || []).forEach((it, itIdx) => {
+        const card = document.createElement("div");
+        card.className = "card-soft p-3 mb-3";
+        card.dataset.itemIndex = String(itIdx);
+
+        card.innerHTML = `
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <div>
+              <strong>Item #${itIdx + 1}</strong>
+              <span class="pill ml-2 mono">${escapeHtml(it?.codRubr?.codRubr || "")}</span>
+              <span class="pill ml-1">${escapeHtml(it?.ideTabRubr || "")}</span>
+            </div>
+            <button type="button" class="btn btn-sm btn-outline-danger btn-remove-item"><i class="fa fa-trash"></i></button>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group col-md-2">
+              <label>ideTabRubr</label>
+              <input type="text" class="form-control item-ideTabRubr" value="${escapeHtml(it.ideTabRubr || "")}">
+            </div>
+            <div class="form-group col-md-3">
+              <label>codRubr.codRubr</label>
+              <input type="text" class="form-control mono item-codRubr" value="${escapeHtml(it?.codRubr?.codRubr || "")}">
+            </div>
+            <div class="form-group col-md-3">
+              <label>codRubr.iniValid</label>
+              <input type="text" class="form-control item-iniValid" value="${escapeHtml(it?.codRubr?.iniValid || "")}">
+            </div>
+            <div class="form-group col-md-2">
+              <label>indApurIR</label>
+              <input type="text" class="form-control item-indApurIR" value="${escapeHtml(it?.indApurIR || "")}">
+            </div>
+            <div class="form-group col-md-2">
+              <label>qtdRubr</label>
+              <input type="text" class="form-control item-qtdRubr" value="${escapeHtml(it?.qtdRubr || "")}">
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group col-md-2">
+              <label>vrRubr</label>
+              <input type="text" class="form-control item-vrRubr" value="${escapeHtml(it?.vrRubr || "")}">
+            </div>
+            <div class="form-group col-md-2">
+              <label>vrUnit</label>
+              <input type="text" class="form-control item-vrUnit" value="${escapeHtml(it?.vrUnit || "")}">
+            </div>
+            <div class="form-group col-md-2">
+              <label>fatorRubr</label>
+              <input type="text" class="form-control item-fatorRubr" value="${escapeHtml(it?.fatorRubr || "")}">
+            </div>
+            <div class="form-group col-md-6">
+              <label>hashEvento</label>
+              <input type="text" class="form-control mono item-hashEvento" value="${escapeHtml(it?.hashEvento || "")}">
+            </div>
+          </div>
+
+          <div class="nested mt-2">
+            <div class="section-title">
+              <h6>DescFolha (s1200RemuTrabRGPSDescFolha)</h6>
+              <button type="button" class="btn btn-sm btn-outline-primary btn-add-desc"><i class="fa fa-plus"></i> Desc</button>
+            </div>
+            <div class="desc-container"></div>
+          </div>
+        `;
+
+        const descs = Array.isArray(it?.s1200RemuTrabRGPSDescFolha) ? it.s1200RemuTrabRGPSDescFolha : [];
+        renderDescFolha(card.querySelector(".desc-container"), descs);
+
+        card.querySelector(".btn-remove-item").addEventListener("click", () => {
+          const all = getPagamentosFromUI();
+          const idxs = findIndexesToItem(container);
+          const itensArr = all[idxs.pIdx].s1200RemuTrabRGPSADC[idxs.adcIdx].s1S1200RemuTrabRGPSPer[idxs.perIdx]
+            .s1200RemuTrabRGPSEstab[idxs.estabIdx].s1200RemuTrabRGPSRemu[idxs.remuIdx].s1200RemuTrabRGPSItens;
+          itensArr.splice(itIdx, 1);
+          renderPagamentos(all);
+        });
+
+        card.querySelector(".btn-add-desc").addEventListener("click", () => {
+          const all = getPagamentosFromUI();
+          const idxs = findIndexesToItem(container);
+          const itemObj = all[idxs.pIdx].s1200RemuTrabRGPSADC[idxs.adcIdx].s1S1200RemuTrabRGPSPer[idxs.perIdx]
+            .s1200RemuTrabRGPSEstab[idxs.estabIdx].s1200RemuTrabRGPSRemu[idxs.remuIdx].s1200RemuTrabRGPSItens[itIdx];
+          itemObj.s1200RemuTrabRGPSDescFolha = Array.isArray(itemObj.s1200RemuTrabRGPSDescFolha) ? itemObj.s1200RemuTrabRGPSDescFolha : [];
+          itemObj.s1200RemuTrabRGPSDescFolha.push(emptyDescFolha());
+          renderPagamentos(all);
+        });
+
+        container.appendChild(card);
+      });
+
+      if (!itens || !itens.length) {
+        const hint = document.createElement("div");
+        hint.className = "text-muted small";
+        hint.textContent = "— (sem itens/rubricas)";
+        container.appendChild(hint);
+      }
+    }
+
+    
+    function renderDescFolha(container, descs) {
+      // Se NÃO houver registros, ou se todos os registros tiverem somente valores "vazios",
+      // abre o bloco recolhido por padrão para melhorar a visualização.
+      const list = Array.isArray(descs) ? descs : [];
+      const isAllEmpty = (list.length === 0) || list.every(d => allFieldsEmpty(d, ["tpDesc","instFinanc","nrDoc","observacao"]) && isEmptyToken(d?.hashEvento));
+      const wrap = document.createElement("div");
+      const btnId = "descToggle_" + Math.random().toString(16).slice(2);
+      wrap.innerHTML = `
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <div class="text-muted small">${list.length ? (list.length + " registro(s)") : "— (sem registros)"}</div>
+          <button type="button" class="btn btn-sm btn-outline-secondary" id="${btnId}">
+            ${isAllEmpty ? "Expandir" : "Recolher"}
+          </button>
+        </div>
+        <div class="desc-inner" style="${isAllEmpty ? "display:none;" : ""}"></div>
+      `;
+      container.innerHTML = "";
+      container.appendChild(wrap);
+
+      const inner = wrap.querySelector(".desc-inner");
+      const btn = wrap.querySelector("#" + btnId);
+
+      btn.addEventListener("click", () => {
+        const hidden = inner.style.display === "none";
+        inner.style.display = hidden ? "" : "none";
+        btn.textContent = hidden ? "Recolher" : "Expandir";
+      });
+
+      if (!list.length) return;
+
+      list.forEach((d, dIdx) => {
+        const row = document.createElement("div");
+        row.className = "card-soft p-2 mb-2";
+        row.dataset.descIndex = String(dIdx);
+        // Preserva hashEvento original (sem exibir)
+        row.dataset.origHashEvento = String(d?.hashEvento ?? "");
+
+        row.innerHTML = `
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <div><strong>Desc #${dIdx + 1}</strong></div>
+            <button type="button" class="btn btn-sm btn-outline-danger btn-remove-desc"><i class="fa fa-trash"></i></button>
+          </div>
+          <div class="form-row">
+            <div class="form-group col-md-2">
+              <label>tpDesc</label>
+              <input type="text" class="form-control desc-tpDesc" value="${escapeHtml(d.tpDesc || "")}">
+            </div>
+            <div class="form-group col-md-3">
+              <label>instFinanc</label>
+              <input type="text" class="form-control desc-instFinanc" value="${escapeHtml(d.instFinanc || "")}">
+            </div>
+            <div class="form-group col-md-3">
+              <label>nrDoc</label>
+              <input type="text" class="form-control desc-nrDoc" value="${escapeHtml(d.nrDoc || "")}">
+            </div>
+            <div class="form-group col-md-4">
+              <label>observacao</label>
+              <input type="text" class="form-control desc-observacao" value="${escapeHtml(d.observacao || "")}">
+            </div>
+          </div>
+        `;
+        row.querySelector(".btn-remove-desc").addEventListener("click", () => {
+          const all = getPagamentosFromUI();
+          const idxs = findIndexesToDesc(container);
+          const descArr = all[idxs.pIdx].s1200RemuTrabRGPSADC[idxs.adcIdx].s1S1200RemuTrabRGPSPer[idxs.perIdx]
+            .s1200RemuTrabRGPSEstab[idxs.estabIdx].s1200RemuTrabRGPSRemu[idxs.remuIdx].s1200RemuTrabRGPSItens[idxs.itemIdx]
+            .s1200RemuTrabRGPSDescFolha;
+          descArr.splice(dIdx, 1);
+          renderPagamentos(all);
+        });
+        inner.appendChild(row);
+      });
+    }
+
+    // ======================== GETTERS FROM UI ===============================
+    function getPagamentosFromUI() {
+      const container = document.getElementById("pagamentosContainer");
+      const cards = Array.from(container.querySelectorAll(".pagamento-card"));
+      return cards.map((card) => {
+        const p = emptyPagamento();
+        p.ideDmDev = safeValue(card, ".pagto-ideDmDev");
+        ensureObj(p, ["codCateg"]); p.codCateg.categoria = safeValue(card, ".pagto-codCateg");
+        ensureObj(p, ["codCBO"]); p.codCBO.codigo = safeValue(card, ".pagto-codCBO");
+        p.natAtividade = safeValue(card, ".pagto-natAtividade");
+        p.qtdDiasTrab = safeValue(card, ".pagto-qtdDiasTrab");
+        p.indRRA = safeValue(card, ".pagto-indRRA");
+        p.tpProcRRA = safeValue(card, ".pagto-tpProcRRA");
+        p.nrProcRRA = safeValue(card, ".pagto-nrProcRRA");
+        p.descRRA = safeValue(card, ".pagto-descRRA");
+        p.qtdMesesRRA = safeValue(card, ".pagto-qtdMesesRRA");
+        p.vlrDespCustas = safeValue(card, ".pagto-vlrDespCustas");
+        p.vlrDespAdvogados = safeValue(card, ".pagto-vlrDespAdvogados");
+
+        // IdeAdv
+        const ideadvCards = Array.from(card.querySelectorAll(".ideadv-container .card-soft"));
+        p.s1200RemuTrabRGPSIdeAdv = ideadvCards.map((c) => ({
+          tpInsc: { tipo: safeValue(c, ".ideadv-tpInsc") },
+          nrInsc: safeValue(c, ".ideadv-nrInsc"),
+          vlrAdv: safeValue(c, ".ideadv-vlrAdv")
+        }));
+
+        // ADC
+        const adcCards = Array.from(card.querySelectorAll(".adc-container > .card-soft"));
+        p.s1200RemuTrabRGPSADC = adcCards.map((ac) => {
+          const a = emptyADC();
+          a.dtAcConv = safeValue(ac, ".adc-dtAcConv");
+          a.tpAcConv = safeValue(ac, ".adc-tpAcConv");
+          a.tpRegistro = safeValue(ac, ".adc-tpRegistro");
+          a.dtEfAcConv = safeValue(ac, ".adc-dtEfAcConv");
+          a.remunSuc = safeValue(ac, ".adc-remunSuc");
+          a.dsc = safeValue(ac, ".adc-dsc");
+          a.compAcConv = safeValue(ac, ".adc-compAcConv");
+
+          // Per
+          const perCards = Array.from(ac.querySelectorAll(".per-container > .card-soft"));
+          a.s1S1200RemuTrabRGPSPer = perCards.map((pc) => {
+            const per = emptyPer();
+            per.anoRef = safeValue(pc, ".per-anoRef");
+            per.perRef = safeValue(pc, ".per-perRef");
+            per.tpRegistro = safeValue(pc, ".per-tpRegistro");
+
+            // Estab
+            const estabCards = Array.from(pc.querySelectorAll(".estab-container > .card-soft"));
+            per.s1200RemuTrabRGPSEstab = estabCards.map((ec) => {
+              const e = emptyEstab();
+              ensureObj(e, ["nrInsc","tpInsc"]);
+              e.nrInsc.nrInsc = safeValue(ec, ".estab-nrInsc");
+              e.nrInsc.iniValid = safeValue(ec, ".estab-nrInsc_iniValid");
+              e.nrInsc.tpInsc.tipo = safeValue(ec, ".estab-nrInsc_tpInsc");
+              ensureObj(e, ["codLotacao"]);
+              e.codLotacao.codLotacao = safeValue(ec, ".estab-codLotacao");
+              e.codLotacao.iniValid = safeValue(ec, ".estab-codLotacao_iniValid");
+              e.qtdDiasAv = safeValue(ec, ".estab-qtdDiasAv");
+
+              // Remu
+              const remuCards = Array.from(ec.querySelectorAll(".remu-container > .card-soft"));
+              e.s1200RemuTrabRGPSRemu = remuCards.map((rc) => {
+                const r = emptyRemu();
+                ensureObj(r, ["grauExp"]); r.grauExp.grau = safeValue(rc, ".remu-grau");
+                r.indSimples = safeValue(rc, ".remu-indSimples");
+                ensureObj(r, ["contrato","codCateg"]);
+                r.contrato.matricula = safeValue(rc, ".remu-matricula");
+                r.contrato.dtAdm = safeValue(rc, ".remu-dtAdm");
+                r.contrato.contratoTSV = safeValue(rc, ".remu-contratoTSV");
+                r.contrato.codCateg.categoria = safeValue(rc, ".remu-codCateg");
+
+                // Itens
+                const itemCards = Array.from(rc.querySelectorAll(".item-container > .card-soft"));
+                r.s1200RemuTrabRGPSItens = itemCards.map((ic) => {
+                  const it = emptyItem();
+                  it.ideTabRubr = safeValue(ic, ".item-ideTabRubr");
+                  ensureObj(it, ["codRubr"]);
+                  it.codRubr.codRubr = safeValue(ic, ".item-codRubr");
+                  it.codRubr.iniValid = safeValue(ic, ".item-iniValid");
+                  it.indApurIR = safeValue(ic, ".item-indApurIR");
+                  it.qtdRubr = safeValue(ic, ".item-qtdRubr");
+                  it.vrRubr = safeValue(ic, ".item-vrRubr");
+                  it.vrUnit = safeValue(ic, ".item-vrUnit");
+                  it.fatorRubr = safeValue(ic, ".item-fatorRubr");
+// DescFolha
+                  const descCards = Array.from(ic.querySelectorAll(".desc-container .card-soft"));
+                  it.s1200RemuTrabRGPSDescFolha = descCards.map((dc) => ({
+                    tpDesc: safeValue(dc, ".desc-tpDesc"),
+                    instFinanc: safeValue(dc, ".desc-instFinanc"),
+                    nrDoc: safeValue(dc, ".desc-nrDoc"),
+                    observacao: safeValue(dc, ".desc-observacao"),
+                    // preserva hashEvento original, se existia, sem expor no UI
+                    hashEvento: (dc.dataset && typeof dc.dataset.origHashEvento !== "undefined") ? String(dc.dataset.origHashEvento) : ""
+                  }));
+return it;
+                });
+
+                return r;
+              });
+
+              return e;
+            });
+
+            return per;
+          });
+
+          return a;
+        });
+
+        return p;
+      });
+    }
+
+    // Helpers para encontrar índices pelos ancestrais
+    function findPagamentoIndexFromChild(childContainer) {
+      const pagamentoCard = childContainer.closest(".pagamento-card");
+      return parseInt(pagamentoCard?.dataset?.pIndex || "0", 10) || 0;
+    }
+    function findPagamentoAndAdcIndexFromChild(childContainer) {
+      const pagamentoCard = childContainer.closest(".pagamento-card");
+      const adcCard = childContainer.closest(".adc-container") ? childContainer.closest(".adc-container").closest(".card-soft") : childContainer.closest("[data-adc-index]");
+      // Mais robusto:
+      const adcBlock = childContainer.closest(".card-soft[data-adc-index]") || childContainer.closest(".adc-container")?.querySelector(".card-soft");
+      const adcNode = childContainer.closest(".card-soft[data-adc-index]");
+      const pIdx = parseInt(pagamentoCard?.dataset?.pIndex || "0", 10) || 0;
+      const adcIdx = parseInt(adcNode?.dataset?.adcIndex || "0", 10) || 0;
+      return { pIdx, adcIdx };
+    }
+    function findFullIndexesFromChild(childContainer) {
+      const pagamentoCard = childContainer.closest(".pagamento-card");
+      const adcCard = childContainer.closest(".card-soft[data-adc-index]");
+      const perCard = childContainer.closest(".card-soft[data-per-index]");
+      const estabCard = childContainer.closest(".card-soft[data-estab-index]"); // not used here
+      const pIdx = parseInt(pagamentoCard?.dataset?.pIndex || "0", 10) || 0;
+      const adcIdx = parseInt(adcCard?.dataset?.adcIndex || "0", 10) || 0;
+      const perIdx = parseInt(perCard?.dataset?.perIndex || "0", 10) || 0;
+      const estabIdx = parseInt(estabCard?.dataset?.estabIndex || "0", 10) || 0;
+      return { pIdx, adcIdx, perIdx, estabIdx };
+    }
+    function findIndexesToRemu(childContainer) {
+      const pagamentoCard = childContainer.closest(".pagamento-card");
+      const adcCard = childContainer.closest(".card-soft[data-adc-index]");
+      const perCard = childContainer.closest(".card-soft[data-per-index]");
+      const estabCard = childContainer.closest(".card-soft[data-estab-index]");
+      const pIdx = parseInt(pagamentoCard?.dataset?.pIndex || "0", 10) || 0;
+      const adcIdx = parseInt(adcCard?.dataset?.adcIndex || "0", 10) || 0;
+      const perIdx = parseInt(perCard?.dataset?.perIndex || "0", 10) || 0;
+      const estabIdx = parseInt(estabCard?.dataset?.estabIndex || "0", 10) || 0;
+      return { pIdx, adcIdx, perIdx, estabIdx };
+    }
+    function findIndexesToItem(childContainer) {
+      const pagamentoCard = childContainer.closest(".pagamento-card");
+      const adcCard = childContainer.closest(".card-soft[data-adc-index]");
+      const perCard = childContainer.closest(".card-soft[data-per-index]");
+      const estabCard = childContainer.closest(".card-soft[data-estab-index]");
+      const remuCard = childContainer.closest(".card-soft[data-remu-index]");
+      const pIdx = parseInt(pagamentoCard?.dataset?.pIndex || "0", 10) || 0;
+      const adcIdx = parseInt(adcCard?.dataset?.adcIndex || "0", 10) || 0;
+      const perIdx = parseInt(perCard?.dataset?.perIndex || "0", 10) || 0;
+      const estabIdx = parseInt(estabCard?.dataset?.estabIndex || "0", 10) || 0;
+      const remuIdx = parseInt(remuCard?.dataset?.remuIndex || "0", 10) || 0;
+      return { pIdx, adcIdx, perIdx, estabIdx, remuIdx };
+    }
+    function findIndexesToDesc(childContainer) {
+      const base = findIndexesToItem(childContainer);
+      const itemCard = childContainer.closest(".card-soft[data-item-index]");
+      const itemIdx = parseInt(itemCard?.dataset?.itemIndex || "0", 10) || 0;
+      return { ...base, itemIdx };
+    }
+
+    // ======================================================================
+    // 6) Botões do modal
+    document.getElementById("addPagamentoBtn").addEventListener("click", () => {
+      const current = getPagamentosFromUI();
+      current.push(emptyPagamento());
+      renderPagamentos(current);
+    });
+
+    document.getElementById("addEventoBtn").addEventListener("click", () => {
+      currentEditingEventIndex = null;
+      currentEditingEventOriginal = null;
+
+      // campos básicos vazios
+      fillInput("ordemRegistro", "");
+      fillInput("chaveIntegracao", "");
+fillInput("anoApur", "");
+      fillInput("perApur", "");
+      fillInput("indApuracao", "");
+      fillInput("indMV", "");
+      fillInput("indPossuiPerAnt", "");
+      fillInput("qtdDiasInterm", "");
+fillInput("observacaoComplem", "");
+
+      fillInput("empregador_tpInsc_tipo", "");
+      fillInput("empregador_nrInsc", "");
+      fillInput("trabalhador_cpfTrab", "");
+      fillInput("nmTrabComplem", "");
+      fillInput("dtNasctoComplem", "");
+      fillInput("dtAdmComplem", "");
+      fillInput("matricAntComplem", "");
+      fillInput("cnpjEmpregAntComplem", "");
+      fillInput("tpInscAntComplem_tipo", "");
+      fillInput("cpfTrabComplem", "");
+
+      renderPagamentos([]);
+      $("#eventoModal").modal("show");
+    });
+
+    document.getElementById("saveEventoBtn").addEventListener("click", () => {
+      const original = currentEditingEventOriginal || {};
+      const evtAtualizado = {};
+
+      // topo
+      setIfPresentOrNonEmpty(evtAtualizado, "ordemRegistro", document.getElementById("ordemRegistro").value.trim(), original);
+      setIfPresentOrNonEmpty(evtAtualizado, "chaveIntegracao", document.getElementById("chaveIntegracao").value.trim(), original);
+setIfPresentOrNonEmpty(evtAtualizado, "anoApur", document.getElementById("anoApur").value.trim(), original);
+      setIfPresentOrNonEmpty(evtAtualizado, "perApur", document.getElementById("perApur").value.trim(), original);
+      setIfPresentOrNonEmpty(evtAtualizado, "indApuracao", document.getElementById("indApuracao").value.trim(), original);
+      setIfPresentOrNonEmpty(evtAtualizado, "indMV", document.getElementById("indMV").value.trim(), original);
+      setIfPresentOrNonEmpty(evtAtualizado, "indPossuiPerAnt", document.getElementById("indPossuiPerAnt").value.trim(), original);
+      setIfPresentOrNonEmpty(evtAtualizado, "qtdDiasInterm", document.getElementById("qtdDiasInterm").value.trim(), original);
+setIfPresentOrNonEmpty(evtAtualizado, "observacaoComplem", document.getElementById("observacaoComplem").value.trim(), original);
+
+      // complementares opcionais
+      setIfPresentOrNonEmpty(evtAtualizado, "cpfTrabComplem", document.getElementById("cpfTrabComplem").value.trim(), original);
+
+      // empregador/trabalhador
+      evtAtualizado.empregador = original.empregador && typeof original.empregador === "object" ? JSON.parse(JSON.stringify(original.empregador)) : {};
+      ensureObj(evtAtualizado, ["empregador","tpInsc"]);
+      evtAtualizado.empregador.tpInsc.tipo = document.getElementById("empregador_tpInsc_tipo").value.trim();
+      evtAtualizado.empregador.nrInsc = document.getElementById("empregador_nrInsc").value.trim();
+
+      evtAtualizado.trabalhador = original.trabalhador && typeof original.trabalhador === "object" ? JSON.parse(JSON.stringify(original.trabalhador)) : {};
+      evtAtualizado.trabalhador.cpfTrab = document.getElementById("trabalhador_cpfTrab").value.trim();
+
+      // complementares usuais do layout exportado
+      setIfPresentOrNonEmpty(evtAtualizado, "nmTrabComplem", document.getElementById("nmTrabComplem").value.trim(), original);
+      setIfPresentOrNonEmpty(evtAtualizado, "dtNasctoComplem", document.getElementById("dtNasctoComplem").value.trim(), original);
+      setIfPresentOrNonEmpty(evtAtualizado, "dtAdmComplem", document.getElementById("dtAdmComplem").value.trim(), original);
+      setIfPresentOrNonEmpty(evtAtualizado, "matricAntComplem", document.getElementById("matricAntComplem").value.trim(), original);
+      setIfPresentOrNonEmpty(evtAtualizado, "cnpjEmpregAntComplem", document.getElementById("cnpjEmpregAntComplem").value.trim(), original);
+
+      evtAtualizado.tpInscAntComplem = original.tpInscAntComplem && typeof original.tpInscAntComplem === "object" ? JSON.parse(JSON.stringify(original.tpInscAntComplem)) : {};
+      evtAtualizado.tpInscAntComplem.tipo = document.getElementById("tpInscAntComplem_tipo").value.trim();
+
+      // pagamentos (do UI)
+      evtAtualizado.s1200RemuTrabRGPSPagtos = getPagamentosFromUI();
+
+      // Mantém outras seções do evento (se existirem) preservando integridade
+      // Ex.: s1200RemuTrabRGPSProc, s1200RemuTrabRGPSRoe, s1200RemuTrabRGPSInterm
+      ["s1200RemuTrabRGPSProc", "s1200RemuTrabRGPSRoe", "s1200RemuTrabRGPSInterm"].forEach((k) => {
+        if (original && Object.prototype.hasOwnProperty.call(original, k) && typeof evtAtualizado[k] === "undefined") {
+          evtAtualizado[k] = JSON.parse(JSON.stringify(original[k]));
+        }
+      });
+
+      // Insere ou atualiza
+      if (currentEditingEventIndex === null) {
+        getEventos().push(evtAtualizado);
+      } else {
+        const target = getEventos()[currentEditingEventIndex];
+        mergeDeep(target, evtAtualizado);
+      }
+
+      $("#eventoModal").modal("hide");
+      renderEventosTable();
+      refreshJsonLoadInfo();
+    });
+
+    // ======================================================================
+    // 7) Carregar arquivo
+    const fileInput = document.getElementById("fileInput");
+    fileInput.addEventListener("change", function () {
+      const file = this.files && this.files[0];
+      if (!file) return;
+
+      loadedFileName = file.name || null;
+      loadedFileMeta = { name: file.name || "", size: file.size || 0, lastModified: file.lastModified || 0 };
+
+      const reader = new FileReader();
+      reader.onload = function (e) {
+        try {
+          const parsed = parseJsonSafely(e.target.result);
+          window.esocialData = parsed.data;
+
+          // garante estrutura
+          getEventos().forEach(evt => { if (typeof evt._selected === "undefined") evt._selected = false; });
+
+          renderEventosTable();
+          refreshJsonLoadInfo();
+
+          if (parsed.repaired) {
+            alert("Arquivo carregado (houve reparo mínimo para leitura: BOM e/ou vírgula sobrando). Recomenda-se validar o conteúdo antes da transmissão.");
+          } else {
+            alert("Arquivo carregado com sucesso!");
+          }
+        } catch (err) {
+          alert("Erro ao ler JSON: " + err);
+        }
+      };
+      reader.readAsText(file);
+      this.value = "";
+    });
+
+    // ======================================================================
+    // 8) Baixar arquivo
+    function gerarArquivoEsocialFormatado(data) {
+      const eventos = data?.s1200RemuTrabRGPSGroup?.s1200RemuTrabRGPS || [];
+      let resultado = '{"s1200RemuTrabRGPSGroup":{"s1200RemuTrabRGPS":[';
+      for (let i = 0; i < eventos.length; i++) {
+        const copia = JSON.parse(JSON.stringify(eventos[i]));
+        delete copia._selected;
+        const eStr = JSON.stringify(copia, null, 0);
+        resultado += (i === 0 ? "\n" : "\n,") + eStr;
+      }
+      resultado += "\n]}}";
+      return resultado;
+    }
+
+    function gerarNomeArquivoFallback() {
+      // tenta sugerir S-1200_YYYY_... se existir chaveIntegracao no padrão (não garante)
+      const eventos = getEventos();
+      if (eventos.length > 0) {
+        const evt = eventos[0];
+        const chave = evt.chaveIntegracao || "";
+        const parts = String(chave).split("#");
+        if (parts.length >= 6) {
+          const ano = parts[3] || (evt.anoApur || "");
+          const dataRef = parts[4] || "";
+          const tipoApur = parts[5] || "";
+          if (ano || dataRef || tipoApur) return `S-1200_${ano}_${dataRef}_${tipoApur}.json`;
+        }
+        if (evt.anoApur) return `S-1200_${evt.anoApur}.json`;
+      }
+      return "S-1200_editor.json";
+    }
+
+    document.getElementById("downloadBtn").addEventListener("click", () => {
+      try {
+        const dataStr = gerarArquivoEsocialFormatado(window.esocialData);
+        const blob = new Blob([dataStr], { type: "application/json;charset=utf-8;" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.setAttribute("href", url);
+        const suggestedName = buildEditedFileName(loadedFileName) || gerarNomeArquivoFallback();
+        link.setAttribute("download", suggestedName);
+        link.click();
+        URL.revokeObjectURL(url);
+      } catch (err) {
+        alert("Erro ao gerar download: " + err);
+      }
+    });
+
+    // inicial
+    renderEventosTable();
+    refreshJsonLoadInfo();
+  </script>
+</body>
+</html>
