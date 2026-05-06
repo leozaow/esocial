@@ -1,0 +1,825 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Comparador JSON S-1210 - Antes x Depois</title>
+  <style>
+    :root {
+      --bg: #f5f7fb;
+      --card: #ffffff;
+      --ink: #172033;
+      --muted: #667085;
+      --line: #d9e1ec;
+      --primary: #1f5eff;
+      --primary-dark: #1647c7;
+      --success: #166534;
+      --danger: #991b1b;
+      --warning: #92400e;
+      --info: #075985;
+      --shadow: 0 12px 32px rgba(15, 23, 42, .08);
+      --radius: 14px;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.4;
+    }
+    header {
+      background: #111827;
+      color: #fff;
+      padding: 18px 28px;
+      box-shadow: 0 2px 10px rgba(0,0,0,.2);
+    }
+    header h1 { margin: 0; font-size: 1.35rem; }
+    header p { margin: 6px 0 0; color: #cbd5e1; font-size: .93rem; }
+    main { width: min(1600px, calc(100vw - 32px)); margin: 22px auto 40px; }
+    .grid { display: grid; gap: 16px; }
+    .grid-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .grid-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    @media (max-width: 900px) { .grid-2, .grid-4 { grid-template-columns: 1fr; } }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 18px;
+    }
+    .card h2, .card h3 { margin: 0 0 12px; }
+    .card h2 { font-size: 1.05rem; }
+    .card h3 { font-size: .92rem; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: .035em; }
+    .hint { color: var(--muted); font-size: .88rem; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace; }
+    input[type="file"], input[type="text"], select {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 10px 12px;
+      background: #fff;
+      color: var(--ink);
+      outline: none;
+    }
+    input[type="text"]:focus, select:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(31,94,255,.12); }
+    .file-box {
+      border: 1px dashed #b7c3d7;
+      background: #f8fafc;
+      border-radius: 12px;
+      padding: 14px;
+    }
+    .btn-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+    button {
+      border: 0;
+      border-radius: 10px;
+      padding: 10px 14px;
+      cursor: pointer;
+      font-weight: 650;
+      color: #fff;
+      background: var(--primary);
+    }
+    button:hover { background: var(--primary-dark); }
+    button.secondary { background: #475569; }
+    button.secondary:hover { background: #334155; }
+    button.outline {
+      color: var(--ink);
+      background: #fff;
+      border: 1px solid var(--line);
+    }
+    button.outline:hover { background: #f8fafc; }
+    button:disabled { opacity: .55; cursor: not-allowed; }
+    .status {
+      padding: 12px 14px;
+      border-radius: 12px;
+      border: 1px solid var(--line);
+      background: #f8fafc;
+      color: var(--muted);
+      white-space: pre-wrap;
+    }
+    .status.ok { border-color: #bbf7d0; background: #f0fdf4; color: var(--success); }
+    .status.err { border-color: #fecaca; background: #fef2f2; color: var(--danger); }
+    .status.warn { border-color: #fde68a; background: #fffbeb; color: var(--warning); }
+    .metric {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      min-height: 86px;
+    }
+    .metric .n { font-size: 1.8rem; font-weight: 800; }
+    .metric .label { color: var(--muted); font-size: .88rem; }
+    .filters { display: grid; grid-template-columns: 1.6fr .8fr .9fr .9fr .8fr; gap: 10px; align-items: end; }
+    @media (max-width: 1100px) { .filters { grid-template-columns: 1fr 1fr; } }
+    @media (max-width: 650px) { .filters { grid-template-columns: 1fr; } }
+    label { display: block; font-weight: 650; font-size: .86rem; margin-bottom: 6px; }
+    .checks { display: flex; flex-wrap: wrap; gap: 14px; }
+    .checks label { display: flex; gap: 7px; align-items: center; margin: 0; color: var(--muted); font-weight: 520; }
+    .table-wrap {
+      overflow: auto;
+      max-height: 70vh;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: #fff;
+    }
+    table { width: 100%; border-collapse: collapse; min-width: 1320px; }
+    thead th {
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      background: #f1f5f9;
+      color: #334155;
+      border-bottom: 1px solid var(--line);
+      text-align: left;
+      padding: 10px;
+      font-size: .82rem;
+    }
+    tbody td {
+      border-bottom: 1px solid #edf2f7;
+      padding: 9px 10px;
+      vertical-align: top;
+      font-size: .86rem;
+    }
+    tbody tr:hover { background: #f8fafc; }
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      border-radius: 999px;
+      padding: 3px 8px;
+      font-size: .76rem;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+    .pill.alterado { background: #dbeafe; color: #1d4ed8; }
+    .pill.incluido { background: #dcfce7; color: #166534; }
+    .pill.removido { background: #fee2e2; color: #991b1b; }
+    .field-critical { font-weight: 800; color: #7c2d12; }
+    .value-cell {
+      max-width: 320px;
+      white-space: pre-wrap;
+      word-break: break-word;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      font-size: .78rem;
+    }
+    .path-cell {
+      max-width: 430px;
+      white-space: pre-wrap;
+      word-break: break-word;
+      color: #344054;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      font-size: .76rem;
+    }
+    .small { font-size: .82rem; color: var(--muted); }
+    .right { text-align: right; }
+    .hidden { display: none !important; }
+    details summary { cursor: pointer; font-weight: 700; margin-bottom: 8px; }
+    .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+    .chip { border: 1px solid var(--line); background: #f8fafc; border-radius: 999px; padding: 5px 9px; font-size: .8rem; }
+  </style>
+</head>
+<body>
+<header>
+  <h1>Comparador JSON S-1210 — Antes x Depois</h1>
+  <p>Ferramenta local para auditar alterações entre dois arquivos JSON antes de envio à mensageria.</p>
+</header>
+
+<main>
+  <section class="card grid" style="gap:14px;">
+    <h2>1. Carregar arquivos</h2>
+    <div class="grid grid-2">
+      <div class="file-box">
+        <label for="beforeFile">JSON original / antes</label>
+        <input type="file" id="beforeFile" accept=".json,application/json" />
+        <div id="beforeInfo" class="hint" style="margin-top:8px;">Nenhum arquivo carregado.</div>
+      </div>
+      <div class="file-box">
+        <label for="afterFile">JSON editado / depois</label>
+        <input type="file" id="afterFile" accept=".json,application/json" />
+        <div id="afterInfo" class="hint" style="margin-top:8px;">Nenhum arquivo carregado.</div>
+      </div>
+    </div>
+
+    <div class="checks">
+      <label><input type="checkbox" id="smartS1210" checked /> Usar chaves lógicas do S-1210 para comparar arrays</label>
+      <label><input type="checkbox" id="ignoreInternal" checked /> Ignorar campos internos do editor, como <span class="mono">_selected</span></label>
+    </div>
+
+    <div class="btn-row">
+      <button id="compareBtn">Comparar arquivos</button>
+      <button id="exportCsvBtn" class="secondary" disabled>Exportar CSV</button>
+      <button id="exportJsonBtn" class="secondary" disabled>Exportar relatório JSON</button>
+      <button id="clearBtn" class="outline">Limpar</button>
+    </div>
+    <div id="status" class="status">Carregue os dois arquivos e clique em comparar.</div>
+  </section>
+
+  <section class="grid grid-4" style="margin-top:16px;">
+    <div class="card metric"><div class="n" id="mTotal">0</div><div class="label">diferenças encontradas</div></div>
+    <div class="card metric"><div class="n" id="mCpfs">0</div><div class="label">CPFs impactados</div></div>
+    <div class="card metric"><div class="n" id="mVrl">0</div><div class="label">alterações em vrLiq</div></div>
+    <div class="card metric"><div class="n" id="mIde">0</div><div class="label">alterações em ideDmDev</div></div>
+  </section>
+
+  <section class="card" style="margin-top:16px;">
+    <h2>2. Filtros do relatório</h2>
+    <div class="filters">
+      <div>
+        <label for="searchBox">Busca geral</label>
+        <input type="text" id="searchBox" placeholder="CPF, campo, ideDmDev, caminho, valor antes/depois..." />
+      </div>
+      <div>
+        <label for="typeFilter">Tipo</label>
+        <select id="typeFilter">
+          <option value="">Todos</option>
+          <option value="Alterado">Alterado</option>
+          <option value="Incluído">Incluído</option>
+          <option value="Removido">Removido</option>
+        </select>
+      </div>
+      <div>
+        <label for="fieldFilter">Campo</label>
+        <select id="fieldFilter"><option value="">Todos</option></select>
+      </div>
+      <div>
+        <label for="cpfFilter">CPF</label>
+        <select id="cpfFilter"><option value="">Todos</option></select>
+      </div>
+      <div>
+        <label for="criticalFilter">Relevância</label>
+        <select id="criticalFilter">
+          <option value="">Todas</option>
+          <option value="1">Somente críticas</option>
+        </select>
+      </div>
+    </div>
+    <div class="btn-row" style="margin-top:12px;">
+      <button id="resetFiltersBtn" class="outline">Limpar filtros</button>
+      <span id="visibleInfo" class="small">0 linhas exibidas.</span>
+    </div>
+  </section>
+
+  <section class="card" style="margin-top:16px;">
+    <div style="display:flex;justify-content:space-between;gap:16px;align-items:flex-start;flex-wrap:wrap;">
+      <div>
+        <h2>3. Diferenças encontradas</h2>
+        <div class="hint">A tabela compara todos os campos do JSON. Em arrays conhecidos do S-1210, a comparação usa chaves como CPF, tpPgto/dtPgto, perRef/ideDmDev, cpfDep e tpCR.</div>
+      </div>
+      <div class="chips" id="summaryChips"></div>
+    </div>
+    <div class="table-wrap" style="margin-top:14px;">
+      <table id="diffTable">
+        <thead>
+          <tr>
+            <th style="width:70px;">#</th>
+            <th style="width:105px;">Tipo</th>
+            <th style="width:125px;">CPF</th>
+            <th style="width:85px;">Ordem</th>
+            <th style="width:110px;">PerApur</th>
+            <th style="width:230px;">Contexto</th>
+            <th style="width:170px;">Campo</th>
+            <th>Caminho técnico</th>
+            <th>Antes</th>
+            <th>Depois</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="card" style="margin-top:16px;">
+    <details>
+      <summary>Observações técnicas da comparação</summary>
+      <div class="hint">
+        A comparação é feita dentro do navegador, sem upload para servidor. O modo inteligente reconhece a estrutura do S-1210 e tenta casar arrays por chaves lógicas. Quando uma lista não possui chave confiável, a comparação é feita por índice para não presumir vínculo inexistente. O relatório não altera nenhum dos arquivos carregados.
+      </div>
+    </details>
+  </section>
+</main>
+
+<script>
+(function(){
+  "use strict";
+
+  const state = {
+    before: null,
+    after: null,
+    beforeName: "",
+    afterName: "",
+    diffs: [],
+    filtered: []
+  };
+
+  const $ = (id) => document.getElementById(id);
+  const isObj = (v) => v && typeof v === "object" && !Array.isArray(v);
+  const hasOwn = (obj, key) => Object.prototype.hasOwnProperty.call(obj || {}, key);
+
+  function setStatus(msg, kind="") {
+    const el = $("status");
+    el.textContent = msg;
+    el.className = "status" + (kind ? " " + kind : "");
+  }
+
+  function escapeHtml(s) {
+    return String(s ?? "")
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#039;");
+  }
+
+  function onlyDigits(v) { return String(v ?? "").replace(/\D+/g, ""); }
+
+  function normalizeCpf(value) {
+    if (value === null || value === undefined) return "";
+    const s = String(value).trim();
+    if (!s || s.startsWith("*")) return "";
+    let d = onlyDigits(s);
+    if (!d) return "";
+    if (d.length < 11) d = d.padStart(11, "0");
+    if (d.length > 11) d = d.slice(-11);
+    return d.length === 11 ? d : "";
+  }
+
+  function normalizeDateLike(v) {
+    const s = String(v ?? "").trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+    if (/^\d{4}-\d{2}$/.test(s)) return s + "-01";
+    if (/^\d{6}$/.test(s)) return s.slice(0,4) + "-" + s.slice(4,6) + "-01";
+    return s;
+  }
+
+  function valueText(v) {
+    if (v === undefined) return "∅ inexistente";
+    if (v === null) return "null";
+    if (typeof v === "string") return v;
+    try { return JSON.stringify(v); } catch { return String(v); }
+  }
+
+  function shortKey(s, max=90) {
+    s = String(s ?? "");
+    return s.length > max ? s.slice(0, max - 1) + "…" : s;
+  }
+
+  function fieldFromPath(path) {
+    if (!path.length) return "(raiz)";
+    const last = path[path.length - 1];
+    const clean = String(last).replace(/\[.*?\]/g, "");
+    return clean || last;
+  }
+
+  function isCriticalPath(path, field) {
+    const p = path.join(".");
+    const f = String(field || "");
+    return (
+      f === "vrLiq" || f === "ideDmDev" || f === "cpfTrab" || f === "cpfDep" ||
+      f === "perRef" || f === "dtPgto" || f === "tpPgto" || f === "perApur" ||
+      f === "vlrDedDep" || f === "vlrDedPenAlim" || f === "vlrDedPC" || f === "vlrDedPC13" ||
+      p.includes("s1210PagtoRendTrabDetPag") ||
+      p.includes("s1210InfoDep") ||
+      p.includes("s1210DedDepen") ||
+      p.includes("s1210PenAlim") ||
+      p.includes("s1210PrevidCompl")
+    );
+  }
+
+  function ideFieldByTp(tpPgto) {
+    const tp = String(tpPgto ?? "").trim();
+    if (tp === "1") return "ideRecPgtoRGPS";
+    if (tp === "4") return "ideRecPgtoRPPS";
+    if (tp === "2") return "ideRecPgtoResc";
+    if (tp === "3") return "ideRecPgtoRescTSV";
+    if (tp === "5") return "ideRecPgtoBenef";
+    return null;
+  }
+
+  function getIdeDmDev(det, tpPgto) {
+    if (!isObj(det)) return "";
+    const preferred = ideFieldByTp(tpPgto);
+    if (preferred && det[preferred] && det[preferred].ideDmDev !== undefined) return String(det[preferred].ideDmDev ?? "").trim();
+    const fields = ["ideRecPgtoRGPS", "ideRecPgtoRPPS", "ideRecPgtoResc", "ideRecPgtoRescTSV", "ideRecPgtoBenef"];
+    for (const f of fields) {
+      const v = det[f]?.ideDmDev;
+      if (v && v !== "*vazio*") return String(v).trim();
+    }
+    return "";
+  }
+
+  function lastArrayName(path) {
+    const last = path[path.length - 1] || "";
+    return String(last).replace(/\[.*?\]/g, "");
+  }
+
+  function eventKey(item) {
+    const cpf = normalizeCpf(item?.trabalhador?.cpfTrab);
+    const chave = String(item?.chaveIntegracao ?? "").trim();
+    const ordem = String(item?.ordemRegistro ?? "").trim();
+    const per = String(item?.perApur ?? "").trim();
+    if (chave) return "chave=" + chave;
+    if (cpf || ordem || per) return `cpf=${cpf}|perApur=${per}|ordem=${ordem}`;
+    return "";
+  }
+
+  function getArrayItemBaseKey(item, path, ctx) {
+    if (!$("smartS1210").checked || !isObj(item)) return "";
+    const name = lastArrayName(path);
+    switch (name) {
+      case "s1210PagtoRendTrab":
+        return eventKey(item);
+      case "s1210PagtoRendTrabInfo": {
+        const tp = String(item.tpPgto ?? "").trim();
+        const dt = normalizeDateLike(item.dtPgto ?? "");
+        return (tp || dt) ? `tpPgto=${tp}|dtPgto=${dt}` : "";
+      }
+      case "s1210PagtoRendTrabDetPag": {
+        const per = normalizeDateLike(item.perRef ?? "");
+        const ide = getIdeDmDev(item, ctx.tpPgto);
+        return (per || ide) ? `perRef=${per}|ideDmDev=${ide}` : "";
+      }
+      case "s1210InfoDep": {
+        const cpfDep = normalizeCpf(item.cpfDep);
+        return cpfDep ? `cpfDep=${cpfDep}` : "";
+      }
+      case "s1210InfoIRCR": {
+        const tpCR = String(item.tpCR ?? "").trim();
+        return tpCR ? `tpCR=${tpCR}` : "";
+      }
+      case "s1210DedDepen": {
+        const cpfDep = normalizeCpf(item.cpfDep);
+        const tpRend = String(item.tpRend ?? "").trim();
+        return (cpfDep || tpRend) ? `cpfDep=${cpfDep}|tpRend=${tpRend}` : "";
+      }
+      case "s1210PenAlim": {
+        const cpfDep = normalizeCpf(item.cpfDep);
+        const tpRend = String(item.tpRend ?? "").trim();
+        return (cpfDep || tpRend) ? `cpfDep=${cpfDep}|tpRend=${tpRend}` : "";
+      }
+      case "s1210PrevidCompl": {
+        const tpPrev = String(item.tpPrev ?? "").trim();
+        const cnpj = onlyDigits(item.cnpjEntidPC);
+        return (tpPrev || cnpj) ? `tpPrev=${tpPrev}|cnpj=${cnpj}` : "";
+      }
+      default:
+        return "";
+    }
+  }
+
+  function makeKeyedMap(arr, path, ctx) {
+    const map = new Map();
+    const counters = new Map();
+    let keyed = 0;
+    arr.forEach((item, idx) => {
+      const base = getArrayItemBaseKey(item, path, ctx);
+      if (!base) return;
+      keyed += 1;
+      const n = (counters.get(base) || 0) + 1;
+      counters.set(base, n);
+      const key = base + (n > 1 ? `#${n}` : "");
+      map.set(key, { item, idx, label: base, occurrence: n });
+    });
+    return { map, keyed };
+  }
+
+  function deriveContext(obj, ctx) {
+    const next = { ...ctx };
+    if (!isObj(obj)) return next;
+
+    if (obj.trabalhador?.cpfTrab !== undefined || obj.ordemRegistro !== undefined || obj.perApur !== undefined || obj.chaveIntegracao !== undefined) {
+      next.cpf = normalizeCpf(obj.trabalhador?.cpfTrab) || next.cpf || "";
+      next.ordem = String(obj.ordemRegistro ?? next.ordem ?? "");
+      next.perApur = String(obj.perApur ?? next.perApur ?? "");
+      next.chave = String(obj.chaveIntegracao ?? next.chave ?? "");
+    }
+
+    if (obj.tpPgto !== undefined || obj.dtPgto !== undefined) {
+      next.tpPgto = String(obj.tpPgto ?? next.tpPgto ?? "");
+      next.dtPgto = normalizeDateLike(obj.dtPgto ?? next.dtPgto ?? "");
+    }
+
+    if (obj.perRef !== undefined || obj.vrLiq !== undefined) {
+      next.perRef = normalizeDateLike(obj.perRef ?? next.perRef ?? "");
+      const ide = getIdeDmDev(obj, next.tpPgto);
+      if (ide) next.ideDmDev = ide;
+    }
+
+    if (obj.tpCR !== undefined) next.tpCR = String(obj.tpCR ?? "");
+
+    if (obj.cpfDep !== undefined) {
+      next.cpfDep = normalizeCpf(obj.cpfDep) || String(obj.cpfDep ?? "");
+      if (obj.tpRend !== undefined) next.tpRend = String(obj.tpRend ?? "");
+    }
+
+    return next;
+  }
+
+  function contextText(ctx) {
+    const parts = [];
+    if (ctx.tpPgto) parts.push("tpPgto=" + ctx.tpPgto);
+    if (ctx.dtPgto) parts.push("dtPgto=" + ctx.dtPgto);
+    if (ctx.perRef) parts.push("perRef=" + ctx.perRef);
+    if (ctx.ideDmDev) parts.push("ide=" + ctx.ideDmDev);
+    if (ctx.tpCR) parts.push("tpCR=" + ctx.tpCR);
+    if (ctx.cpfDep) parts.push("cpfDep=" + ctx.cpfDep);
+    if (ctx.tpRend) parts.push("tpRend=" + ctx.tpRend);
+    return parts.join(" | ");
+  }
+
+  function addDiff(list, type, path, beforeVal, afterVal, ctx, fieldOverride="") {
+    const field = fieldOverride || fieldFromPath(path);
+    if ($("ignoreInternal").checked && field === "_selected") return;
+    const critical = isCriticalPath(path, field) ? 1 : 0;
+    list.push({
+      seq: list.length + 1,
+      type,
+      cpf: ctx.cpf || "",
+      ordem: ctx.ordem || "",
+      perApur: ctx.perApur || "",
+      context: contextText(ctx),
+      field,
+      path: path.join("."),
+      before: valueText(beforeVal),
+      after: valueText(afterVal),
+      critical
+    });
+  }
+
+  function primitiveEqual(a, b) {
+    return Object.is(a, b);
+  }
+
+  function compareAny(a, b, path, ctx, diffs) {
+    if ($("ignoreInternal").checked && fieldFromPath(path) === "_selected") return;
+    const ctx2 = deriveContext(b !== undefined ? b : a, ctx);
+
+    if (Array.isArray(a) || Array.isArray(b)) {
+      compareArrays(Array.isArray(a) ? a : undefined, Array.isArray(b) ? b : undefined, path, ctx2, diffs);
+      return;
+    }
+
+    if (isObj(a) || isObj(b)) {
+      compareObjects(isObj(a) ? a : undefined, isObj(b) ? b : undefined, path, ctx2, diffs);
+      return;
+    }
+
+    if (!primitiveEqual(a, b)) addDiff(diffs, "Alterado", path, a, b, ctx2);
+  }
+
+  function compareObjects(a, b, path, ctx, diffs) {
+    if (a === undefined && b !== undefined) { addDiff(diffs, "Incluído", path, undefined, b, ctx); return; }
+    if (a !== undefined && b === undefined) { addDiff(diffs, "Removido", path, a, undefined, ctx); return; }
+
+    const keys = new Set([...Object.keys(a || {}), ...Object.keys(b || {})]);
+    const sorted = Array.from(keys).sort((x, y) => x.localeCompare(y, "pt-BR"));
+    for (const k of sorted) {
+      if ($("ignoreInternal").checked && k === "_selected") continue;
+      const hasA = hasOwn(a, k);
+      const hasB = hasOwn(b, k);
+      const p2 = path.concat(k);
+      if (!hasA && hasB) { addDiff(diffs, "Incluído", p2, undefined, b[k], deriveContext(b[k], ctx)); continue; }
+      if (hasA && !hasB) { addDiff(diffs, "Removido", p2, a[k], undefined, deriveContext(a[k], ctx)); continue; }
+      compareAny(a[k], b[k], p2, ctx, diffs);
+    }
+  }
+
+  function compareArrays(a, b, path, ctx, diffs) {
+    if (a === undefined && b !== undefined) { addDiff(diffs, "Incluído", path, undefined, b, ctx); return; }
+    if (a !== undefined && b === undefined) { addDiff(diffs, "Removido", path, a, undefined, ctx); return; }
+    a = a || [];
+    b = b || [];
+
+    const ma = makeKeyedMap(a, path, ctx);
+    const mb = makeKeyedMap(b, path, ctx);
+    const canUseKeys = $("smartS1210").checked && a.length + b.length > 0 && (ma.keyed === a.length || mb.keyed === b.length) && (ma.keyed > 0 || mb.keyed > 0);
+
+    if (canUseKeys) {
+      const keys = new Set([...ma.map.keys(), ...mb.map.keys()]);
+      const ordered = Array.from(keys).sort((x, y) => x.localeCompare(y, "pt-BR"));
+      for (const key of ordered) {
+        const ea = ma.map.get(key);
+        const eb = mb.map.get(key);
+        const label = (eb || ea)?.label || key;
+        const seg = `${lastArrayName(path)}[${shortKey(label)}]`;
+        const p2 = path.slice(0, -1).concat(seg);
+        const ctxItem = deriveContext((eb || ea)?.item, ctx);
+        if (!ea && eb) { addDiff(diffs, "Incluído", p2, undefined, eb.item, ctxItem, "(registro inteiro)"); continue; }
+        if (ea && !eb) { addDiff(diffs, "Removido", p2, ea.item, undefined, ctxItem, "(registro inteiro)"); continue; }
+        compareAny(ea.item, eb.item, p2, ctxItem, diffs);
+      }
+      return;
+    }
+
+    const max = Math.max(a.length, b.length);
+    const arrName = lastArrayName(path);
+    for (let i = 0; i < max; i++) {
+      const p2 = path.slice(0, -1).concat(`${arrName}[${i}]`);
+      if (i >= a.length) { addDiff(diffs, "Incluído", p2, undefined, b[i], deriveContext(b[i], ctx), "(registro inteiro)"); continue; }
+      if (i >= b.length) { addDiff(diffs, "Removido", p2, a[i], undefined, deriveContext(a[i], ctx), "(registro inteiro)"); continue; }
+      compareAny(a[i], b[i], p2, deriveContext(b[i] ?? a[i], ctx), diffs);
+    }
+  }
+
+  function getEventos(data) {
+    return data?.s1210PagtoRendTrabGroup?.s1210PagtoRendTrab;
+  }
+
+  function validateRoot(data, label) {
+    const eventos = getEventos(data);
+    if (!Array.isArray(eventos)) {
+      return `${label}: estrutura S-1210 não encontrada em s1210PagtoRendTrabGroup.s1210PagtoRendTrab. A comparação genérica ainda pode funcionar, mas o resumo por CPF ficará limitado.`;
+    }
+    return `${label}: ${eventos.length} evento(s) S-1210 localizado(s).`;
+  }
+
+  function compare() {
+    if (!state.before || !state.after) {
+      setStatus("Carregue o JSON original e o JSON editado antes de comparar.", "warn");
+      return;
+    }
+    const warnings = [validateRoot(state.before, "Antes"), validateRoot(state.after, "Depois")];
+    const diffs = [];
+    compareAny(state.before, state.after, ["$"], {}, diffs);
+    state.diffs = diffs.map((d, i) => ({ ...d, seq: i + 1 }));
+    populateFilters();
+    applyFilters();
+    updateMetrics();
+    $("exportCsvBtn").disabled = state.diffs.length === 0;
+    $("exportJsonBtn").disabled = state.diffs.length === 0;
+    setStatus(warnings.join("\n") + `\nResultado: ${state.diffs.length} diferença(s) encontrada(s).`, state.diffs.length ? "ok" : "ok");
+  }
+
+  function updateMetrics() {
+    const diffs = state.diffs;
+    const cpfs = new Set(diffs.map(d => d.cpf).filter(Boolean));
+    $("mTotal").textContent = diffs.length;
+    $("mCpfs").textContent = cpfs.size;
+    $("mVrl").textContent = diffs.filter(d => d.field === "vrLiq").length;
+    $("mIde").textContent = diffs.filter(d => d.field === "ideDmDev").length;
+
+    const added = diffs.filter(d => d.type === "Incluído").length;
+    const removed = diffs.filter(d => d.type === "Removido").length;
+    const changed = diffs.filter(d => d.type === "Alterado").length;
+    const critical = diffs.filter(d => d.critical).length;
+    $("summaryChips").innerHTML = [
+      `<span class="chip">Alterados: <strong>${changed}</strong></span>`,
+      `<span class="chip">Incluídos: <strong>${added}</strong></span>`,
+      `<span class="chip">Removidos: <strong>${removed}</strong></span>`,
+      `<span class="chip">Críticos: <strong>${critical}</strong></span>`
+    ].join("");
+  }
+
+  function populateFilters() {
+    const fields = Array.from(new Set(state.diffs.map(d => d.field))).sort((a,b)=>a.localeCompare(b,"pt-BR"));
+    const cpfs = Array.from(new Set(state.diffs.map(d => d.cpf).filter(Boolean))).sort();
+    $("fieldFilter").innerHTML = '<option value="">Todos</option>' + fields.map(f => `<option value="${escapeHtml(f)}">${escapeHtml(f)}</option>`).join("");
+    $("cpfFilter").innerHTML = '<option value="">Todos</option>' + cpfs.map(c => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join("");
+  }
+
+  function applyFilters() {
+    const q = $("searchBox").value.trim().toLowerCase();
+    const type = $("typeFilter").value;
+    const field = $("fieldFilter").value;
+    const cpf = $("cpfFilter").value;
+    const crit = $("criticalFilter").value;
+
+    state.filtered = state.diffs.filter(d => {
+      if (type && d.type !== type) return false;
+      if (field && d.field !== field) return false;
+      if (cpf && d.cpf !== cpf) return false;
+      if (crit && !d.critical) return false;
+      if (q) {
+        const hay = [d.type, d.cpf, d.ordem, d.perApur, d.context, d.field, d.path, d.before, d.after].join("\n").toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+      return true;
+    });
+    renderTable();
+  }
+
+  function renderTable() {
+    const tbody = $("diffTable").querySelector("tbody");
+    const maxRows = 5000;
+    const rows = state.filtered.slice(0, maxRows);
+    tbody.innerHTML = rows.map(d => {
+      const cls = d.type === "Alterado" ? "alterado" : (d.type === "Incluído" ? "incluido" : "removido");
+      const fieldClass = d.critical ? "field-critical" : "";
+      return `<tr>
+        <td class="right">${d.seq}</td>
+        <td><span class="pill ${cls}">${escapeHtml(d.type)}</span></td>
+        <td class="mono">${escapeHtml(d.cpf)}</td>
+        <td class="mono">${escapeHtml(d.ordem)}</td>
+        <td class="mono">${escapeHtml(d.perApur)}</td>
+        <td>${escapeHtml(d.context)}</td>
+        <td class="${fieldClass}">${escapeHtml(d.field)}${d.critical ? " ⚠" : ""}</td>
+        <td class="path-cell">${escapeHtml(d.path)}</td>
+        <td class="value-cell">${escapeHtml(d.before)}</td>
+        <td class="value-cell">${escapeHtml(d.after)}</td>
+      </tr>`;
+    }).join("");
+
+    const extra = state.filtered.length > maxRows ? ` Exibindo as primeiras ${maxRows}. Use filtros ou exporte CSV para ver tudo.` : "";
+    $("visibleInfo").textContent = `${state.filtered.length} linha(s) exibida(s).${extra}`;
+  }
+
+  function exportCsv() {
+    if (!state.diffs.length) return;
+    const headers = ["seq", "tipo", "cpf", "ordemRegistro", "perApur", "contexto", "campo", "critico", "caminho", "antes", "depois"];
+    const lines = [headers.join(";")];
+    for (const d of state.filtered.length ? state.filtered : state.diffs) {
+      const vals = [d.seq, d.type, d.cpf, d.ordem, d.perApur, d.context, d.field, d.critical ? "S" : "N", d.path, d.before, d.after];
+      lines.push(vals.map(csvEscape).join(";"));
+    }
+    downloadText(lines.join("\n"), "relatorio_comparacao_s1210.csv", "text/csv;charset=utf-8");
+  }
+
+  function csvEscape(v) {
+    const s = String(v ?? "");
+    if (/[;"\n\r]/.test(s)) return '"' + s.replaceAll('"', '""') + '"';
+    return s;
+  }
+
+  function exportJson() {
+    if (!state.diffs.length) return;
+    const payload = {
+      geradoEm: new Date().toISOString(),
+      arquivoAntes: state.beforeName,
+      arquivoDepois: state.afterName,
+      totalDiferencas: state.diffs.length,
+      diferencas: state.filtered.length ? state.filtered : state.diffs
+    };
+    downloadText(JSON.stringify(payload, null, 2), "relatorio_comparacao_s1210.json", "application/json;charset=utf-8");
+  }
+
+  function downloadText(text, filename, mime) {
+    const blob = new Blob([text], { type: mime });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  function clearAll() {
+    state.before = null; state.after = null; state.beforeName = ""; state.afterName = ""; state.diffs = []; state.filtered = [];
+    $("beforeFile").value = "";
+    $("afterFile").value = "";
+    $("beforeInfo").textContent = "Nenhum arquivo carregado.";
+    $("afterInfo").textContent = "Nenhum arquivo carregado.";
+    $("searchBox").value = "";
+    $("typeFilter").value = "";
+    $("criticalFilter").value = "";
+    $("fieldFilter").innerHTML = '<option value="">Todos</option>';
+    $("cpfFilter").innerHTML = '<option value="">Todos</option>';
+    $("exportCsvBtn").disabled = true;
+    $("exportJsonBtn").disabled = true;
+    updateMetrics();
+    renderTable();
+    setStatus("Carregue os dois arquivos e clique em comparar.");
+  }
+
+  function readFileInput(input, target) {
+    const file = input.files && input.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        const parsed = JSON.parse(ev.target.result);
+        state[target] = parsed;
+        state[target + "Name"] = file.name;
+        const eventos = getEventos(parsed);
+        const info = `${file.name} carregado. ${Array.isArray(eventos) ? eventos.length + " evento(s) S-1210." : "Estrutura S-1210 não identificada; comparação genérica disponível."}`;
+        $(target === "before" ? "beforeInfo" : "afterInfo").textContent = info;
+        setStatus("Arquivo carregado. Carregue o outro arquivo ou clique em comparar.", "ok");
+      } catch (err) {
+        state[target] = null;
+        $(target === "before" ? "beforeInfo" : "afterInfo").textContent = "Erro ao ler JSON.";
+        setStatus("Erro ao interpretar JSON: " + err.message, "err");
+      }
+    };
+    reader.readAsText(file, "utf-8");
+  }
+
+  $("beforeFile").addEventListener("change", function(){ readFileInput(this, "before"); });
+  $("afterFile").addEventListener("change", function(){ readFileInput(this, "after"); });
+  $("compareBtn").addEventListener("click", compare);
+  $("exportCsvBtn").addEventListener("click", exportCsv);
+  $("exportJsonBtn").addEventListener("click", exportJson);
+  $("clearBtn").addEventListener("click", clearAll);
+  $("resetFiltersBtn").addEventListener("click", () => {
+    $("searchBox").value = "";
+    $("typeFilter").value = "";
+    $("fieldFilter").value = "";
+    $("cpfFilter").value = "";
+    $("criticalFilter").value = "";
+    applyFilters();
+  });
+  ["searchBox", "typeFilter", "fieldFilter", "cpfFilter", "criticalFilter"].forEach(id => $(id).addEventListener("input", applyFilters));
+  ["smartS1210", "ignoreInternal"].forEach(id => $(id).addEventListener("change", () => { if (state.before && state.after) compare(); }));
+
+  renderTable();
+})();
+</script>
+</body>
+</html>

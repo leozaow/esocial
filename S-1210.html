@@ -309,8 +309,8 @@
             <div class="alert alert-info">
               Objetivo: sincronizar o bloco <strong>Pagamento</strong> (s1210PagtoRendTrabInfo / s1210PagtoRendTrabDetPag),
               atualizando <strong>vrLiq</strong> e <strong>ideDmDev</strong> conforme a base informada, removendo itens não previstos e
-              cadastrando os ausentes (quando solicitado). O algoritmo trata variações de <em>ideDmDev</em> ignorando o "tipo" do meio,
-              cruzando <strong>matrícula</strong>, <strong>nº folha</strong> e <strong>período</strong>.
+              cadastrando os ausentes (quando solicitado). O algoritmo diferencia o <em>ideDmDev</em> completo,
+              considerando <strong>matrícula</strong>, <strong>nº folha</strong>, <strong>tipo</strong> e <strong>período</strong>.
             </div>
 
             <div class="small-hint mb-3">
@@ -332,7 +332,7 @@
             </div>
             <div class="form-group form-check">
               <input type="checkbox" class="form-check-input" id="liqDedupCheckbox" checked>
-              <label class="form-check-label" for="liqDedupCheckbox">Consolidar duplicidades em DetPag (mesmo perRef + ideDmDev, ignorando o tipo do meio)</label>
+              <label class="form-check-label" for="liqDedupCheckbox">Consolidar duplicidades em DetPag somente quando houver o mesmo perRef + ideDmDev completo</label>
             </div>
 
             <div class="small-hint mb-2">Pré-visualização (primeiras 20 linhas válidas):</div>
@@ -2158,17 +2158,32 @@ function liqNormalizeMatricula(m) {
   return s;
 }
 
-// Retorna chave "matricula|folha|periodo" ignorando o "tipo" do meio do ideDmDev.
+// Retorna chave "matricula|folha|tipo|periodo" do ideDmDev.
+// O "tipo" do meio, como RRA/NORMAL, precisa compor a chave,
+// pois pode haver mais de um líquido legítimo para o mesmo CPF/tpPgto/dtPgto/perRef.
 function liqIdeKey(ideDmDev) {
   const s = String(ideDmDev ?? "").trim();
   if (!s) return "";
   if (s === "*vazio*") return "";
-  const parts = s.split("-").filter(p => p !== "");
-  if (parts.length < 4) return s; // fallback
+
+  const parts = s.split("-").map(p => p.trim()).filter(p => p !== "");
+
+  // Formato esperado:
+  // 858.194-4-11-RRA-012025
+  // 858.194-4-11-NORMAL-012025
+  //
+  // parts[0] + "-" + parts[1] = matrícula
+  // parts[2] = nº folha
+  // parts[3 até penúltimo] = tipo do demonstrativo
+  // parts[último] = período
+  if (parts.length < 5) return s.toUpperCase();
+
   const matricula = liqNormalizeMatricula(parts[0] + "-" + parts[1]);
   const folha = parts[2] ?? "";
+  const tipo = parts.slice(3, -1).join("-").toUpperCase();
   const periodo = parts[parts.length - 1] ?? "";
-  return matricula + "|" + folha + "|" + periodo;
+
+  return matricula + "|" + folha + "|" + tipo + "|" + periodo;
 }
 
 function liqIdeRecField(tpPgto) {
