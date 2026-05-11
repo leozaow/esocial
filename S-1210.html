@@ -1672,8 +1672,6 @@ function depCollectCpfFixCandidatesInBlock(plan, cpfTrab, ordem, blkIndex, blk) 
   }
 
   const ircrArr = Array.isArray(blk?.s1210InfoIRCR) ? blk.s1210InfoIRCR : [];
-      // 3) Candidatos a correção de cpfDep (10 dígitos -> 11 dígitos)
-      depCollectCpfFixCandidatesInBlock(plan, cpfTrab, ordem, blkIndex, blk);
   for (const ircr of ircrArr) {
     const ded = Array.isArray(ircr?.s1210DedDepen) ? ircr.s1210DedDepen : [];
     for (const row of ded) {
@@ -1688,6 +1686,61 @@ function depCollectCpfFixCandidatesInBlock(plan, cpfTrab, ordem, blkIndex, blk) 
   }
 }
 
+function depNeedsDescrDepCleanup(dep) {
+  // Regra eSocial: descrDep só deve existir quando tpDep.codigo == 99.
+  if (!dep || typeof dep !== "object") return false;
+  if (!("descrDep" in dep)) return false;
+
+  const tp = String(dep?.tpDep?.codigo ?? "").trim();
+  if (tp === "99") return false;
+
+  // Se o campo existe e tpDep é diferente de 99, remove o campo do JSON.
+  return true;
+}
+
+function depCollectDescrDepCleanupCandidatesInBlock(plan, cpfTrab, ordem, blkIndex, blk) {
+  const infoDep = Array.isArray(blk?.s1210InfoDep) ? blk.s1210InfoDep : [];
+
+  for (const dep of infoDep) {
+    if (!depNeedsDescrDepCleanup(dep)) continue;
+
+    plan.stats.descrDepCleanupCandidates += 1;
+
+    if (plan.descrDepCleanupPreview.length < 80) {
+      plan.descrDepCleanupPreview.push({
+        cpfTrab,
+        ordemRegistro: ordem,
+        blkIndex,
+        cpfDep: normalizeCpf(dep?.cpfDep) || String(dep?.cpfDep ?? ""),
+        tpDep: String(dep?.tpDep?.codigo ?? ""),
+        descrDep: String(dep?.descrDep ?? "")
+      });
+    }
+  }
+}
+
+function depCleanupInvalidDescrDepInAllEvents() {
+  let removed = 0;
+  const events = getEventos();
+
+  for (const evt of events) {
+    const complemArr = Array.isArray(evt?.s1210InfoIRComplem) ? evt.s1210InfoIRComplem : [];
+
+    for (const blk of complemArr) {
+      const infoDep = Array.isArray(blk?.s1210InfoDep) ? blk.s1210InfoDep : [];
+
+      for (const dep of infoDep) {
+        if (!depNeedsDescrDepCleanup(dep)) continue;
+
+        delete dep.descrDep;
+        removed += 1;
+      }
+    }
+  }
+
+  return removed;
+}
+
 function depAnalyze() {
   const events = getEventos();
   const plan = {
@@ -1695,6 +1748,7 @@ function depAnalyze() {
     missingInBase: [],      // { cpfTrab, cpfDep, ordemRegistro, blkIndex, reason, why }
     duplicatesInfoDep: [],  // { cpfTrab, ordemRegistro, blkIndex, cpfDep }
     cpfFixCandidatesPreview: [], // preview limitado (até 80)
+    descrDepCleanupPreview: [],  // preview limitado (até 80)
     stats: {
       totalReferenced: 0,
       totalToAdd: 0,
@@ -1703,7 +1757,8 @@ function depAnalyze() {
       totalBlocksImpacted: 0,
       referencedDed: 0,
       referencedPen: 0,
-      cpfFixCandidates: 0
+      cpfFixCandidates: 0,
+      descrDepCleanupCandidates: 0
     }
   };
 
@@ -1719,9 +1774,10 @@ function depAnalyze() {
     if (!complemArr.length) continue;
 
     complemArr.forEach((blk, blkIndex) => {
-      const ircrArr = Array.isArray(blk?.s1210InfoIRCR) ? blk.s1210InfoIRCR : [];
-      if (!ircrArr.length) return;
+      depCollectCpfFixCandidatesInBlock(plan, cpfTrab, ordem, blkIndex, blk);
+      depCollectDescrDepCleanupCandidatesInBlock(plan, cpfTrab, ordem, blkIndex, blk);
 
+      const ircrArr = Array.isArray(blk?.s1210InfoIRCR) ? blk.s1210InfoIRCR : [];
       const infoDepArr = Array.isArray(blk?.s1210InfoDep) ? blk.s1210InfoDep : [];
       const seen = new Set();
       const existing = new Set();
@@ -1733,6 +1789,8 @@ function depAnalyze() {
         else seen.add(c);
         existing.add(c);
       }
+
+      if (!ircrArr.length) return;
 
       const refDed = new Set();
       const refPen = new Set();
@@ -1802,6 +1860,7 @@ function depReportText(plan) {
   lines.push(`- Pendências (não corrigidas): ${plan.stats.totalMissing}`);
   lines.push(`- Duplicidades detectadas (s1210InfoDep): ${plan.duplicatesInfoDep.length}`);
   lines.push(`- CPFs de dependentes a corrigir (cpfDep com 10 dígitos): ${plan.stats.cpfFixCandidates}`);
+  lines.push(`- descrDep indevido a remover (tpDep.codigo diferente de 99): ${plan.stats.descrDepCleanupCandidates}`);
   lines.push("");
 
   if (plan.stats.totalMissing) {
@@ -1842,6 +1901,19 @@ function depReportText(plan) {
     });
     if (plan.stats.cpfFixCandidates > plan.cpfFixCandidatesPreview.length) {
       lines.push(`... (${plan.stats.cpfFixCandidates - plan.cpfFixCandidatesPreview.length} ocorrências adicionais omitidas no preview)`);
+    }
+  }
+
+  if (plan.stats.descrDepCleanupCandidates) {
+    lines.push("");
+    lines.push("descrDep indevido com remoção sugerida (preview):");
+
+    plan.descrDepCleanupPreview.forEach(it => {
+      lines.push(`- cpfTrab ${it.cpfTrab} (ordemRegistro ${it.ordemRegistro}, bloco ${it.blkIndex}) cpfDep ${it.cpfDep}: tpDep=${it.tpDep || "*vazio*"}, descrDep="${it.descrDep}" -> remover campo`);
+    });
+
+    if (plan.stats.descrDepCleanupCandidates > plan.descrDepCleanupPreview.length) {
+      lines.push(`... (${plan.stats.descrDepCleanupCandidates - plan.descrDepCleanupPreview.length} ocorrências adicionais omitidas no preview)`);
     }
   }
 
@@ -1982,6 +2054,8 @@ function depApplyFixes() {
     addedCount += 1;
   }
 
+  const descrDepCleared = depCleanupInvalidDescrDepInAllEvents();
+
   let dedupRemoved = 0;
   if (doDedupInfoDep) {
     const events = getEventos();
@@ -2020,6 +2094,7 @@ function depApplyFixes() {
   const rep = [];
   rep.push("Aplicação concluída");
   rep.push(`- Dependentes adicionados: ${addedCount}`);
+  rep.push(`- descrDep removidos por tpDep.codigo diferente de 99: ${descrDepCleared}`);
   rep.push(`- Duplicidades removidas em s1210InfoDep (opcional): ${dedupRemoved}`);
   rep.push(`- Pendências (não corrigidas): ${plan.missingInBase.length}`);
   if (doConsolidateIrcr) {
@@ -2066,7 +2141,8 @@ function depApplyFixes() {
 setStatus(`<div class="alert alert-success mb-0">
     Dependentes adicionados: <strong>${addedCount}</strong> |
     Pendências: <strong>${plan.missingInBase.length}</strong> |
-    InfoDep duplicados removidos: <strong>${dedupRemoved}</strong>
+    InfoDep duplicados removidos: <strong>${dedupRemoved}</strong> |
+    descrDep removidos: <strong>${descrDepCleared}</strong>
     ${doConsolidateIrcr ? `| IRCR mesclados: <strong>${ircrMerged}</strong>` : ""}
     ${doFixCpfDep ? `| CPFs cpfDep ajustados: <strong>${cpfFixed}</strong>` : ""}
   </div>`);
@@ -2756,7 +2832,8 @@ document.getElementById("depAnalyzeBtn").addEventListener("click", () => {
   setStatus(`<div class="alert alert-info mb-0">
     Análise concluída: Inclusões: <strong>${plan.stats.totalToAdd}</strong> |
     Pendências: <strong>${plan.stats.totalMissing}</strong> |
-    InfoDep duplicidades: <strong>${plan.duplicatesInfoDep.length}</strong>
+    InfoDep duplicidades: <strong>${plan.duplicatesInfoDep.length}</strong> |
+    descrDep a remover: <strong>${plan.stats.descrDepCleanupCandidates}</strong>
   </div>`);
 });
 
@@ -2773,10 +2850,11 @@ document.getElementById("depApplyBtn").addEventListener("click", () => {
   const hasPend = plan.stats.totalMissing > 0;
   const hasDedup = doDedupInfoDep && plan.duplicatesInfoDep.length > 0;
   const hasCpfFix = doFixCpfDep && plan.stats.cpfFixCandidates > 0;
+  const hasDescrDepCleanup = plan.stats.descrDepCleanupCandidates > 0;
 
   // Observação: consolidação de IRCR pode ou não gerar alterações; se o usuário marcou,
   // executamos de qualquer forma (não fazemos "short-circuit").
-  if (!hasAdd && !hasPend && !hasDedup && !hasCpfFix && !doConsolidateIrcr) {
+  if (!hasAdd && !hasPend && !hasDedup && !hasCpfFix && !hasDescrDepCleanup && !doConsolidateIrcr) {
     document.getElementById("depReport").textContent = "Nenhuma ação necessária. Não há pendências detectadas.";
     return;
   }
