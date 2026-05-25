@@ -1,0 +1,1212 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>S-1210 JSON → CSV inteligente</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --panel: #111827;
+      --panel-2: #1f2937;
+      --text: #e5e7eb;
+      --muted: #9ca3af;
+      --line: #374151;
+      --accent: #38bdf8;
+      --accent-2: #22c55e;
+      --warn: #f59e0b;
+      --danger: #ef4444;
+      --white: #ffffff;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      background: linear-gradient(135deg, #020617 0%, #0f172a 45%, #111827 100%);
+      color: var(--text);
+      min-height: 100vh;
+    }
+    header {
+      padding: 28px 22px 16px;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    h1 {
+      margin: 0 0 8px;
+      font-size: clamp(24px, 3vw, 38px);
+      letter-spacing: -0.04em;
+    }
+    .subtitle {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.45;
+      max-width: 980px;
+    }
+    main {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 22px 40px;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.15fr) minmax(320px, 0.85fr);
+      gap: 16px;
+      align-items: start;
+    }
+    @media (max-width: 900px) {
+      .grid { grid-template-columns: 1fr; }
+    }
+    .card {
+      background: rgba(17, 24, 39, 0.92);
+      border: 1px solid rgba(148, 163, 184, 0.18);
+      box-shadow: 0 18px 40px rgba(0,0,0,0.26);
+      border-radius: 18px;
+      padding: 18px;
+    }
+    .drop {
+      border: 1.5px dashed rgba(56, 189, 248, 0.65);
+      background: rgba(15, 23, 42, 0.72);
+      border-radius: 16px;
+      padding: 22px;
+      text-align: center;
+      transition: .18s ease;
+    }
+    .drop.drag {
+      border-color: var(--accent-2);
+      transform: scale(1.005);
+      background: rgba(34, 197, 94, 0.08);
+    }
+    input[type="file"] { display: none; }
+    .btn {
+      border: 0;
+      border-radius: 12px;
+      padding: 11px 14px;
+      font-weight: 700;
+      color: #082f49;
+      background: var(--accent);
+      cursor: pointer;
+      transition: .16s ease;
+      display: inline-flex;
+      gap: 8px;
+      align-items: center;
+      justify-content: center;
+      text-decoration: none;
+      white-space: nowrap;
+    }
+    .btn:hover { filter: brightness(1.08); transform: translateY(-1px); }
+    .btn.secondary {
+      background: #e5e7eb;
+      color: #111827;
+    }
+    .btn.green {
+      background: var(--accent-2);
+      color: #052e16;
+    }
+    .btn.warn {
+      background: var(--warn);
+      color: #422006;
+    }
+    .btn.ghost {
+      background: transparent;
+      color: var(--text);
+      border: 1px solid var(--line);
+    }
+    .btn:disabled {
+      opacity: .45;
+      cursor: not-allowed;
+      transform: none;
+    }
+    .button-row {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 14px;
+    }
+    .options {
+      display: grid;
+      gap: 10px;
+      margin-top: 14px;
+    }
+    .option {
+      display: grid;
+      grid-template-columns: 22px 1fr;
+      gap: 9px;
+      align-items: start;
+      color: var(--text);
+      line-height: 1.35;
+      font-size: 14px;
+    }
+    .option small {
+      display: block;
+      color: var(--muted);
+      margin-top: 2px;
+    }
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin-top: 14px;
+    }
+    @media (max-width: 620px) {
+      .stats { grid-template-columns: 1fr; }
+    }
+    .stat {
+      background: rgba(31, 41, 55, 0.72);
+      border: 1px solid rgba(148, 163, 184, 0.12);
+      border-radius: 14px;
+      padding: 12px;
+    }
+    .stat b {
+      display: block;
+      font-size: 26px;
+      letter-spacing: -0.03em;
+    }
+    .stat span {
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .status {
+      margin-top: 12px;
+      color: var(--muted);
+      white-space: pre-wrap;
+      line-height: 1.45;
+      font-size: 14px;
+    }
+    .error {
+      color: #fecaca;
+      background: rgba(239, 68, 68, 0.12);
+      border: 1px solid rgba(239, 68, 68, 0.35);
+      border-radius: 12px;
+      padding: 10px;
+      margin-top: 10px;
+      display: none;
+    }
+    .table-list {
+      display: grid;
+      gap: 10px;
+      margin-top: 12px;
+    }
+    .table-item {
+      background: rgba(31, 41, 55, .65);
+      border: 1px solid rgba(148, 163, 184, 0.12);
+      border-radius: 14px;
+      padding: 12px;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 10px;
+      align-items: center;
+    }
+    .table-item h3 {
+      font-size: 15px;
+      margin: 0 0 4px;
+    }
+    .table-item p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.35;
+    }
+    .preview-wrap {
+      margin-top: 16px;
+    }
+    .preview-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 10px;
+    }
+    select {
+      background: #020617;
+      color: var(--text);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 9px 10px;
+      max-width: 100%;
+    }
+    .table-scroll {
+      overflow: auto;
+      border: 1px solid rgba(148, 163, 184, 0.16);
+      border-radius: 14px;
+      max-height: 430px;
+      background: rgba(2, 6, 23, .5);
+    }
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      min-width: 720px;
+      font-size: 12px;
+    }
+    th, td {
+      border-bottom: 1px solid rgba(148, 163, 184, 0.12);
+      border-right: 1px solid rgba(148, 163, 184, 0.10);
+      padding: 8px 9px;
+      vertical-align: top;
+      max-width: 280px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    th {
+      position: sticky;
+      top: 0;
+      background: #0b1220;
+      color: #bfdbfe;
+      text-align: left;
+      z-index: 1;
+    }
+    td.empty { color: #64748b; }
+    .pill {
+      display: inline-flex;
+      border-radius: 999px;
+      border: 1px solid rgba(148,163,184,.2);
+      color: var(--muted);
+      padding: 3px 8px;
+      font-size: 12px;
+    }
+    .note {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.45;
+      margin-top: 12px;
+    }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  </style>
+</head>
+<body>
+<header>
+  <h1>S-1210 JSON → CSV inteligente</h1>
+  <p class="subtitle">
+    Carregue um ou mais JSONs do evento S-1210. A ferramenta identifica os blocos repetitivos e gera CSVs consolidados por bloco para evento,
+    dependentes, IRCR, deduções, pensão alimentícia, pagamentos, exterior e demais blocos encontrados.
+  </p>
+</header>
+
+<main>
+  <div class="grid">
+    <section class="card">
+      <div id="drop" class="drop">
+        <p style="margin-top:0"><strong>Arraste um ou mais JSONs aqui</strong> ou selecione os arquivos manualmente.</p>
+        <label class="btn" for="fileInput">Selecionar JSON(s)</label>
+        <input id="fileInput" type="file" accept=".json,application/json" multiple>
+        <p class="note">Tudo roda localmente no navegador. O arquivo não é enviado para nenhum servidor.</p>
+      </div>
+
+      <div class="options">
+        <label class="option">
+          <input id="skipEmpty" type="checkbox" checked>
+          <span>
+            Descartar linhas sem informação útil
+            <small>Remove linhas em que os campos próprios do bloco estão vazios ou apenas com *vazio*, *datavazia* ou *numerovazio*. Ajuda a eliminar blocos placeholder.</small>
+          </span>
+        </label>
+        <label class="option">
+          <input id="blankPlaceholders" type="checkbox">
+          <span>
+            Converter placeholders em branco no CSV
+            <small>Transforma *vazio*, *datavazia* e *numerovazio* em célula vazia. A detecção de linhas úteis continua funcionando.</small>
+          </span>
+        </label>
+        <label class="option">
+          <input id="preserveExcelText" type="checkbox">
+          <span>
+            Preservar zeros à esquerda no Excel
+            <small>Campos como CPF, CNPJ, inscrição, recibo, CEP, ideDmDev e chave de integração saem como texto para o Excel não remover zeros. Por padrão, esta opção fica desligada.</small>
+          </span>
+        </label>
+        <div class="note" style="margin-top:10px">
+          Os campos monetários <span class="mono">vlrDedDep</span>, <span class="mono">vlrDedPenAlim</span>, <span class="mono">vrLiq</span>, <span class="mono">vlrDedPC</span> e <span class="mono">vlrDedPC13</span> são exportados com vírgula decimal para abertura correta no Excel brasileiro.
+        </div>
+      </div>
+
+      <div class="button-row">
+        <button id="btnProcess" class="btn green" disabled>Processar JSON(s)</button>
+        <button id="btnZip" class="btn warn" disabled>Baixar pacote ZIP com CSVs</button>
+        <button id="btnClear" class="btn ghost" disabled>Limpar</button>
+      </div>
+
+      <div id="error" class="error"></div>
+      <div id="status" class="status">Nenhum arquivo carregado.</div>
+
+      <div id="stats" class="stats" style="display:none"></div>
+
+      <div class="preview-wrap" id="previewWrap" style="display:none">
+        <div class="preview-head">
+          <div>
+            <strong>Prévia dos CSVs</strong>
+            <span id="previewMeta" class="pill"></span>
+          </div>
+          <select id="previewSelect"></select>
+        </div>
+        <div id="previewTable" class="table-scroll"></div>
+      </div>
+    </section>
+
+    <aside class="card">
+      <h2 style="margin-top:0">Arquivos gerados</h2>
+      <p class="note">
+        O pacote ZIP contém CSVs separados por bloco. Essa estrutura evita repetir dados de dependentes em todas as linhas de pagamento e facilita filtros/tabelas dinâmicas no Excel.
+      </p>
+      <div id="tableList" class="table-list">
+        <div class="table-item">
+          <div>
+            <h3>Aguardando processamento</h3>
+            <p>Após carregar e processar os JSONs, os CSVs aparecem aqui com a quantidade de linhas e colunas.</p>
+          </div>
+        </div>
+      </div>
+    </aside>
+  </div>
+</main>
+
+<script>
+(function () {
+  "use strict";
+
+  const $ = (id) => document.getElementById(id);
+  const fileInput = $("fileInput");
+  const drop = $("drop");
+  const btnProcess = $("btnProcess");
+  const btnZip = $("btnZip");
+  const btnClear = $("btnClear");
+  const statusEl = $("status");
+  const errorEl = $("error");
+  const statsEl = $("stats");
+  const tableListEl = $("tableList");
+  const previewWrap = $("previewWrap");
+  const previewSelect = $("previewSelect");
+  const previewTable = $("previewTable");
+  const previewMeta = $("previewMeta");
+
+  let loadedFiles = [];
+  let lastResult = null;
+
+  const PLACEHOLDER_RE = /^\*(vazio|datavazia|numerovazio)\*$/i;
+  const DECIMAL_BR_FIELDS = new Set(["vlrDedDep", "vlrDedPenAlim", "vrLiq", "vlrDedPC", "vlrDedPC13"]);
+  const DETALHE_PAGAMENTO_PATH = "s1210PagtoRendTrabInfo.s1210PagtoRendTrabDetPag";
+  const DETALHE_PAGAMENTO_IDE_DMDEV_FIELDS = [
+    "ideRecPgtoBenef.ideDmDev",
+    "ideRecPgtoResc.ideDmDev",
+    "ideRecPgtoRescTSV.ideDmDev",
+    "ideRecPgtoRGPS.ideDmDev",
+    "ideRecPgtoRPPS.ideDmDev"
+  ];
+
+  const NICE_NAMES = {
+    "eventos": "00_eventos.csv",
+    "campos_detectados": "99_campos_detectados.csv",
+    "resumo_blocos": "98_resumo_blocos.csv",
+    "s1210InfoIRComplem": "01_info_ir_complementar.csv",
+    "s1210InfoIRComplem.s1210InfoDep": "02_dependentes.csv",
+    "s1210InfoIRComplem.s1210InfoIRCR": "03_ircr.csv",
+    "s1210InfoIRComplem.s1210InfoIRCR.s1210DedDepen": "04_deducao_dependente.csv",
+    "s1210InfoIRComplem.s1210InfoIRCR.s1210PenAlim": "05_pensao_alimenticia.csv",
+    "s1210InfoIRComplem.s1210InfoIRCR.s1210InfoProcRet": "06_proc_retencao.csv",
+    "s1210InfoIRComplem.s1210InfoIRCR.s1210InfoProcRet.s1210InfoValores": "07_valores_proc_retencao.csv",
+    "s1210InfoIRComplem.s1210InfoIRCR.s1210InfoProcRet.s1210InfoValores.s1210DedSusp": "08_deducoes_suspensas.csv",
+    "s1210InfoIRComplem.s1210InfoIRCR.s1210InfoIR": "09_info_ir.csv",
+    "s1210InfoIRComplem.s1210InfoIRCR.s1210InfoIR.s1210InfoRRA": "09a_rra.csv",
+    "s1210InfoIRComplem.s1210InfoIRCR.s1210InfoIR.s1210InfoRRA.s1210DespProcJud": "09b_rra_desp_proc_jud.csv",
+    "s1210InfoIRComplem.s1210InfoIRCR.s1210InfoIR.s1210InfoRRA.s1210DespProcJud.s1210IdeAdv": "09c_rra_advogados.csv",
+    "s1210InfoIRComplem.s1210InfoIRCR.s1210PrevidCompl": "09d_previdencia_complementar.csv",
+    "s1210InfoIRComplem.s1210PlanSaude": "09e_plano_saude.csv",
+    "s1210InfoIRComplem.s1210PlanSaude.s1210InfoDepSau": "09f_plano_saude_dependentes.csv",
+    "s1210InfoIRComplem.s1210InfoReembMed": "09g_reembolso_medico.csv",
+    "s1210InfoIRComplem.s1210InfoReembMed.s1210DetReembTit": "09h_reembolso_titular.csv",
+    "s1210InfoIRComplem.s1210InfoReembMed.s1210InfoReembDep": "09i_reembolso_dependente.csv",
+    "s1210InfoIRComplem.s1210InfoReembMed.s1210InfoReembDep.s1210DetReembDep": "09j_reembolso_dependente_detalhe.csv",
+    "s1210PagtoRendTrabInfo": "10_pagamentos.csv",
+    "s1210PagtoRendTrabInfo.s1210PagtoRendTrabDetPag": "11_detalhe_pagamento.csv",
+    "s1210PagtoRendTrabInfo.s1210PagtoRendTrabInfoExt": "12_exterior.csv"
+  };
+
+  const TABLE_DESCRIPTIONS = {
+    "eventos": "Uma linha por evento/trabalhador. Ideal para conferir chave, CPF, empregador, competência e totais dos blocos filhos.",
+    "campos_detectados": "Dicionário dinâmico com todos os caminhos de campos escalares encontrados no JSON, quantidade de ocorrências e exemplos.",
+    "resumo_blocos": "Resumo de blocos repetitivos encontrados e quantidade de linhas geradas antes/depois dos filtros.",
+    "s1210InfoIRComplem": "Informações complementares de IR por evento.",
+    "s1210InfoIRComplem.s1210InfoDep": "Dependentes informados no bloco de IR complementar.",
+    "s1210InfoIRComplem.s1210InfoIRCR": "Blocos de informação de IR por código de receita.",
+    "s1210InfoIRComplem.s1210InfoIRCR.s1210DedDepen": "Deduções por dependente vinculadas ao IRCR.",
+    "s1210InfoIRComplem.s1210InfoIRCR.s1210PenAlim": "Pensão alimentícia vinculada ao IRCR.",
+    "s1210PagtoRendTrabInfo": "Cabeçalho de pagamento: data, tipo de pagamento, país de residência e dados correlatos.",
+    "s1210PagtoRendTrabInfo.s1210PagtoRendTrabDetPag": "Detalhes de pagamento: perRef, tipo de competência, vrLiq e ideDmDev por regime/recibo, incluindo RPPS e RGPS quando existirem.",
+    "s1210PagtoRendTrabInfo.s1210PagtoRendTrabInfoExt": "Dados de residente no exterior, quando existirem."
+  };
+
+  function setError(msg) {
+    if (!msg) {
+      errorEl.style.display = "none";
+      errorEl.textContent = "";
+      return;
+    }
+    errorEl.style.display = "block";
+    errorEl.textContent = msg;
+  }
+
+  function normalizePlaceholder(v) {
+    if (typeof v === "string" && PLACEHOLDER_RE.test(v.trim())) return "";
+    return v;
+  }
+
+  function isPlainObject(x) {
+    return x !== null && typeof x === "object" && !Array.isArray(x);
+  }
+
+  function flattenScalars(obj, prefix = "", out = {}) {
+    if (!isPlainObject(obj)) return out;
+    for (const [key, value] of Object.entries(obj)) {
+      const nextKey = prefix ? prefix + "." + key : key;
+      if (Array.isArray(value)) continue;
+      if (isPlainObject(value)) flattenScalars(value, nextKey, out);
+      else out[nextKey] = value == null ? "" : value;
+    }
+    return out;
+  }
+
+  function countArrays(obj, prefix = "", out = {}) {
+    if (Array.isArray(obj)) {
+      out[prefix || "[]"] = (out[prefix || "[]"] || 0) + obj.length;
+      for (const item of obj) countArrays(item, prefix, out);
+      return out;
+    }
+    if (!isPlainObject(obj)) return out;
+    for (const [key, value] of Object.entries(obj)) {
+      const path = prefix ? prefix + "." + key : key;
+      if (Array.isArray(value)) {
+        out[path] = (out[path] || 0) + value.length;
+        for (const item of value) countArrays(item, path, out);
+      } else if (isPlainObject(value)) {
+        countArrays(value, path, out);
+      }
+    }
+    return out;
+  }
+
+  function getByPath(obj, path) {
+    return path.split(".").reduce((cur, key) => cur && cur[key] !== undefined ? cur[key] : undefined, obj);
+  }
+
+  function extractEvents(data) {
+    const direct = getByPath(data, "s1210PagtoRendTrabGroup.s1210PagtoRendTrab");
+    if (Array.isArray(direct)) return direct;
+
+    if (Array.isArray(data?.s1210PagtoRendTrab)) return data.s1210PagtoRendTrab;
+    if (isPlainObject(data?.s1210PagtoRendTrab)) return [data.s1210PagtoRendTrab];
+
+    const candidates = [];
+    function walk(node, path) {
+      if (Array.isArray(node)) {
+        if (node.some(item => isPlainObject(item) && (
+          item.s1210PagtoRendTrabInfo || item.s1210InfoIRComplem || item.trabalhador || item.chaveIntegracao
+        ))) {
+          candidates.push({ path, arr: node });
+        }
+        node.forEach((item, idx) => walk(item, path + "[]"));
+      } else if (isPlainObject(node)) {
+        for (const [k, v] of Object.entries(node)) walk(v, path ? path + "." + k : k);
+      }
+    }
+    walk(data, "");
+    if (candidates.length) {
+      candidates.sort((a, b) => b.arr.length - a.arr.length);
+      return candidates[0].arr;
+    }
+
+    if (isPlainObject(data) && (data.s1210PagtoRendTrabInfo || data.s1210InfoIRComplem || data.trabalhador)) return [data];
+    return [];
+  }
+
+  function baseContext(event, eventIndex, fileName) {
+    return {
+      arquivo_origem: fileName || "",
+      evento_idx: eventIndex + 1,
+      ordemRegistro: event.ordemRegistro ?? "",
+      chaveIntegracao: event.chaveIntegracao ?? "",
+      perApur: event.perApur ?? "",
+      cpfTrab: event?.trabalhador?.cpfTrab ?? event?.beneficiario?.cpfBenef ?? "",
+      empregador_nrInsc: event?.empregador?.nrInsc ?? "",
+      empregador_tpInsc_tipo: event?.empregador?.tpInsc?.tipo ?? "",
+      empregador_iniValid: event?.empregador?.iniValid ?? ""
+    };
+  }
+
+  function prefixKeys(prefix, obj) {
+    const out = {};
+    for (const [k, v] of Object.entries(obj || {})) out[prefix + "." + k] = v;
+    return out;
+  }
+
+  function makeSafeKeyName(path) {
+    return path.replace(/\[\]/g, "").replace(/[^\w.\-À-ÿ]+/g, "_");
+  }
+
+  function fileNameForPath(path) {
+    if (NICE_NAMES[path]) return NICE_NAMES[path];
+    const base = makeSafeKeyName(path).replace(/\./g, "__").toLowerCase();
+    return "90_" + base.slice(0, 120) + ".csv";
+  }
+
+  function addRow(tables, path, row, ownFieldKeys, rawCountTracker) {
+    if (!tables.has(path)) tables.set(path, { path, rows: [], ownKeys: new Set(), rawRows: 0 });
+    const table = tables.get(path);
+    table.rawRows++;
+    rawCountTracker[path] = (rawCountTracker[path] || 0) + 1;
+    for (const key of ownFieldKeys) table.ownKeys.add(key);
+    table.rows.push(row);
+  }
+
+  function hasUsefulOwnData(row, ownKeys) {
+    for (const key of ownKeys) {
+      const raw = row[key];
+      if (raw === null || raw === undefined) continue;
+      const s = String(raw).trim();
+      if (!s) continue;
+      if (PLACEHOLDER_RE.test(s)) continue;
+      return true;
+    }
+    return false;
+  }
+
+  function walkRepeatedBlocks(node, currentPath, tables, eventCtx, indexCtx, ancestorCtx, rawCountTracker) {
+    if (!isPlainObject(node)) return;
+
+    for (const [key, value] of Object.entries(node)) {
+      if (!Array.isArray(value)) continue;
+
+      const path = currentPath ? currentPath + "." + key : key;
+      value.forEach((item, idx) => {
+        const nextIndexCtx = Object.assign({}, indexCtx, {
+          [key + "_idx"]: idx + 1,
+          origem_path: path
+        });
+
+        const ownScalars = isPlainObject(item)
+          ? flattenScalars(item)
+          : { valor: item == null ? "" : item };
+
+        // No detalhe do pagamento, força a existência de todas as colunas de ideDmDev.
+        // Alguns JSONs podem trazer apenas RPPS ou apenas RGPS; sem isso, o CSV dinâmico
+        // pode deixar de criar a coluna do regime ausente em determinadas competências.
+        if (path === DETALHE_PAGAMENTO_PATH) {
+          for (const field of DETALHE_PAGAMENTO_IDE_DMDEV_FIELDS) {
+            if (!Object.prototype.hasOwnProperty.call(ownScalars, field)) {
+              ownScalars[field] = "";
+            }
+          }
+        }
+
+        const row = Object.assign(
+          {},
+          eventCtx,
+          nextIndexCtx,
+          ancestorCtx,
+          ownScalars
+        );
+
+        addRow(tables, path, row, Object.keys(ownScalars), rawCountTracker);
+
+        if (isPlainObject(item)) {
+          const ancestorForChildren = Object.assign(
+            {},
+            ancestorCtx,
+            prefixKeys("pai_" + key, ownScalars)
+          );
+          walkRepeatedBlocks(item, path, tables, eventCtx, nextIndexCtx, ancestorForChildren, rawCountTracker);
+        }
+      });
+    }
+
+    for (const [key, value] of Object.entries(node)) {
+      if (isPlainObject(value)) {
+        const nestedPath = currentPath ? currentPath + "." + key : key;
+        walkRepeatedBlocks(value, nestedPath, tables, eventCtx, indexCtx, ancestorCtx, rawCountTracker);
+      }
+    }
+  }
+
+  function detectScalarFields(data) {
+    const map = new Map();
+
+    function visit(node, path) {
+      if (Array.isArray(node)) {
+        node.forEach(item => visit(item, path + "[]"));
+        return;
+      }
+      if (isPlainObject(node)) {
+        for (const [k, v] of Object.entries(node)) {
+          const next = path ? path + "." + k : k;
+          visit(v, next);
+        }
+        return;
+      }
+
+      const p = path || "(raiz)";
+      if (!map.has(p)) {
+        map.set(p, {
+          campo_json: p,
+          ocorrencias: 0,
+          ocorrencias_placeholder: 0,
+          exemplos: []
+        });
+      }
+      const rec = map.get(p);
+      rec.ocorrencias++;
+      const s = node == null ? "" : String(node);
+      if (PLACEHOLDER_RE.test(s.trim())) rec.ocorrencias_placeholder++;
+      if (s !== "" && rec.exemplos.length < 3 && !rec.exemplos.includes(s)) rec.exemplos.push(s);
+    }
+
+    visit(data, "");
+    return Array.from(map.values())
+      .map(r => ({
+        campo_json: r.campo_json,
+        ocorrencias: r.ocorrencias,
+        ocorrencias_placeholder: r.ocorrencias_placeholder,
+        exemplos: r.exemplos.join(" | ")
+      }))
+      .sort((a, b) => a.campo_json.localeCompare(b.campo_json, "pt-BR"));
+  }
+
+  function buildEventRows(events, fileName) {
+    return events.map((event, idx) => {
+      const row = Object.assign({}, baseContext(event, idx, fileName), flattenScalars(event));
+      const counts = countArrays(event);
+      for (const [k, v] of Object.entries(counts)) {
+        row["qtd_" + makeSafeKeyName(k).replace(/\./g, "__")] = v;
+      }
+
+      const infoIR = Array.isArray(event.s1210InfoIRComplem) ? event.s1210InfoIRComplem : [];
+      const pagamentos = Array.isArray(event.s1210PagtoRendTrabInfo) ? event.s1210PagtoRendTrabInfo : [];
+      row.qtd_infoIRComplem = infoIR.length;
+      row.qtd_dependentes = infoIR.reduce((acc, x) => acc + (Array.isArray(x.s1210InfoDep) ? x.s1210InfoDep.length : 0), 0);
+      row.qtd_ircr = infoIR.reduce((acc, x) => acc + (Array.isArray(x.s1210InfoIRCR) ? x.s1210InfoIRCR.length : 0), 0);
+      row.qtd_ded_depen = infoIR.reduce((acc, x) => acc + (Array.isArray(x.s1210InfoIRCR) ? x.s1210InfoIRCR.reduce((s, y) => s + (Array.isArray(y.s1210DedDepen) ? y.s1210DedDepen.length : 0), 0) : 0), 0);
+      row.qtd_pen_alim = infoIR.reduce((acc, x) => acc + (Array.isArray(x.s1210InfoIRCR) ? x.s1210InfoIRCR.reduce((s, y) => s + (Array.isArray(y.s1210PenAlim) ? y.s1210PenAlim.length : 0), 0) : 0), 0);
+      row.qtd_pagamentos = pagamentos.length;
+      row.qtd_det_pag = pagamentos.reduce((acc, x) => acc + (Array.isArray(x.s1210PagtoRendTrabDetPag) ? x.s1210PagtoRendTrabDetPag.length : 0), 0);
+      row.qtd_exterior = pagamentos.reduce((acc, x) => acc + (Array.isArray(x.s1210PagtoRendTrabInfoExt) ? x.s1210PagtoRendTrabInfoExt.length : 0), 0);
+      return row;
+    });
+  }
+
+  function processJson(data, fileName, opts) {
+    const events = extractEvents(data);
+    if (!events.length) throw new Error("Não encontrei a lista de eventos S-1210 no JSON. Verifique se o arquivo possui s1210PagtoRendTrabGroup.s1210PagtoRendTrab ou estrutura equivalente.");
+
+    const rawCountTracker = {};
+    const tables = new Map();
+    const eventRows = buildEventRows(events, fileName);
+    tables.set("eventos", { path: "eventos", rows: eventRows, ownKeys: new Set(Object.keys(eventRows[0] || {})), rawRows: eventRows.length });
+    rawCountTracker.eventos = eventRows.length;
+
+    events.forEach((event, idx) => {
+      const ctx = baseContext(event, idx, fileName);
+      walkRepeatedBlocks(event, "", tables, ctx, {}, {}, rawCountTracker);
+    });
+
+    const fieldRows = detectScalarFields(data).map(r => Object.assign({ arquivo_origem: fileName }, r));
+    tables.set("campos_detectados", { path: "campos_detectados", rows: fieldRows, ownKeys: new Set(Object.keys(fieldRows[0] || {})), rawRows: fieldRows.length });
+
+    const filteredTables = new Map();
+    for (const [path, table] of tables.entries()) {
+      if (path === "campos_detectados" || path === "eventos") {
+        filteredTables.set(path, table);
+        continue;
+      }
+      if (!opts.skipEmpty) {
+        filteredTables.set(path, table);
+        continue;
+      }
+      const rows = table.rows.filter(row => hasUsefulOwnData(row, table.ownKeys));
+      filteredTables.set(path, Object.assign({}, table, { rows }));
+    }
+
+    const resumo = Array.from(filteredTables.values())
+      .filter(t => t.path !== "resumo_blocos")
+      .map(t => ({
+        arquivo_csv: fileNameForPath(t.path),
+        bloco_json: t.path,
+        linhas_antes_do_filtro: t.rawRows ?? rawCountTracker[t.path] ?? t.rows.length,
+        linhas_exportadas: t.rows.length,
+        colunas: getHeaders(t.rows).length,
+        descricao: TABLE_DESCRIPTIONS[t.path] || "Bloco repetitivo detectado automaticamente no JSON."
+      }))
+      .sort((a, b) => a.arquivo_csv.localeCompare(b.arquivo_csv, "pt-BR"));
+
+    filteredTables.set("resumo_blocos", { path: "resumo_blocos", rows: resumo, ownKeys: new Set(Object.keys(resumo[0] || {})), rawRows: resumo.length });
+
+    return {
+      fileName,
+      events,
+      tables: filteredTables,
+      resumo
+    };
+  }
+
+  function mergeResults(results) {
+    if (!results.length) throw new Error("Nenhum JSON válido foi processado.");
+
+    const mergedTables = new Map();
+    const mergedEvents = [];
+
+    for (const result of results) {
+      mergedEvents.push(...result.events);
+      for (const [path, table] of result.tables.entries()) {
+        if (path === "resumo_blocos") continue;
+        if (!mergedTables.has(path)) {
+          mergedTables.set(path, {
+            path,
+            rows: [],
+            ownKeys: new Set(),
+            rawRows: 0
+          });
+        }
+        const target = mergedTables.get(path);
+        target.rows.push(...table.rows);
+        target.rawRows += table.rawRows ?? table.rows.length;
+        for (const key of (table.ownKeys || new Set())) target.ownKeys.add(key);
+      }
+    }
+
+    const resumo = Array.from(mergedTables.values())
+      .filter(t => t.path !== "resumo_blocos")
+      .map(t => ({
+        arquivo_csv: fileNameForPath(t.path),
+        bloco_json: t.path,
+        linhas_antes_do_filtro: t.rawRows ?? t.rows.length,
+        linhas_exportadas: t.rows.length,
+        colunas: getHeaders(t.rows).length,
+        descricao: TABLE_DESCRIPTIONS[t.path] || "Bloco repetitivo detectado automaticamente no JSON."
+      }))
+      .sort((a, b) => a.arquivo_csv.localeCompare(b.arquivo_csv, "pt-BR"));
+
+    mergedTables.set("resumo_blocos", {
+      path: "resumo_blocos",
+      rows: resumo,
+      ownKeys: new Set(Object.keys(resumo[0] || {})),
+      rawRows: resumo.length
+    });
+
+    return {
+      fileName: results.length === 1 ? results[0].fileName : "multiplos_arquivos",
+      fileCount: results.length,
+      events: mergedEvents,
+      tables: mergedTables,
+      resumo
+    };
+  }
+
+  function priorityForHeader(h) {
+    const order = [
+      "arquivo_origem", "evento_idx", "origem_path",
+      "ordemRegistro", "chaveIntegracao", "perApur", "cpfTrab",
+      "empregador_nrInsc", "empregador_tpInsc_tipo", "empregador_iniValid"
+    ];
+    const idx = order.indexOf(h);
+    if (idx >= 0) return idx;
+    if (/_idx$/.test(h)) return 100;
+    if (h.startsWith("pai_")) return 200;
+    if (h.startsWith("qtd_")) return 300;
+    return 500;
+  }
+
+  function getHeaders(rows) {
+    const set = new Set();
+    rows.forEach(row => Object.keys(row).forEach(k => set.add(k)));
+    return Array.from(set).sort((a, b) => {
+      const pa = priorityForHeader(a), pb = priorityForHeader(b);
+      if (pa !== pb) return pa - pb;
+      return a.localeCompare(b, "pt-BR");
+    });
+  }
+
+  function baseFieldName(header) {
+    const h = String(header || "");
+    const parts = h.split(/[._]/);
+    return parts[parts.length - 1] || h;
+  }
+
+  function shouldFormatDecimalBr(header) {
+    return DECIMAL_BR_FIELDS.has(baseFieldName(header));
+  }
+
+  function formatDecimalForExcelBr(value) {
+    if (value === null || value === undefined) return value;
+    let s = String(value).trim();
+    if (!s || PLACEHOLDER_RE.test(s)) return value;
+
+    // Converte apenas números no padrão do JSON/eSocial: 1488.7100, 189.5900, -10.0000.
+    if (!/^-?\d+(?:\.\d+)?$/.test(s)) return value;
+
+    let [intPart, decPart = ""] = s.split(".");
+    if (!decPart) return intPart;
+
+    // Remove zeros excedentes à direita, mas mantém no mínimo 2 casas para valores monetários.
+    decPart = decPart.replace(/0+$/, "");
+    if (decPart.length < 2) decPart = decPart.padEnd(2, "0");
+
+    return intPart + "," + decPart;
+  }
+
+  function cellForCsv(value, header, opts) {
+    if (opts.blankPlaceholders) value = normalizePlaceholder(value);
+    if (shouldFormatDecimalBr(header)) value = formatDecimalForExcelBr(value);
+    if (value === null || value === undefined) value = "";
+    let s = String(value);
+
+    // Reduz risco de CSV injection no Excel/LibreOffice.
+    if (/^[=+\-@]/.test(s)) s = "'" + s;
+
+    if (opts.preserveExcelText && s !== "" && /(cpf|cnpj|nif|nrinsc|cep|codpostal|recibo|chaveintegracao|idedmdev|matric|inscri|identificador|beneficiario)/i.test(header)) {
+      s = "\t" + s;
+    }
+
+    if (/[;"\r\n]/.test(s)) s = '"' + s.replace(/"/g, '""') + '"';
+    return s;
+  }
+
+  function toCsv(rows, opts) {
+    const headers = getHeaders(rows);
+    const lines = [];
+    lines.push(headers.map(h => cellForCsv(h, "", Object.assign({}, opts, { preserveExcelText: false }))).join(";"));
+    rows.forEach(row => {
+      lines.push(headers.map(h => cellForCsv(row[h], h, opts)).join(";"));
+    });
+    return "\ufeff" + lines.join("\r\n");
+  }
+
+  function renderStats(result) {
+    const eventos = result.events.length;
+    const cpfs = new Set(result.events.map(e => e?.trabalhador?.cpfTrab || e?.beneficiario?.cpfBenef || "").filter(Boolean)).size;
+    const tableCount = Array.from(result.tables.values()).filter(t => t.rows.length > 0).length;
+    const rows = Array.from(result.tables.values()).reduce((acc, t) => acc + t.rows.length, 0);
+
+    statsEl.style.display = "grid";
+    statsEl.innerHTML = `
+      <div class="stat"><b>${result.fileCount || 1}</b><span>arquivo(s) JSON</span></div>
+      <div class="stat"><b>${eventos}</b><span>evento(s) S-1210</span></div>
+      <div class="stat"><b>${cpfs}</b><span>CPF(s) distinto(s)</span></div>
+      <div class="stat"><b>${tableCount}</b><span>CSV(s) com linhas</span></div>
+      <div class="stat"><b>${rows}</b><span>linhas totais exportáveis</span></div>
+      <div class="stat"><b>${result.resumo.reduce((a,r)=>a + Number(r.linhas_exportadas || 0), 0)}</b><span>linhas nos blocos</span></div>
+      <div class="stat"><b>${result.resumo.length}</b><span>blocos detectados</span></div>
+    `;
+  }
+
+  function renderTableList(result) {
+    const items = Array.from(result.tables.values())
+      .filter(t => t.rows.length > 0)
+      .sort((a, b) => fileNameForPath(a.path).localeCompare(fileNameForPath(b.path), "pt-BR"));
+
+    tableListEl.innerHTML = "";
+    for (const table of items) {
+      const div = document.createElement("div");
+      div.className = "table-item";
+      const fileName = fileNameForPath(table.path);
+      const desc = TABLE_DESCRIPTIONS[table.path] || "Bloco repetitivo detectado automaticamente.";
+      div.innerHTML = `
+        <div>
+          <h3>${escapeHtml(fileName)}</h3>
+          <p><span class="mono">${escapeHtml(table.path)}</span></p>
+          <p>${table.rows.length} linha(s), ${getHeaders(table.rows).length} coluna(s). ${escapeHtml(desc)}</p>
+        </div>
+      `;
+      const btn = document.createElement("button");
+      btn.className = "btn secondary";
+      btn.textContent = "CSV";
+      btn.addEventListener("click", () => downloadCsv(table.path));
+      div.appendChild(btn);
+      tableListEl.appendChild(div);
+    }
+  }
+
+  function renderPreviewOptions(result) {
+    const items = Array.from(result.tables.values())
+      .filter(t => t.rows.length > 0)
+      .sort((a, b) => fileNameForPath(a.path).localeCompare(fileNameForPath(b.path), "pt-BR"));
+
+    previewSelect.innerHTML = "";
+    for (const table of items) {
+      const opt = document.createElement("option");
+      opt.value = table.path;
+      opt.textContent = `${fileNameForPath(table.path)} (${table.rows.length})`;
+      previewSelect.appendChild(opt);
+    }
+    previewWrap.style.display = items.length ? "block" : "none";
+    if (items.length) renderPreview(items[0].path);
+  }
+
+  function renderPreview(path) {
+    const table = lastResult?.tables.get(path);
+    if (!table) return;
+
+    const rows = table.rows.slice(0, 25);
+    const headers = getHeaders(table.rows).slice(0, 35);
+    previewMeta.textContent = `${table.rows.length} linha(s), ${getHeaders(table.rows).length} coluna(s). Prévia: 25 linhas / 35 colunas.`;
+
+    let html = "<table><thead><tr>" + headers.map(h => `<th>${escapeHtml(h)}</th>`).join("") + "</tr></thead><tbody>";
+    if (!rows.length) {
+      html += `<tr><td colspan="${headers.length || 1}" class="empty">Sem linhas exportáveis.</td></tr>`;
+    } else {
+      for (const row of rows) {
+        html += "<tr>" + headers.map(h => {
+          let v = row[h];
+          if (v === null || v === undefined || v === "") return `<td class="empty">(vazio)</td>`;
+          return `<td title="${escapeHtml(String(v))}">${escapeHtml(String(v))}</td>`;
+        }).join("") + "</tr>";
+      }
+    }
+    html += "</tbody></table>";
+    previewTable.innerHTML = html;
+  }
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, c => ({
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      '"': "&quot;",
+      "'": "&#39;"
+    }[c]));
+  }
+
+  function currentOptions() {
+    return {
+      skipEmpty: $("skipEmpty").checked,
+      blankPlaceholders: $("blankPlaceholders").checked,
+      preserveExcelText: $("preserveExcelText").checked
+    };
+  }
+
+  function loadFiles(fileList) {
+    setError("");
+    loadedFiles = Array.from(fileList || []).filter(f => /\.json$/i.test(f.name) || /json/i.test(f.type || ""));
+    lastResult = null;
+    btnProcess.disabled = loadedFiles.length === 0;
+    btnClear.disabled = loadedFiles.length === 0;
+    btnZip.disabled = true;
+    statsEl.style.display = "none";
+    previewWrap.style.display = "none";
+
+    if (!loadedFiles.length) {
+      statusEl.textContent = "Nenhum JSON carregado.";
+      return;
+    }
+
+    const totalKb = loadedFiles.reduce((acc, f) => acc + f.size, 0) / 1024;
+    const nomes = loadedFiles.map(f => `- ${f.name} (${(f.size / 1024).toFixed(1)} KB)`).join("\n");
+    statusEl.textContent = `${loadedFiles.length} arquivo(s) carregado(s). Tamanho total: ${totalKb.toFixed(1)} KB.\n${nomes}\n\nClique em "Processar JSON(s)".`;
+  }
+
+  async function processLoaded() {
+    setError("");
+    if (!loadedFiles.length) return;
+
+    btnProcess.disabled = true;
+    btnZip.disabled = true;
+
+    try {
+      const results = [];
+      const errors = [];
+
+      for (const file of loadedFiles) {
+        try {
+          const text = await file.text();
+          const data = JSON.parse(text);
+          results.push(processJson(data, file.name || "arquivo.json", currentOptions()));
+        } catch (err) {
+          errors.push(`${file.name}: ${err.message || String(err)}`);
+        }
+      }
+
+      if (!results.length) {
+        throw new Error("Nenhum dos arquivos selecionados pôde ser processado.\n" + errors.join("\n"));
+      }
+
+      lastResult = mergeResults(results);
+      renderStats(lastResult);
+      renderTableList(lastResult);
+      previewWrap.style.display = "none";
+      btnZip.disabled = false;
+
+      const aviso = errors.length ? `\n\nArquivos ignorados por erro:\n${errors.join("\n")}` : "";
+      statusEl.textContent = `Processamento concluído. Foram processados ${results.length} arquivo(s), ${lastResult.events.length} evento(s) e ${lastResult.resumo.length} bloco(s) exportáveis/detectados.${aviso}`;
+    } catch (err) {
+      console.error(err);
+      setError(err.message || String(err));
+      btnZip.disabled = true;
+    } finally {
+      btnProcess.disabled = loadedFiles.length === 0;
+    }
+  }
+
+  function downloadCsv(path) {
+    if (!lastResult) return;
+    const table = lastResult.tables.get(path);
+    if (!table) return;
+    const csv = toCsv(table.rows, currentOptions());
+    downloadBlob(new Blob([csv], { type: "text/csv;charset=utf-8" }), fileNameForPath(path));
+  }
+
+  async function downloadZip() {
+    if (!lastResult) return;
+    const files = {};
+    const tables = Array.from(lastResult.tables.values())
+      .filter(t => t.rows.length > 0)
+      .sort((a, b) => fileNameForPath(a.path).localeCompare(fileNameForPath(b.path), "pt-BR"));
+
+    for (const table of tables) {
+      files[fileNameForPath(table.path)] = toCsv(table.rows, currentOptions());
+    }
+
+    const base = (lastResult.fileCount || 1) > 1
+      ? "s1210_multiplos_arquivos"
+      : (loadedFiles[0]?.name || "s1210").replace(/\.[^.]+$/, "").replace(/[^\w\-]+/g, "_");
+    const zipBlob = createZip(files);
+    downloadBlob(zipBlob, base + "_csv_s1210.zip");
+  }
+
+  function downloadBlob(blob, name) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1500);
+  }
+
+  function clearAll() {
+    loadedFiles = [];
+    lastResult = null;
+    fileInput.value = "";
+    btnProcess.disabled = true;
+    btnZip.disabled = true;
+    btnClear.disabled = true;
+    statsEl.style.display = "none";
+    previewWrap.style.display = "none";
+    tableListEl.innerHTML = `<div class="table-item"><div><h3>Aguardando processamento</h3><p>Após carregar e processar os JSONs, os CSVs aparecem aqui com a quantidade de linhas e colunas.</p></div></div>`;
+    statusEl.textContent = "Nenhum arquivo carregado.";
+    setError("");
+  }
+
+  // ZIP sem compressão, implementado localmente para evitar dependências/CDN.
+  function createZip(files) {
+    const encoder = new TextEncoder();
+    const localParts = [];
+    const centralParts = [];
+    let offset = 0;
+
+    const now = new Date();
+    const dosTime = ((now.getHours() & 31) << 11) | ((now.getMinutes() & 63) << 5) | ((Math.floor(now.getSeconds() / 2)) & 31);
+    const dosDate = (((now.getFullYear() - 1980) & 127) << 9) | (((now.getMonth() + 1) & 15) << 5) | (now.getDate() & 31);
+
+    for (const [name, text] of Object.entries(files)) {
+      const nameBytes = encoder.encode(name);
+      const dataBytes = encoder.encode(text);
+      const crc = crc32(dataBytes);
+      const size = dataBytes.length;
+
+      const local = new Uint8Array(30 + nameBytes.length);
+      const lv = new DataView(local.buffer);
+      lv.setUint32(0, 0x04034b50, true);
+      lv.setUint16(4, 20, true);
+      lv.setUint16(6, 0x0800, true); // UTF-8
+      lv.setUint16(8, 0, true);      // store
+      lv.setUint16(10, dosTime, true);
+      lv.setUint16(12, dosDate, true);
+      lv.setUint32(14, crc, true);
+      lv.setUint32(18, size, true);
+      lv.setUint32(22, size, true);
+      lv.setUint16(26, nameBytes.length, true);
+      lv.setUint16(28, 0, true);
+      local.set(nameBytes, 30);
+
+      localParts.push(local, dataBytes);
+
+      const central = new Uint8Array(46 + nameBytes.length);
+      const cv = new DataView(central.buffer);
+      cv.setUint32(0, 0x02014b50, true);
+      cv.setUint16(4, 20, true);
+      cv.setUint16(6, 20, true);
+      cv.setUint16(8, 0x0800, true);
+      cv.setUint16(10, 0, true);
+      cv.setUint16(12, dosTime, true);
+      cv.setUint16(14, dosDate, true);
+      cv.setUint32(16, crc, true);
+      cv.setUint32(20, size, true);
+      cv.setUint32(24, size, true);
+      cv.setUint16(28, nameBytes.length, true);
+      cv.setUint16(30, 0, true);
+      cv.setUint16(32, 0, true);
+      cv.setUint16(34, 0, true);
+      cv.setUint16(36, 0, true);
+      cv.setUint32(38, 0, true);
+      cv.setUint32(42, offset, true);
+      central.set(nameBytes, 46);
+      centralParts.push(central);
+
+      offset += local.length + dataBytes.length;
+    }
+
+    const centralSize = centralParts.reduce((n, p) => n + p.length, 0);
+    const centralOffset = offset;
+    const end = new Uint8Array(22);
+    const ev = new DataView(end.buffer);
+    ev.setUint32(0, 0x06054b50, true);
+    ev.setUint16(8, centralParts.length, true);
+    ev.setUint16(10, centralParts.length, true);
+    ev.setUint32(12, centralSize, true);
+    ev.setUint32(16, centralOffset, true);
+    ev.setUint16(20, 0, true);
+
+    return new Blob([...localParts, ...centralParts, end], { type: "application/zip" });
+  }
+
+  let CRC_TABLE = null;
+  function crc32(bytes) {
+    if (!CRC_TABLE) {
+      CRC_TABLE = new Uint32Array(256);
+      for (let n = 0; n < 256; n++) {
+        let c = n;
+        for (let k = 0; k < 8; k++) c = (c & 1) ? (0xedb88320 ^ (c >>> 1)) : (c >>> 1);
+        CRC_TABLE[n] = c >>> 0;
+      }
+    }
+    let crc = 0xffffffff;
+    for (let i = 0; i < bytes.length; i++) {
+      crc = CRC_TABLE[(crc ^ bytes[i]) & 0xff] ^ (crc >>> 8);
+    }
+    return (crc ^ 0xffffffff) >>> 0;
+  }
+
+  fileInput.addEventListener("change", (e) => {
+    if (e.target.files && e.target.files.length) loadFiles(e.target.files);
+  });
+
+  ["dragenter", "dragover"].forEach(evt => drop.addEventListener(evt, (e) => {
+    e.preventDefault();
+    drop.classList.add("drag");
+  }));
+  ["dragleave", "drop"].forEach(evt => drop.addEventListener(evt, (e) => {
+    e.preventDefault();
+    drop.classList.remove("drag");
+  }));
+  drop.addEventListener("drop", (e) => {
+    if (e.dataTransfer.files && e.dataTransfer.files.length) loadFiles(e.dataTransfer.files);
+  });
+
+  btnProcess.addEventListener("click", processLoaded);
+  btnZip.addEventListener("click", downloadZip);
+  btnClear.addEventListener("click", clearAll);
+  previewSelect.addEventListener("change", e => renderPreview(e.target.value));
+  $("skipEmpty").addEventListener("change", () => { if (loadedFiles.length) processLoaded(); });
+  $("blankPlaceholders").addEventListener("change", () => { if (loadedFiles.length && lastResult) processLoaded(); });
+  $("preserveExcelText").addEventListener("change", () => { if (loadedFiles.length && lastResult) processLoaded(); });
+})();
+</script>
+</body>
+</html>

@@ -41,10 +41,10 @@
       <div class="card-header">Carregar e Baixar Arquivo</div>
       <div class="card-body">
         <div class="form-group">
-          <label for="fileInput"><strong>Carregar Arquivo JSON:</strong></label>
-          <input type="file" id="fileInput" accept=".json" class="form-control-file" />
+          <label for="fileInput"><strong>Carregar Arquivo(s) JSON:</strong></label>
+          <input type="file" id="fileInput" accept=".json" class="form-control-file" multiple />
           <div class="small-hint mt-2">
-            O arquivo deve conter: <span class="mono">{"s1210PagtoRendTrabGroup":{"s1210PagtoRendTrab":[...]}}</span>
+            O(s) arquivo(s) deve(m) conter: <span class="mono">{"s1210PagtoRendTrabGroup":{"s1210PagtoRendTrab":[...]}}</span>. É possível selecionar 2 ou mais JSON de uma vez; a saída será um único arquivo com todos os eventos, sem consolidação.
           </div>
           <div class="small-hint mt-2">
             <strong>Integridade:</strong> o salvamento aplica <em>patch</em> (atualiza apenas chaves editadas; não injeta chaves ausentes com arrays vazios).
@@ -53,6 +53,7 @@
         <div class="btn-group-custom">
           <button id="downloadBtn" class="btn btn-info"><i class="fas fa-download"></i> Baixar Edição</button>
           <button id="cpfRemoveBtn" class="btn btn-danger" data-toggle="modal" data-target="#cpfRemoveModal"><i class="fas fa-user-times"></i> Excluir por lista de CPFs</button>
+          <button id="ircrSyncBtn" class="btn btn-warning" data-toggle="modal" data-target="#ircrSyncModal"><i class="fas fa-balance-scale"></i> Sincronizar IRCR Ded/Pensão</button>
           <button id="depSyncBtn" class="btn btn-primary" data-toggle="modal" data-target="#depSyncModal"><i class="fas fa-user-plus"></i> Sincronizar Dependentes</button>
           <button id="liqSyncBtn" class="btn btn-success" data-toggle="modal" data-target="#liqSyncModal"><i class="fas fa-coins"></i> Sincronizar Líquidos</button>
         </div>
@@ -237,6 +238,96 @@
     </div>
 
   
+    <!-- Modal: Sincronizar IRCR Dedução/Pensão por base oficial -->
+    <div class="modal fade" id="ircrSyncModal" tabindex="-1" aria-labelledby="ircrSyncModalLabel" aria-hidden="true">
+      <div class="modal-dialog modal-xl" style="max-width: 1100px;">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="ircrSyncModalLabel">Sincronizar IRCR - Dedução de Dependente e Pensão Alimentícia</h5>
+            <button type="button" class="close" data-dismiss="modal" aria-label="Fechar"><span aria-hidden="true">&times;</span></button>
+          </div>
+          <div class="modal-body">
+            <div class="alert alert-warning">
+              Objetivo: sincronizar os blocos <strong>s1210DedDepen</strong> e <strong>s1210PenAlim</strong> dentro do <strong>s1210InfoIRCR</strong>,
+              usando as bases oficiais por <span class="mono">cpfTrab</span>/<span class="mono">cpf_func</span>. Por padrão, a rotina aplica os valores no
+              <strong>tpCR 056107</strong> e corrige dedução/pensão indevidamente lançadas no <strong>tpCR 188901</strong>.
+            </div>
+
+            <div class="small-hint mb-3">
+              <strong>Regra operacional:</strong> a coluna <span class="mono">mes_referencia</span> é tratada apenas como informação da base enviada.
+              A rotina <strong>não compara</strong> esse mês com <span class="mono">perRef</span> nem com o sufixo do <span class="mono">ideDmDev</span>, porque o S-1210 reúne valores pagos no período de apuração mesmo quando a folha de origem é de competência anterior.
+            </div>
+
+            <div class="form-row">
+              <div class="form-group col-md-3">
+                <label><strong>tpCR alvo</strong></label>
+                <input type="text" class="form-control mono" id="ircrTargetTpCrInput" value="056107">
+              </div>
+              <div class="form-group col-md-3">
+                <label><strong>tpRend padrão</strong></label>
+                <input type="text" class="form-control mono" id="ircrTpRendInput" value="11">
+              </div>
+              <div class="form-group col-md-6">
+                <label><strong>Formato esperado das bases</strong></label>
+                <div class="small-hint mono mt-2">Dedução: matric;mes_referencia;cpftrab;cpf;vlrDedDep</div>
+                <div class="small-hint mono">Pensão: matric;mes_referencia;complemento;valor;cpf_func;cpf_dep</div>
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group col-md-6">
+                <label><strong>CSV - Dedução de Dependente IR</strong></label>
+                <input type="file" id="ircrDedFileInput" accept=".csv,.txt" class="form-control-file mb-2">
+                <textarea id="ircrDedTextarea" class="form-control mono" rows="8" placeholder="matric;mes_referencia;cpftrab;cpf;vlrDedDep
+850.002-7;01/2025;77097122749;59069740753;189,59"></textarea>
+              </div>
+              <div class="form-group col-md-6">
+                <label><strong>CSV - Pensão Alimentícia IR</strong></label>
+                <input type="file" id="ircrPenFileInput" accept=".csv,.txt" class="form-control-file mb-2">
+                <textarea id="ircrPenTextarea" class="form-control mono" rows="8" placeholder="matric;mes_referencia;complemento;valor;cpf_func;cpf_dep
+850.029-0;02/2025;1;3515,48;96431490720;11118852737"></textarea>
+              </div>
+            </div>
+
+            <div class="soft-box mb-3">
+              <div class="form-group form-check mb-2">
+                <input type="checkbox" class="form-check-input" id="ircrReplaceTargetCheckbox" checked>
+                <label class="form-check-label" for="ircrReplaceTargetCheckbox">No tpCR alvo, substituir as listas existentes pela base informada para o CPF do trabalhador</label>
+              </div>
+              <div class="form-group form-check mb-2">
+                <input type="checkbox" class="form-check-input" id="ircrClean188901Checkbox" checked>
+                <label class="form-check-label" for="ircrClean188901Checkbox">Remover do tpCR 188901 apenas o tipo de informação cuja base foi informada: Dedução e/ou Pensão</label>
+              </div>
+              <div class="form-group form-check mb-2">
+                <input type="checkbox" class="form-check-input" id="ircrCleanPc188901Checkbox" checked>
+                <label class="form-check-label" for="ircrCleanPc188901Checkbox">Mover s1210PrevidCompl do tpCR 188901 para o tpCR alvo</label>
+              </div>
+              <div class="form-group form-check mb-0">
+                <input type="checkbox" class="form-check-input" id="ircrCleanOtherTpcrCheckbox">
+                <label class="form-check-label" for="ircrCleanOtherTpcrCheckbox">Remover dedução/pensão de qualquer tpCR diferente do alvo (uso excepcional)</label>
+              </div>
+            </div>
+
+            <div style="display:none;">
+              <pre id="ircrPreview" class="mono status-box p-2"></pre>
+              <div id="ircrStats" class="small-hint mt-2"></div>
+            </div>
+
+            <hr/>
+            <div class="d-flex flex-wrap" style="gap:.5rem;">
+              <button type="button" class="btn btn-warning" id="ircrApplyBtn"><i class="fas fa-magic"></i> Aplicar sincronização IRCR</button>
+            </div>
+
+            <div class="small-hint mt-2">Resultado final:</div>
+            <pre id="ircrReport" class="mono status-box p-2" style="background:#fff;border:1px solid #dee2e6;border-radius:6px; max-height: 340px; overflow:auto;"></pre>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-dismiss="modal">Fechar</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Modal: Sincronizar Dependentes (InfoDep) a partir de base (cpfTrab;cpfDep;depIRRF;dtNascto;nome;tpDep.codigo) -->
     <div class="modal fade" id="depSyncModal" tabindex="-1" aria-labelledby="depSyncModalLabel" aria-hidden="true">
       <div class="modal-dialog modal-lg" style="max-width: 950px;">
@@ -252,12 +343,13 @@
               O script só adiciona o necessário, preservando a integridade do arquivo.
             </div>
 
-            <div class="small-hint mb-3">Cole a base abaixo (uma linha por registro), separada por <span class="mono">;</span>. Formato: <span class="mono">cpfTrab;cpfDep;depIRRF;dtNascto;nome;tpDep.codigo;descrDep</span> (o último campo <span class="mono">descrDep</span> é opcional). CPFs são normalizados para 11 dígitos.</div>
+            <div class="small-hint mb-3">Cole a base abaixo (uma linha por registro), separada por <span class="mono">;</span>. Formato principal com cabeçalho: <span class="mono">CPFTRAB;CPF;NUMDEP;DTNASCTO;NOMEDEP;TIPODEP;PARENTESCO</span>. A rotina usa <span class="mono">TIPODEP</span> como origem de <span class="mono">tpDep.codigo</span> e, quando <span class="mono">TIPODEP=99</span>, usa <span class="mono">PARENTESCO</span> como origem de <span class="mono">descrDep</span>. CPFs são normalizados para 11 dígitos.</div>
 
             <div class="form-group">
+              <label><strong>Escolher arquivo CSV/TXT da base de dependentes:</strong></label>
+              <input type="file" id="depFileInput" accept=".csv,.txt" class="form-control-file mb-2">
               <label><strong>Ou cole a base (uma linha por registro):</strong></label>
-              <textarea id="depTextarea" class="form-control mono" rows="7" placeholder="Ex:
-01234567890;12345678901;S;2001-05-10;FULANO DE TAL;01"></textarea>
+              <textarea id="depTextarea" class="form-control mono" rows="7" placeholder="CPFTRAB;CPF;NUMDEP;DTNASCTO;NOMEDEP;TIPODEP;PARENTESCO"></textarea>
             </div>
 
             <div class="form-group form-check">
@@ -274,9 +366,10 @@
               <label class="form-check-label" for="depIrcrDedupCheckbox">Consolidar IRCR duplicados por tpCR (mesclar Ded/Pensão e remover itens duplicados)</label>
             </div>
 
-            <div class="small-hint mb-2">Pré-visualização (primeiras 20 linhas válidas):</div>
-            <pre id="depPreview" class="mono status-box p-2" style="background:#f8f9fa;border:1px solid #dee2e6;border-radius:6px; max-height: 220px; overflow:auto;"></pre>
-            <div id="depStats" class="small-hint mt-2"></div>
+            <div style="display:none;">
+              <pre id="depPreview" class="mono status-box p-2"></pre>
+              <div id="depStats" class="small-hint mt-2"></div>
+            </div>
 
             <hr/>
             <div class="d-flex flex-wrap" style="gap:.5rem;">
@@ -321,6 +414,8 @@
             </div>
 
             <div class="form-group">
+              <label><strong>Escolher arquivo CSV/TXT da base de líquidos:</strong></label>
+              <input type="file" id="liqFileInput" accept=".csv,.txt" class="form-control-file mb-2">
               <label><strong>Ou cole a base (uma linha por registro):</strong></label>
               <textarea id="liqTextarea" class="form-control mono" rows="7" placeholder="Ex:
 01234567890;4;2024-12-01;855.393-5-11-NORMAL-122024;3419.3400;2025-01-03"></textarea>
@@ -335,9 +430,10 @@
               <label class="form-check-label" for="liqDedupCheckbox">Consolidar duplicidades em DetPag somente quando houver o mesmo perRef + ideDmDev completo</label>
             </div>
 
-            <div class="small-hint mb-2">Pré-visualização (primeiras 20 linhas válidas):</div>
-            <pre id="liqPreview" class="mono status-box p-2" style="background:#fff;border:1px solid #dee2e6;border-radius:6px; max-height: 220px; overflow:auto;"></pre>
-            <div id="liqStats" class="small-hint mt-2"></div>
+            <div style="display:none;">
+              <pre id="liqPreview" class="mono status-box p-2"></pre>
+              <div id="liqStats" class="small-hint mt-2"></div>
+            </div>
 
             <hr/>
             <div class="d-flex flex-wrap" style="gap:.5rem;">
@@ -362,6 +458,7 @@
     // ============================================================================
     window.esocialData = {"s1210PagtoRendTrabGroup":{"s1210PagtoRendTrab":[]}};
     window.loadedFileName = null;
+    window.loadedFileNames = [];
 
     function ensureRoot(data) {
       if (!data || typeof data !== "object") data = {};
@@ -476,24 +573,57 @@
     // ============================================================================
     // Carregar arquivo
     // ============================================================================
-    document.getElementById("fileInput").addEventListener("change", function () {
-      const file = this.files && this.files[0];
-      if (!file) return;
-      window.loadedFileName = file.name;
+    function readJsonFileAsText(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (e) => resolve(String(e.target.result || ""));
+        reader.onerror = () => reject(reader.error || new Error("Falha ao ler arquivo"));
+        reader.readAsText(file);
+      });
+    }
 
-      const reader = new FileReader();
-      reader.onload = function (e) {
-        try {
-          const parsed = JSON.parse(e.target.result);
-          window.esocialData = ensureRoot(parsed);
-          getEventos().forEach(evt => { if (typeof evt._selected === "undefined") evt._selected = false; });
-          renderEventosTable();
-          setStatus('<div class="alert alert-success mb-0">Arquivo carregado com sucesso.</div>');
-        } catch (err) {
-          alert("Erro ao ler JSON: " + err);
+    function mergeS1210Files(parsedFiles) {
+      const merged = { s1210PagtoRendTrabGroup: { s1210PagtoRendTrab: [] } };
+      const fileStats = [];
+
+      parsedFiles.forEach(({ name, data }) => {
+        const rooted = ensureRoot(data);
+        const eventos = rooted.s1210PagtoRendTrabGroup.s1210PagtoRendTrab;
+        fileStats.push({ name, count: eventos.length });
+        merged.s1210PagtoRendTrabGroup.s1210PagtoRendTrab.push(...eventos);
+      });
+
+      return { merged, fileStats };
+    }
+
+    document.getElementById("fileInput").addEventListener("change", async function () {
+      const files = Array.from(this.files || []).filter(f => f && f.name && f.name.toLowerCase().endsWith(".json"));
+      if (!files.length) return;
+
+      try {
+        const parsedFiles = [];
+        for (const file of files) {
+          const text = await readJsonFileAsText(file);
+          parsedFiles.push({ name: file.name, data: JSON.parse(text) });
         }
-      };
-      reader.readAsText(file);
+
+        const { merged, fileStats } = mergeS1210Files(parsedFiles);
+        window.esocialData = ensureRoot(merged);
+        window.loadedFileNames = files.map(f => f.name);
+        window.loadedFileName = window.loadedFileNames.length === 1 ? window.loadedFileNames[0] : null;
+
+        getEventos().forEach(evt => { if (typeof evt._selected === "undefined") evt._selected = false; });
+        renderEventosTable();
+
+        const total = getEventos().length;
+        const detail = fileStats.map(x => `${x.name}: ${x.count}`).join(" | ");
+        setStatus(`<div class="alert alert-success mb-0">
+          Arquivo(s) carregado(s): <strong>${files.length}</strong> | Eventos totais: <strong>${total}</strong><br/>
+          <span class="small">${detail}</span>
+        </div>`);
+      } catch (err) {
+        alert("Erro ao ler JSON: " + err);
+      }
     });
 
     // ============================================================================
@@ -511,6 +641,9 @@
     }
 
     function gerarNomeArquivoDownload() {
+      if (Array.isArray(window.loadedFileNames) && window.loadedFileNames.length > 1) {
+        return "S-1210_unificado_editado.json";
+      }
       if (window.loadedFileName && window.loadedFileName.toLowerCase().endsWith(".json")) {
         const base = window.loadedFileName.replace(/\.json$/i, "");
         return base + "_editado.json";
@@ -658,7 +791,7 @@
       (blk.s1210InfoDep || []).forEach((dep, depIdx) => addDepRow(depTbody, dep, depIdx));
 
       card.querySelector(".ir-add-dep").addEventListener("click", () => {
-        const dep = { cpfDep:"*vazio*", depIRRF:"*vazio*", dtNascto:"*datavazia*", nome:"*vazio*", tpDep:{codigo:"*vazio*"} };
+        const dep = { cpfDep:"*vazio*", depIRRF:null, dtNascto:"*datavazia*", nome:"*vazio*", tpDep:{codigo:"*vazio*"} };
         addDepRow(depTbody, dep, null, true);
       });
 
@@ -1137,7 +1270,7 @@ pcApplyDefaultCnpjBtn.addEventListener("click", () => {
                 let dep = (!rIsNew && ridx !== null && oldDeps[ridx]) ? oldDeps[ridx] : JSON.parse(tr.dataset.template || "{}");
 
                 setIfChanged(dep, "cpfDep", safeValue(tr, ".dep-cpfDep"));
-                setIfChanged(dep, "depIRRF", safeValue(tr, ".dep-depIRRF"));
+                setIfChanged(dep, "depIRRF", depSanitizeDepIRRFForJson(safeValue(tr, ".dep-depIRRF")));
                 setIfChanged(dep, "dtNascto", safeValue(tr, ".dep-dtNascto"));
                 setIfChanged(dep, "nome", safeValue(tr, ".dep-nome"));
                 if (dep.tpDep && typeof dep.tpDep === "object") setIfChanged(dep.tpDep, "codigo", safeValue(tr, ".dep-tpDep"));
@@ -1145,19 +1278,20 @@ pcApplyDefaultCnpjBtn.addEventListener("click", () => {
                 
                 
 
-const __depIRRF = safeValue(tr, ".dep-depIRRF");
+const __depIRRF = depSanitizeDepIRRFForJson(safeValue(tr, ".dep-depIRRF"));
 const __tp = safeValue(tr, ".dep-tpDep");
 const __descrDep = safeValue(tr, ".dep-descrDep");
 
 // Regras:
 // - Se depIRRF == "S": tpDep obrigatório; descrDep somente se tpDep==99
-// - Se depIRRF != "S": permitimos tpDep==99 e descrDep (cotista). Se tpDep!=99, remove descrDep.
+// - Se depIRRF != "S": o campo é gravado como null; se tpDep==99, descrDep é obrigatória.
 if (String(__depIRRF).trim() === "S") {
   if (!dep.tpDep || typeof dep.tpDep !== "object") dep.tpDep = { codigo: "" };
   setIfChanged(dep.tpDep, "codigo", __tp);
 
   if (String(__tp).trim() === "99") {
-    setIfChanged(dep, "descrDep", __descrDep);
+    const __descrDepFinal = depHasBaseValue(__descrDep) ? __descrDep : "Cotista";
+    setIfChanged(dep, "descrDep", __descrDepFinal);
   } else {
     if ("descrDep" in dep) delete dep.descrDep;
   }
@@ -1167,7 +1301,8 @@ if (String(__depIRRF).trim() === "S") {
   setIfChanged(dep.tpDep, "codigo", __tp);
 
   if (String(__tp).trim() === "99") {
-    setIfChanged(dep, "descrDep", __descrDep);
+    const __descrDepFinal = depHasBaseValue(__descrDep) ? __descrDep : "Cotista";
+    setIfChanged(dep, "descrDep", __descrDepFinal);
   } else {
     if ("descrDep" in dep) delete dep.descrDep;
   }
@@ -1544,6 +1679,760 @@ function isValidCNPJ(cnpj) {
     });
 
     // ============================================================================
+// ============================================================================
+// Script: Sincronizar IRCR - Dedução de Dependente e Pensão Alimentícia
+// ============================================================================
+// Base Ded: matric;mes_referencia;cpftrab;cpf;vlrDedDep
+// Base Pen: matric;mes_referencia;complemento;valor;cpf_func;cpf_dep
+// Regra adotada nesta versão:
+// - mes_referencia é informativo/auditável e NÃO é usado para casar com perRef/ideDmDev.
+// - Ded/Pensão são sincronizadas por CPF do trabalhador do evento S-1210 carregado.
+// - Dedução usa a base de dependentes possíveis; Pensão usa a base de pensões efetivamente pagas no S-1210.
+let ircrDedRows = [];
+let ircrPenRows = [];
+let ircrLastPlan = null;
+let ircrReadStats = { dedParsed: 0, dedCollapsed: 0, penParsed: 0, penCollapsed: 0 };
+
+function ircrCleanCell(v) {
+  return String(v ?? "").trim().replace(/^\uFEFF/, "").replace(/^["']|["']$/g, "");
+}
+
+function ircrNormalizeCompetence(value) {
+  const raw = ircrCleanCell(value);
+  if (!raw) return "";
+
+  let m = raw.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (m) return `${m[3]}-${m[2]}`;
+
+  m = raw.match(/^(\d{2})\/(\d{4})$/);
+  if (m) return `${m[2]}-${m[1]}`;
+
+  m = raw.match(/^(\d{4})-(\d{2})(?:-\d{2})?$/);
+  if (m) return `${m[1]}-${m[2]}`;
+
+  m = raw.match(/^(\d{4})(\d{2})$/);
+  if (m) return `${m[1]}-${m[2]}`;
+
+  m = raw.match(/^(\d{2})(\d{4})$/);
+  if (m) return `${m[2]}-${m[1]}`;
+
+  return raw;
+}
+
+function ircrParseMoneyNumber(value) {
+  const n = parseNumberPtBr(value);
+  if (n === null || !Number.isFinite(n)) return null;
+  return n;
+}
+
+function ircrParseMoneyTo4(value) {
+  const n = ircrParseMoneyNumber(value);
+  if (n === null) return null;
+  return formatNumber4(n);
+}
+
+function ircrIsHeaderLine(raw) {
+  const low = String(raw ?? "").toLowerCase();
+  if (!low) return false;
+  if (low.includes("matric") && (low.includes("cpf") || low.includes("valor") || low.includes("vlrded"))) return true;
+  if (low.includes("cpftrab") || low.includes("cpf_func") || low.includes("cpf_dep")) return true;
+  return false;
+}
+
+function ircrParseBaseLine(line, kind) {
+  const raw = String(line ?? "").trim();
+  if (!raw) return null;
+  if (raw.startsWith("#")) return null;
+  if (ircrIsHeaderLine(raw)) return null;
+
+  const cols = raw.split(";").map(ircrCleanCell);
+
+  let matric = "";
+  let mesReferencia = "";
+  let complemento = "";
+  let cpfTrab = null;
+  let cpfDep = null;
+  let valorNum = null;
+
+  if (kind === "DED") {
+    // matric;mes_referencia;cpftrab;cpf;vlrDedDep
+    if (cols.length < 5) return null;
+    matric = cols[0];
+    mesReferencia = ircrNormalizeCompetence(cols[1]);
+    cpfTrab = normalizeCpf(cols[2]);
+    cpfDep = normalizeCpf(cols[3]);
+    valorNum = ircrParseMoneyNumber(cols[4]);
+  } else {
+    // Preferencial: matric;mes_referencia;complemento;valor;cpf_func;cpf_dep
+    // Fallback compatível: matric;mes_referencia;cpftrab;cpf;vlrDedPenAlim
+    if (cols.length >= 6) {
+      matric = cols[0];
+      mesReferencia = ircrNormalizeCompetence(cols[1]);
+      complemento = cols[2];
+      valorNum = ircrParseMoneyNumber(cols[3]);
+      cpfTrab = normalizeCpf(cols[4]);
+      cpfDep = normalizeCpf(cols[5]);
+    } else if (cols.length >= 5) {
+      matric = cols[0];
+      mesReferencia = ircrNormalizeCompetence(cols[1]);
+      cpfTrab = normalizeCpf(cols[2]);
+      cpfDep = normalizeCpf(cols[3]);
+      valorNum = ircrParseMoneyNumber(cols[4]);
+    } else {
+      return null;
+    }
+  }
+
+  if (!cpfTrab || !cpfDep || valorNum === null) return null;
+
+  return {
+    kind,
+    matric,
+    mesReferencia,
+    complemento,
+    cpfTrab,
+    cpfDep,
+    valorNum,
+    valor: formatNumber4(valorNum),
+    raw
+  };
+}
+
+function ircrIngestBaseText(text, kind) {
+  const rows = [];
+  const lines = String(text ?? "").split(/\r?\n/);
+  for (const line of lines) {
+    const rec = ircrParseBaseLine(line, kind);
+    if (rec) rows.push(rec);
+  }
+  return rows;
+}
+
+function ircrCollapseDedRows(rows) {
+  // Dedução de dependente: mantém um registro por cpfTrab+cpfDep.
+  // Se houver duplicidade com valores diferentes, mantém o último registro lido da base.
+  const map = new Map();
+  for (const r of rows) {
+    map.set(`${r.cpfTrab}|${r.cpfDep}`, { ...r, valor: formatNumber4(r.valorNum) });
+  }
+  return Array.from(map.values());
+}
+
+function ircrSumPenRows(rows) {
+  // Pensão: soma valores por cpfTrab+cpfDep, pois a base pode trazer mais de uma rubrica/complemento para o mesmo dependente.
+  const map = new Map();
+  for (const r of rows) {
+    const key = `${r.cpfTrab}|${r.cpfDep}`;
+    if (!map.has(key)) {
+      map.set(key, { ...r, complemento: r.complemento ? String(r.complemento) : "", valorNum: 0 });
+    }
+    const cur = map.get(key);
+    cur.valorNum += r.valorNum;
+    cur.valor = formatNumber4(cur.valorNum);
+
+    const comp = String(r.complemento ?? "").trim();
+    if (comp) {
+      const comps = new Set(String(cur.complemento || "").split(",").map(x => x.trim()).filter(Boolean));
+      comps.add(comp);
+      cur.complemento = Array.from(comps).join(",");
+    }
+  }
+  return Array.from(map.values());
+}
+
+function ircrGroupRowsByCpfTrab(rows) {
+  const map = new Map();
+  for (const r of rows) {
+    if (!map.has(r.cpfTrab)) map.set(r.cpfTrab, []);
+    map.get(r.cpfTrab).push(r);
+  }
+  return map;
+}
+
+function ircrReadInputs() {
+  const dedText = document.getElementById("ircrDedTextarea")?.value || "";
+  const penText = document.getElementById("ircrPenTextarea")?.value || "";
+  const tpRend = String(document.getElementById("ircrTpRendInput")?.value || "11").trim() || "11";
+
+  const dedParsed = ircrIngestBaseText(dedText, "DED");
+  const penParsed = ircrIngestBaseText(penText, "PEN");
+
+  ircrDedRows = ircrCollapseDedRows(dedParsed);
+  ircrPenRows = ircrSumPenRows(penParsed);
+  ircrReadStats = {
+    dedParsed: dedParsed.length,
+    dedCollapsed: Math.max(0, dedParsed.length - ircrDedRows.length),
+    penParsed: penParsed.length,
+    penCollapsed: Math.max(0, penParsed.length - ircrPenRows.length)
+  };
+
+  ircrPreviewUpdate();
+  return { dedRows: ircrDedRows, penRows: ircrPenRows, tpRend };
+}
+
+function ircrPreviewUpdate() {
+  const lines = [];
+  lines.push("DEDUÇÃO DE DEPENDENTE IR (resumo):");
+  if (ircrDedRows.length) {
+    ircrDedRows.slice(0, 10).forEach(r => lines.push(`${r.matric};${r.mesReferencia || "*mes_info*"};${r.cpfTrab};${r.cpfDep};${r.valor}`));
+    if (ircrDedRows.length > 10) lines.push(`... (${ircrDedRows.length - 10} linhas adicionais)`);
+  } else {
+    lines.push("(nenhuma linha válida)");
+  }
+  lines.push("");
+  lines.push("PENSÃO ALIMENTÍCIA IR (resumo, valores somados por cpf_func+cpf_dep):");
+  if (ircrPenRows.length) {
+    ircrPenRows.slice(0, 10).forEach(r => lines.push(`${r.matric};${r.mesReferencia || "*mes_info*"};${r.complemento || "*"};${r.valor};${r.cpfTrab};${r.cpfDep}`));
+    if (ircrPenRows.length > 10) lines.push(`... (${ircrPenRows.length - 10} linhas adicionais)`);
+  } else {
+    lines.push("(nenhuma linha válida)");
+  }
+
+  const dedCpfs = new Set(ircrDedRows.map(r => r.cpfTrab)).size;
+  const penCpfs = new Set(ircrPenRows.map(r => r.cpfTrab)).size;
+
+  const previewEl = document.getElementById("ircrPreview");
+  const statsEl = document.getElementById("ircrStats");
+  if (previewEl) previewEl.textContent = lines.join("\n");
+  if (statsEl) {
+    statsEl.textContent = `Ded: ${ircrDedRows.length} dependente(s), ${dedCpfs} CPF(s) de trabalhador | ` +
+      `Pen: ${ircrPenRows.length} dependente(s), ${penCpfs} CPF(s) de trabalhador | ` +
+      `Ded duplicadas colapsadas: ${ircrReadStats.dedCollapsed} | Pen linhas somadas: ${ircrReadStats.penCollapsed}`;
+  }
+}
+
+function ircrGetOptions() {
+  return {
+    targetTpCr: String(document.getElementById("ircrTargetTpCrInput")?.value || "056107").trim() || "056107",
+    tpRend: String(document.getElementById("ircrTpRendInput")?.value || "11").trim() || "11",
+    replaceTarget: !!document.getElementById("ircrReplaceTargetCheckbox")?.checked,
+    clean188901: !!document.getElementById("ircrClean188901Checkbox")?.checked,
+    cleanPc188901: !!document.getElementById("ircrCleanPc188901Checkbox")?.checked,
+    cleanOtherTpcr: !!document.getElementById("ircrCleanOtherTpcrCheckbox")?.checked
+  };
+}
+
+function ircrShouldCleanNonTarget(tpCR, opt) {
+  const tp = String(tpCR ?? "").trim();
+  if (!tp || tp === "*vazio*" || tp === opt.targetTpCr) return false;
+  if (tp === "188901" && opt.clean188901) return true;
+  if (opt.cleanOtherTpcr) return true;
+  return false;
+}
+
+function ircrBuildDesiredRowsForEvent(evt, groupedRows) {
+  const cpfTrab = normalizeCpf(evt?.trabalhador?.cpfTrab);
+  if (!cpfTrab) return { rows: [], cpfTrab: "" };
+  return { rows: groupedRows.get(cpfTrab) || [], cpfTrab };
+}
+
+function ircrBuildDedObj(row, tpRend) {
+  return {
+    cpfDep: row.cpfDep,
+    tpRend: tpRend,
+    vlrDedDep: row.valor
+  };
+}
+
+function ircrBuildPenObj(row, tpRend) {
+  return {
+    cpfDep: row.cpfDep,
+    tpRend: tpRend,
+    vlrDedPenAlim: row.valor
+  };
+}
+
+function ircrKeyExistingDed(row) {
+  return `${normalizeCpf(row?.cpfDep) || ""}|${String(row?.tpRend ?? "")}`;
+}
+
+function ircrKeyExistingPen(row) {
+  return `${normalizeCpf(row?.cpfDep) || ""}|${String(row?.tpRend ?? "")}`;
+}
+
+function ircrUpsertDed(existing, desired) {
+  const out = Array.isArray(existing) ? existing.slice() : [];
+  const idx = new Map();
+  out.forEach((r, i) => idx.set(ircrKeyExistingDed(r), i));
+
+  for (const d of desired) {
+    const k = ircrKeyExistingDed(d);
+    if (idx.has(k)) out[idx.get(k)] = d;
+    else out.push(d);
+  }
+  return out;
+}
+
+function ircrUpsertPen(existing, desired) {
+  const out = Array.isArray(existing) ? existing.slice() : [];
+  const idx = new Map();
+  out.forEach((r, i) => idx.set(ircrKeyExistingPen(r), i));
+
+  for (const p of desired) {
+    const k = ircrKeyExistingPen(p);
+    if (idx.has(k)) out[idx.get(k)] = p;
+    else out.push(p);
+  }
+  return out;
+}
+
+function ircrNormalizeArrayForCompare(arr, kind) {
+  const base = Array.isArray(arr) ? arr : [];
+  return base.map(r => {
+    if (kind === "DED") return `${normalizeCpf(r?.cpfDep) || ""}|${String(r?.tpRend ?? "")}|${String(r?.vlrDedDep ?? "")}`;
+    return `${normalizeCpf(r?.cpfDep) || ""}|${String(r?.tpRend ?? "")}|${String(r?.vlrDedPenAlim ?? "")}`;
+  }).sort().join(";");
+}
+
+function ircrEnsureFirstComplemBlock(evt) {
+  if (!Array.isArray(evt.s1210InfoIRComplem)) evt.s1210InfoIRComplem = [];
+  if (evt.s1210InfoIRComplem.length === 0) {
+    evt.s1210InfoIRComplem.push({ dtLaudo: "*datavazia*", perRefAjuste: "*datavazia*", s1210InfoIRCR: [] });
+  }
+  return evt.s1210InfoIRComplem[0];
+}
+
+function ircrFindBestComplemBlock(evt, targetTpCr, needsTarget) {
+  const arr = Array.isArray(evt?.s1210InfoIRComplem) ? evt.s1210InfoIRComplem : [];
+  for (const blk of arr) {
+    const ircrArr = Array.isArray(blk?.s1210InfoIRCR) ? blk.s1210InfoIRCR : [];
+    if (ircrArr.some(i => String(i?.tpCR ?? "").trim() === targetTpCr)) return blk;
+  }
+  if (arr.length) return arr[0];
+  return needsTarget ? ircrEnsureFirstComplemBlock(evt) : null;
+}
+
+function ircrGetOrCreateTargetIrcr(blk, targetTpCr, createIfMissing) {
+  if (!blk) return { ircr: null, created: false, merged: 0 };
+  if (!Array.isArray(blk.s1210InfoIRCR)) blk.s1210InfoIRCR = [];
+
+  let first = null;
+  let firstIndex = -1;
+  let merged = 0;
+
+  for (let i = 0; i < blk.s1210InfoIRCR.length; i++) {
+    const ircr = blk.s1210InfoIRCR[i];
+    if (String(ircr?.tpCR ?? "").trim() !== targetTpCr) continue;
+    if (!first) {
+      first = ircr;
+      firstIndex = i;
+    } else {
+      for (const k of Object.keys(ircr)) {
+        if (["tpCR", "s1210DedDepen", "s1210PenAlim"].includes(k)) continue;
+        if (first[k] === undefined && ircr[k] !== undefined) first[k] = ircr[k];
+      }
+      merged += 1;
+    }
+  }
+
+  if (merged > 0) {
+    blk.s1210InfoIRCR = blk.s1210InfoIRCR.filter((ircr, idx) => {
+      if (idx === firstIndex) return true;
+      return String(ircr?.tpCR ?? "").trim() !== targetTpCr;
+    });
+  }
+
+  if (!first && createIfMissing) {
+    first = { tpCR: targetTpCr };
+    blk.s1210InfoIRCR.push(first);
+    return { ircr: first, created: true, merged };
+  }
+
+  return { ircr: first, created: false, merged };
+}
+
+function ircrEventHasPc188901(evt) {
+  const complemArr = Array.isArray(evt?.s1210InfoIRComplem) ? evt.s1210InfoIRComplem : [];
+  for (const blk of complemArr) {
+    const arr = Array.isArray(blk?.s1210InfoIRCR) ? blk.s1210InfoIRCR : [];
+    for (const ircr of arr) {
+      if (String(ircr?.tpCR ?? "").trim() === "188901" && Array.isArray(ircr?.s1210PrevidCompl) && ircr.s1210PrevidCompl.length) return true;
+    }
+  }
+  return false;
+}
+
+function ircrPcKey(pc) {
+  return [
+    String(pc?.tpPrev ?? ""),
+    String(pc?.cnpjEntidPC ?? ""),
+    String(pc?.vlrDedPC ?? ""),
+    String(pc?.vlrDedPC13 ?? "")
+  ].join("|");
+}
+
+function ircrMergePcIntoTarget(target, pcList) {
+  if (!target || !Array.isArray(pcList) || !pcList.length) return 0;
+  if (!Array.isArray(target.s1210PrevidCompl)) target.s1210PrevidCompl = [];
+  const seen = new Set(target.s1210PrevidCompl.map(ircrPcKey));
+  let added = 0;
+  for (const pc of pcList) {
+    const k = ircrPcKey(pc);
+    if (seen.has(k)) continue;
+    target.s1210PrevidCompl.push(pc);
+    seen.add(k);
+    added += 1;
+  }
+  return added;
+}
+
+function ircrAnalyze() {
+  const input = ircrReadInputs();
+  const opt = ircrGetOptions();
+  const dedMap = ircrGroupRowsByCpfTrab(input.dedRows);
+  const penMap = ircrGroupRowsByCpfTrab(input.penRows);
+  const syncDed = input.dedRows.length > 0;
+  const syncPen = input.penRows.length > 0;
+
+  const plan = {
+    options: opt,
+    stats: {
+      dedRows: input.dedRows.length,
+      penRows: input.penRows.length,
+      dedParsedRows: ircrReadStats.dedParsed,
+      penParsedRows: ircrReadStats.penParsed,
+      dedCollapsedRows: ircrReadStats.dedCollapsed,
+      penCollapsedRows: ircrReadStats.penCollapsed,
+      events: getEventos().length,
+      eventsWithBase: 0,
+      eventsWithoutBase: 0,
+      targetIrcrMissing: 0,
+      targetWouldCreate: 0,
+      targetWouldMergeDuplicates: 0,
+      dedWouldChangeTarget: 0,
+      penWouldChangeTarget: 0,
+      dedWouldRemoveWrongTpcr: 0,
+      penWouldRemoveWrongTpcr: 0,
+      pcWouldMove188901: 0,
+      wrongIrcrBlocks: 0,
+      noCpfMatchRows: 0
+    },
+    eventPreview: [],
+    missingPreview: []
+  };
+
+  const matchedDedRows = new Set();
+  const matchedPenRows = new Set();
+
+  for (const evt of getEventos()) {
+    const cpfTrab = normalizeCpf(evt?.trabalhador?.cpfTrab);
+    if (!cpfTrab) continue;
+
+    const dedMatch = ircrBuildDesiredRowsForEvent(evt, dedMap);
+    const penMatch = ircrBuildDesiredRowsForEvent(evt, penMap);
+
+    dedMatch.rows.forEach(r => matchedDedRows.add(r));
+    penMatch.rows.forEach(r => matchedPenRows.add(r));
+
+    const hasBase = dedMatch.rows.length > 0 || penMatch.rows.length > 0;
+    if (hasBase) plan.stats.eventsWithBase += 1;
+    else plan.stats.eventsWithoutBase += 1;
+
+    const hasPc188901 = opt.cleanPc188901 && ircrEventHasPc188901(evt);
+    const needsTarget = hasBase || hasPc188901;
+    const blk = ircrFindBestComplemBlock(evt, opt.targetTpCr, false);
+    const ircrArr = Array.isArray(blk?.s1210InfoIRCR) ? blk.s1210InfoIRCR : [];
+    const targetCount = ircrArr.filter(i => String(i?.tpCR ?? "").trim() === opt.targetTpCr).length;
+    const target = targetCount ? ircrArr.find(i => String(i?.tpCR ?? "").trim() === opt.targetTpCr) : null;
+
+    if (needsTarget && !target) {
+      plan.stats.targetIrcrMissing += 1;
+      plan.stats.targetWouldCreate += 1;
+    }
+    if (targetCount > 1) plan.stats.targetWouldMergeDuplicates += (targetCount - 1);
+
+    if (target || needsTarget) {
+      const currentDed = Array.isArray(target?.s1210DedDepen) ? target.s1210DedDepen : [];
+      const currentPen = Array.isArray(target?.s1210PenAlim) ? target.s1210PenAlim : [];
+
+      if (syncDed && (hasBase || opt.replaceTarget)) {
+        const desiredDed = dedMatch.rows.map(r => ircrBuildDedObj(r, opt.tpRend));
+        const afterDed = opt.replaceTarget ? desiredDed : ircrUpsertDed(currentDed, desiredDed);
+        if (ircrNormalizeArrayForCompare(currentDed, "DED") !== ircrNormalizeArrayForCompare(afterDed, "DED")) plan.stats.dedWouldChangeTarget += 1;
+      }
+
+      if (syncPen && (hasBase || opt.replaceTarget)) {
+        const desiredPen = penMatch.rows.map(r => ircrBuildPenObj(r, opt.tpRend));
+        const afterPen = opt.replaceTarget ? desiredPen : ircrUpsertPen(currentPen, desiredPen);
+        if (ircrNormalizeArrayForCompare(currentPen, "PEN") !== ircrNormalizeArrayForCompare(afterPen, "PEN")) plan.stats.penWouldChangeTarget += 1;
+      }
+    }
+
+    const complemArr = Array.isArray(evt?.s1210InfoIRComplem) ? evt.s1210InfoIRComplem : [];
+    for (const blk2 of complemArr) {
+      const arr2 = Array.isArray(blk2?.s1210InfoIRCR) ? blk2.s1210InfoIRCR : [];
+      for (const ircr of arr2) {
+        const tp = String(ircr?.tpCR ?? "").trim();
+        if (!ircrShouldCleanNonTarget(tp, opt)) continue;
+
+        let blockImpacted = false;
+        const dedLen = Array.isArray(ircr?.s1210DedDepen) ? ircr.s1210DedDepen.length : 0;
+        const penLen = Array.isArray(ircr?.s1210PenAlim) ? ircr.s1210PenAlim.length : 0;
+        const pcLen = Array.isArray(ircr?.s1210PrevidCompl) ? ircr.s1210PrevidCompl.length : 0;
+
+        if (syncDed && dedLen) { plan.stats.dedWouldRemoveWrongTpcr += dedLen; blockImpacted = true; }
+        if (syncPen && penLen) { plan.stats.penWouldRemoveWrongTpcr += penLen; blockImpacted = true; }
+        if (tp === "188901" && opt.cleanPc188901 && pcLen) { plan.stats.pcWouldMove188901 += pcLen; blockImpacted = true; }
+        if (blockImpacted) plan.stats.wrongIrcrBlocks += 1;
+      }
+    }
+
+    if (plan.eventPreview.length < 50 && (hasBase || targetCount > 1 || hasPc188901)) {
+      plan.eventPreview.push({
+        ordemRegistro: evt?.ordemRegistro ?? "",
+        cpfTrab,
+        ded: dedMatch.rows.length,
+        pen: penMatch.rows.length,
+        pc188901: hasPc188901 ? "sim" : "não",
+        targetCount
+      });
+    }
+  }
+
+  for (const r of input.dedRows) {
+    if (!matchedDedRows.has(r) && plan.missingPreview.length < 80) plan.missingPreview.push({ kind: "DED", ...r });
+    if (!matchedDedRows.has(r)) plan.stats.noCpfMatchRows += 1;
+  }
+  for (const r of input.penRows) {
+    if (!matchedPenRows.has(r) && plan.missingPreview.length < 80) plan.missingPreview.push({ kind: "PEN", ...r });
+    if (!matchedPenRows.has(r)) plan.stats.noCpfMatchRows += 1;
+  }
+
+  ircrLastPlan = plan;
+  return plan;
+}
+
+function ircrReportText(plan) {
+  const s = plan.stats;
+  const lines = [];
+  lines.push("Resumo da sincronização IRCR");
+  lines.push(`- tpCR alvo: ${plan.options.targetTpCr} | tpRend padrão: ${plan.options.tpRend}`);
+  lines.push(`- Base Dedução Dependente: ${s.dedRows} linha(s) útil(eis) de ${s.dedParsedRows} linha(s) lida(s); duplicidades colapsadas: ${s.dedCollapsedRows}`);
+  lines.push(`- Base Pensão Alimentícia: ${s.penRows} linha(s) útil(eis) de ${s.penParsedRows} linha(s) lida(s); linhas somadas/colapsadas: ${s.penCollapsedRows}`);
+  lines.push(`- Eventos no JSON: ${s.events}`);
+  lines.push(`- Eventos com base compatível por CPF do trabalhador: ${s.eventsWithBase}`);
+  lines.push(`- Linhas da base sem CPF do trabalhador encontrado no JSON: ${s.noCpfMatchRows}`);
+  lines.push("");
+  lines.push("Ações calculadas no tpCR alvo");
+  lines.push(`- IRCR alvo ausente a criar: ${s.targetWouldCreate}`);
+  lines.push(`- IRCR alvo duplicado a consolidar: ${s.targetWouldMergeDuplicates}`);
+  lines.push(`- Eventos com Dedução de Dependente a alterar no alvo: ${s.dedWouldChangeTarget}`);
+  lines.push(`- Eventos com Pensão Alimentícia a alterar no alvo: ${s.penWouldChangeTarget}`);
+  lines.push("");
+  lines.push("Correção de tpCR indevido");
+  lines.push(`- Blocos IRCR indevidos impactados: ${s.wrongIrcrBlocks}`);
+  lines.push(`- Itens s1210DedDepen a remover fora do alvo: ${s.dedWouldRemoveWrongTpcr}`);
+  lines.push(`- Itens s1210PenAlim a remover fora do alvo: ${s.penWouldRemoveWrongTpcr}`);
+  lines.push(`- Itens s1210PrevidCompl a mover do 188901 para o alvo: ${s.pcWouldMove188901}`);
+
+  if (plan.eventPreview.length) {
+    lines.push("");
+    lines.push("Eventos impactados/atenção (amostra):");
+    plan.eventPreview.forEach(e => {
+      lines.push(`- ordem=${e.ordemRegistro} cpfTrab=${e.cpfTrab} | Ded=${e.ded} | Pen=${e.pen} | PC no 188901=${e.pc188901} | tpCR alvo existentes=${e.targetCount}`);
+    });
+  }
+
+  if (plan.missingPreview.length) {
+    lines.push("");
+    lines.push("Linhas úteis da base sem CPF correspondente no JSON (amostra):");
+    plan.missingPreview.forEach(r => {
+      const extra = r.kind === "PEN" ? ` complemento=${r.complemento || "*"}` : "";
+      lines.push(`- ${r.kind}: matric=${r.matric} mes_info=${r.mesReferencia || "*"}${extra} cpfTrab=${r.cpfTrab} cpf=${r.cpfDep} valor=${r.valor}`);
+    });
+    if (s.noCpfMatchRows > plan.missingPreview.length) {
+      lines.push(`... (${s.noCpfMatchRows - plan.missingPreview.length} linhas adicionais omitidas)`);
+    }
+  }
+
+  return lines.join("\n");
+}
+
+function ircrApply() {
+  const plan = ircrLastPlan || ircrAnalyze();
+  const opt = plan.options;
+  const dedMap = ircrGroupRowsByCpfTrab(ircrDedRows);
+  const penMap = ircrGroupRowsByCpfTrab(ircrPenRows);
+  const syncDed = ircrDedRows.length > 0;
+  const syncPen = ircrPenRows.length > 0;
+
+  const applied = {
+    targetCreated: 0,
+    targetMerged: 0,
+    dedChangedTarget: 0,
+    penChangedTarget: 0,
+    dedRemovedWrong: 0,
+    penRemovedWrong: 0,
+    pcMoved188901: 0,
+    wrongBlocksCleaned: 0
+  };
+
+  for (const evt of getEventos()) {
+    const dedMatch = ircrBuildDesiredRowsForEvent(evt, dedMap);
+    const penMatch = ircrBuildDesiredRowsForEvent(evt, penMap);
+    const hasBase = dedMatch.rows.length > 0 || penMatch.rows.length > 0;
+    const hasPc188901 = opt.cleanPc188901 && ircrEventHasPc188901(evt);
+    const needsTarget = hasBase || hasPc188901;
+
+    const blk = ircrFindBestComplemBlock(evt, opt.targetTpCr, needsTarget);
+    const targetInfo = ircrGetOrCreateTargetIrcr(blk, opt.targetTpCr, needsTarget);
+    const target = targetInfo.ircr;
+    if (targetInfo.created) applied.targetCreated += 1;
+    if (targetInfo.merged) applied.targetMerged += targetInfo.merged;
+
+    if (target && (needsTarget || opt.replaceTarget)) {
+      if (syncDed) {
+        const desiredDed = dedMatch.rows.map(r => ircrBuildDedObj(r, opt.tpRend));
+        const before = ircrNormalizeArrayForCompare(target.s1210DedDepen, "DED");
+        const after = opt.replaceTarget ? desiredDed : ircrUpsertDed(target.s1210DedDepen, desiredDed);
+
+        if (after.length) target.s1210DedDepen = after;
+        else if ("s1210DedDepen" in target) delete target.s1210DedDepen;
+
+        const afterCmp = ircrNormalizeArrayForCompare(target.s1210DedDepen, "DED");
+        if (before !== afterCmp) applied.dedChangedTarget += 1;
+      }
+
+      if (syncPen) {
+        const desiredPen = penMatch.rows.map(r => ircrBuildPenObj(r, opt.tpRend));
+        const before = ircrNormalizeArrayForCompare(target.s1210PenAlim, "PEN");
+        const after = opt.replaceTarget ? desiredPen : ircrUpsertPen(target.s1210PenAlim, desiredPen);
+
+        if (after.length) target.s1210PenAlim = after;
+        else if ("s1210PenAlim" in target) delete target.s1210PenAlim;
+
+        const afterCmp = ircrNormalizeArrayForCompare(target.s1210PenAlim, "PEN");
+        if (before !== afterCmp) applied.penChangedTarget += 1;
+      }
+    }
+
+    const complemArr = Array.isArray(evt?.s1210InfoIRComplem) ? evt.s1210InfoIRComplem : [];
+    for (const blk2 of complemArr) {
+      const arr2 = Array.isArray(blk2?.s1210InfoIRCR) ? blk2.s1210InfoIRCR : [];
+      for (const ircr of arr2) {
+        const tp = String(ircr?.tpCR ?? "").trim();
+        if (!ircrShouldCleanNonTarget(tp, opt)) continue;
+
+        let blockCleaned = false;
+        if (syncDed && Array.isArray(ircr.s1210DedDepen) && ircr.s1210DedDepen.length) {
+          applied.dedRemovedWrong += ircr.s1210DedDepen.length;
+          delete ircr.s1210DedDepen;
+          blockCleaned = true;
+        }
+        if (syncPen && Array.isArray(ircr.s1210PenAlim) && ircr.s1210PenAlim.length) {
+          applied.penRemovedWrong += ircr.s1210PenAlim.length;
+          delete ircr.s1210PenAlim;
+          blockCleaned = true;
+        }
+        if (tp === "188901" && opt.cleanPc188901 && Array.isArray(ircr.s1210PrevidCompl) && ircr.s1210PrevidCompl.length) {
+          const moved = ircrMergePcIntoTarget(target, ircr.s1210PrevidCompl);
+          applied.pcMoved188901 += moved;
+          delete ircr.s1210PrevidCompl;
+          blockCleaned = true;
+        }
+        if (blockCleaned) applied.wrongBlocksCleaned += 1;
+      }
+    }
+  }
+
+  renderEventosTable();
+
+  const lines = [];
+  lines.push("Aplicação IRCR concluída");
+  lines.push(`- tpCR alvo criados: ${applied.targetCreated}`);
+  lines.push(`- tpCR alvo duplicados consolidados: ${applied.targetMerged}`);
+  lines.push(`- Eventos com Dedução de Dependente alterada no alvo: ${applied.dedChangedTarget}`);
+  lines.push(`- Eventos com Pensão Alimentícia alterada no alvo: ${applied.penChangedTarget}`);
+  lines.push(`- Itens Ded removidos de tpCR indevido: ${applied.dedRemovedWrong}`);
+  lines.push(`- Itens Pen removidos de tpCR indevido: ${applied.penRemovedWrong}`);
+  lines.push(`- Itens PrevidCompl movidos do 188901 para o alvo: ${applied.pcMoved188901}`);
+  lines.push("");
+  lines.push(ircrReportText(plan));
+
+  document.getElementById("ircrReport").textContent = lines.join("\n");
+  setStatus(`<div class="alert alert-success mb-0">
+    IRCR sincronizado. Ded alvo alterados: <strong>${applied.dedChangedTarget}</strong> |
+    Pen alvo alterados: <strong>${applied.penChangedTarget}</strong> |
+    Ded/Pen removidos de tpCR indevido: <strong>${applied.dedRemovedWrong + applied.penRemovedWrong}</strong> |
+    PrevidCompl movidos do 188901: <strong>${applied.pcMoved188901}</strong>
+  </div>`);
+}
+
+function ircrAttachFileLoader(inputId, textareaId) {
+  const input = document.getElementById(inputId);
+  if (!input) return;
+  input.addEventListener("change", function () {
+    const file = this.files && this.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function (e) {
+      document.getElementById(textareaId).value = e.target.result || "";
+      ircrReadInputs();
+    };
+    reader.readAsText(file);
+  });
+}
+
+ircrAttachFileLoader("ircrDedFileInput", "ircrDedTextarea");
+ircrAttachFileLoader("ircrPenFileInput", "ircrPenTextarea");
+
+["ircrDedTextarea", "ircrPenTextarea", "ircrTargetTpCrInput", "ircrTpRendInput"].forEach((id) => {
+  const el = document.getElementById(id);
+  if (el) el.addEventListener("input", () => {
+    ircrReadInputs();
+    ircrLastPlan = null;
+  });
+});
+
+["ircrReplaceTargetCheckbox", "ircrClean188901Checkbox", "ircrCleanPc188901Checkbox", "ircrCleanOtherTpcrCheckbox"].forEach((id) => {
+  const el = document.getElementById(id);
+  if (el) el.addEventListener("change", () => { ircrLastPlan = null; });
+});
+
+$('#ircrSyncModal').on('shown.bs.modal', function () {
+  ircrDedRows = [];
+  ircrPenRows = [];
+  ircrLastPlan = null;
+  ircrReadStats = { dedParsed: 0, dedCollapsed: 0, penParsed: 0, penCollapsed: 0 };
+  document.getElementById("ircrDedTextarea").value = "";
+  document.getElementById("ircrPenTextarea").value = "";
+  document.getElementById("ircrDedFileInput").value = "";
+  document.getElementById("ircrPenFileInput").value = "";
+  document.getElementById("ircrTargetTpCrInput").value = "056107";
+  document.getElementById("ircrTpRendInput").value = "11";
+  document.getElementById("ircrReplaceTargetCheckbox").checked = true;
+  document.getElementById("ircrClean188901Checkbox").checked = true;
+  document.getElementById("ircrCleanPc188901Checkbox").checked = true;
+  document.getElementById("ircrCleanOtherTpcrCheckbox").checked = false;
+  document.getElementById("ircrPreview").textContent = "(nenhuma base carregada)";
+  document.getElementById("ircrStats").textContent = "";
+  document.getElementById("ircrReport").textContent = "";
+});
+
+const ircrAnalyzeBtn = document.getElementById("ircrAnalyzeBtn");
+if (ircrAnalyzeBtn) {
+  ircrAnalyzeBtn.addEventListener("click", () => {
+    const plan = ircrAnalyze();
+    document.getElementById("ircrReport").textContent = ircrReportText(plan);
+    setStatus(`<div class="alert alert-info mb-0">
+      Análise IRCR concluída: Ded alvo a alterar: <strong>${plan.stats.dedWouldChangeTarget}</strong> |
+      Pen alvo a alterar: <strong>${plan.stats.penWouldChangeTarget}</strong> |
+      Ded/Pen fora do alvo a remover: <strong>${plan.stats.dedWouldRemoveWrongTpcr + plan.stats.penWouldRemoveWrongTpcr}</strong>
+    </div>`);
+  });
+}
+
+document.getElementById("ircrApplyBtn").addEventListener("click", () => {
+  const plan = ircrAnalyze();
+  if (plan.stats.dedRows === 0 && plan.stats.penRows === 0 && plan.stats.dedWouldRemoveWrongTpcr === 0 && plan.stats.penWouldRemoveWrongTpcr === 0 && plan.stats.pcWouldMove188901 === 0) {
+    document.getElementById("ircrReport").textContent = "Nenhuma base válida foi informada e não há limpeza/migração de IRCR indevido detectada.";
+    setStatus('<div class="alert alert-secondary mb-0">Nenhuma ação IRCR necessária.</div>');
+    return;
+  }
+  ircrApply();
+});
+
+    // ============================================================================
 
     // ============================================================================
 // ============================================================================
@@ -1551,7 +2440,7 @@ function isValidCNPJ(cnpj) {
 // ============================================================================
 // Regras de inteligência (motivo da inclusão):
 // - Se houver referência em s1210DedDepen: depIRRF = "S" e ignora descrDep
-// - Se o ÚNICO motivo for s1210PenAlim: depIRRF = "*vazio*" e descrDep deve vir preenchido na base
+// - Se o ÚNICO motivo for s1210PenAlim: depIRRF = null e descrDep deve vir preenchido na base
 //
 // Base: depBaseMap.get(cpfTrab11).get(cpfDep11) => { dtNascto, nome, tpDepCodigo, descrDep }
 let depBaseMap = new Map();
@@ -1563,33 +2452,143 @@ function depClean(v, fallback) {
   return s.replace(/^["']|["']$/g, "");
 }
 
-function depParseLine(line) {
-  const raw = String(line || "").trim();
-  if (!raw) return null;
+function depHeaderKey(value) {
+  return String(value ?? "")
+    .trim()
+    .replace(/^["']|["']$/g, "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "");
+}
 
-  const low = raw.toLowerCase();
-  if (low.includes("cpftrab") && low.includes("cpfdep")) return null;
+function depBuildHeaderMap(parts) {
+  const map = new Map();
+  parts.forEach((h, idx) => {
+    const key = depHeaderKey(h);
+    if (key && !map.has(key)) map.set(key, idx);
+  });
+  return map;
+}
 
-  const parts = raw.split(";");
-  if (parts.length < 2) return null;
+function depFindHeaderIndex(headerMap, aliases) {
+  if (!headerMap) return -1;
+  for (const alias of aliases) {
+    const key = depHeaderKey(alias);
+    if (headerMap.has(key)) return headerMap.get(key);
+  }
+  return -1;
+}
 
+function depGetByHeader(parts, headerMap, aliases, fallback) {
+  const idx = depFindHeaderIndex(headerMap, aliases);
+  if (idx < 0 || idx >= parts.length) return fallback;
+  return depClean(parts[idx], fallback);
+}
+
+function depLooksLikeHeader(parts) {
+  const keys = parts.map(depHeaderKey);
+  const joined = keys.join("|");
+  const hasCpfTrab = keys.some(k => ["cpftrab", "cpftrabalhador", "cpffunc", "cpffuncionario", "cpfservidor"].includes(k));
+  const hasCpfDep = keys.some(k => ["cpfdep", "cpfdependente", "cpfdepend", "cpf"].includes(k));
+  return (hasCpfTrab && hasCpfDep) || joined.includes("depirrf") || joined.includes("tpdep") || joined.includes("numdep");
+}
+
+function depNormalizeDepIRRFValue(value) {
+  const s = depClean(value, "").trim().toUpperCase();
+  return s === "S" ? "S" : null;
+}
+
+function depNormalizeTpDepCodigo(value) {
+  const s = depClean(value, "*vazio*").trim();
+  if (!s || depIsBlankLike(s)) return "*vazio*";
+  const digits = s.replace(/\D+/g, "");
+  if (digits.length === 1) return digits.padStart(2, "0");
+  if (digits.length === 2) return digits;
+  return s;
+}
+
+function depParseLineFixed(parts) {
   const cpfTrab = normalizeCpf(parts[0]);
   const cpfDep  = normalizeCpf(parts[1]);
   if (!cpfTrab || !cpfDep) return null;
 
-  const depIRRF = depClean(parts[2], "*vazio*");      // pode ser ignorado conforme motivo
+  const depIRRF = depNormalizeDepIRRFValue(parts[2]);
   const dtNascto = depClean(parts[3], "*datavazia*");
   const nome = depClean(parts[4], "*vazio*");
-  const tpDepCodigo = depClean(parts[5], "*vazio*");
-  const descrDep = depClean(parts[6], "");            // opcional, exigida apenas para PEN-only
+  const tpDepCodigo = depNormalizeTpDepCodigo(parts[5]);
+  const descrDep = depClean(parts[6], "");
 
   return { cpfTrab, cpfDep, depIRRF, dtNascto, nome, tpDepCodigo, descrDep };
 }
 
+function depParseLineByHeader(parts, headerMap) {
+  const cpfTrabRaw = depGetByHeader(parts, headerMap, [
+    "cpfTrab", "cpf_trab", "cpf trabalhador", "cpf_func", "cpf_funcionario", "cpf servidor", "cpftrab"
+  ], "");
+
+  const cpfDepRaw = depGetByHeader(parts, headerMap, [
+    "cpfDep", "cpf_dep", "cpf dependente", "cpf_dependente", "cpfdependente", "cpf"
+  ], "");
+
+  const cpfTrab = normalizeCpf(cpfTrabRaw);
+  const cpfDep  = normalizeCpf(cpfDepRaw);
+  if (!cpfTrab || !cpfDep) return null;
+
+  const depIRRF = depNormalizeDepIRRFValue(depGetByHeader(parts, headerMap, [
+    "depIRRF", "dep_irrf", "deducao_irrf", "deducao irrf", "irrf", "dependente irrf"
+  ], null));
+
+  const dtNascto = depGetByHeader(parts, headerMap, [
+    "dtNascto", "dt_nascto", "data_nascimento", "data nascimento", "dtnasc", "dt nasc"
+  ], "*datavazia*");
+
+  const nome = depGetByHeader(parts, headerMap, [
+    "NOMEDEP", "nome", "nome_dep", "nome_dependente", "nome dependente", "dependente"
+  ], "*vazio*");
+
+  const tpDepCodigo = depNormalizeTpDepCodigo(depGetByHeader(parts, headerMap, [
+    "TIPODEP", "tipoDep", "tipo_dep", "tipo dep", "tpDep.codigo", "tpDepCodigo", "tpDep", "tp_dep",
+    "tipo_dependente", "tipo dependente", "codigo_tpdep", "cod_tpdep", "codtipo", "cod_tipo",
+    "codigo_esocial", "codigo eSocial", "codigo", "tipo"
+  ], "*vazio*"));
+
+  const descrDep = depGetByHeader(parts, headerMap, [
+    "PARENTESCO", "parentesco", "descrDep", "descr_dep", "descricao_dependencia", "descricao dependencia", "descricao", "descrição"
+  ], "");
+
+  return { cpfTrab, cpfDep, depIRRF, dtNascto, nome, tpDepCodigo, descrDep };
+}
+
+function depParseLine(line, headerMap=null) {
+  const raw = String(line || "").trim();
+  if (!raw) return null;
+
+  const parts = raw.split(";");
+  if (parts.length < 2) return null;
+
+  if (headerMap) return depParseLineByHeader(parts, headerMap);
+  return depParseLineFixed(parts);
+}
+
 function depIngestText(text) {
   const lines = String(text || "").split(/\r?\n/);
+  let headerMap = null;
+  let headerConsumed = false;
+
   for (const line of lines) {
-    const rec = depParseLine(line);
+    const raw = String(line || "").trim();
+    if (!raw) continue;
+
+    const parts = raw.split(";");
+    if (!headerConsumed && depLooksLikeHeader(parts)) {
+      headerMap = depBuildHeaderMap(parts);
+      headerConsumed = true;
+      continue;
+    }
+    headerConsumed = true;
+
+    const rec = depParseLine(raw, headerMap);
     if (!rec) continue;
 
     if (!depBaseMap.has(rec.cpfTrab)) depBaseMap.set(rec.cpfTrab, new Map());
@@ -1741,14 +2740,239 @@ function depCleanupInvalidDescrDepInAllEvents() {
   return removed;
 }
 
+
+function depIsBlankLike(value) {
+  if (value === null || value === undefined) return true;
+  const s = String(value).trim();
+  if (!s) return true;
+  const low = s.toLowerCase();
+  return EMPTY_TOKENS.has(s) || low === "null" || low === "undefined";
+}
+
+function depHasBaseValue(value) {
+  return !depIsBlankLike(value);
+}
+
+function depSanitizeDepIRRFForJson(value, forceS=false) {
+  if (forceS) return "S";
+  const s = String(value ?? "").trim().toUpperCase();
+  return s === "S" ? "S" : null;
+}
+
+function depIsInvalidDepIRRFForJson(value) {
+  if (value === undefined || value === null) return false;
+  return String(value).trim().toUpperCase() !== "S";
+}
+
+function depResolveDescrDepForTp99(data) {
+  const descr = data && depHasBaseValue(data.descrDep) ? String(data.descrDep).trim() : "";
+  return descr || "Cotista";
+}
+
+function depNeedsDescrDepForTp99(dep) {
+  if (!dep || typeof dep !== "object") return false;
+  const tp = String(dep?.tpDep?.codigo ?? "").trim();
+  if (tp !== "99") return false;
+  return depIsBlankLike(dep.descrDep);
+}
+
+function depEnsureDescrDepForTp99InAllEvents() {
+  let filled = 0;
+  const events = getEventos();
+
+  for (const evt of events) {
+    const cpfTrab = normalizeCpf(evt?.trabalhador?.cpfTrab);
+    const complemArr = Array.isArray(evt?.s1210InfoIRComplem) ? evt.s1210InfoIRComplem : [];
+
+    for (const blk of complemArr) {
+      const infoDep = Array.isArray(blk?.s1210InfoDep) ? blk.s1210InfoDep : [];
+
+      for (const dep of infoDep) {
+        if (!depNeedsDescrDepForTp99(dep)) continue;
+        const cpfDep = normalizeCpf(dep?.cpfDep);
+        const data = (cpfTrab && cpfDep) ? depBaseMap.get(cpfTrab)?.get(cpfDep) : null;
+        dep.descrDep = depResolveDescrDepForTp99(data);
+        filled += 1;
+      }
+    }
+  }
+
+  return filled;
+}
+
+function depGetReasonForCpf(cpfDep, refDed, refPen) {
+  if (refDed && refDed.has(cpfDep)) return "DED";
+  if (refPen && refPen.has(cpfDep)) return "PEN_ONLY";
+  return "BASE_ONLY";
+}
+
+function depExpectedDepIRRF(dep, data, reason) {
+  if (reason === "DED") return "S";
+
+  // Fora de Ded. Dependente, o campo não deve receber "*vazio*" nem qualquer outro valor.
+  // Se o campo não existir ou já estiver null, não há alteração. Se existir qualquer valor, vira null.
+  if (!dep || !("depIRRF" in dep) || dep.depIRRF === null) return "__NO_CHANGE__";
+  return null;
+}
+
+function depGetInfoDepUpdateChanges(dep, data, reason) {
+  const changes = [];
+  if (!dep || typeof dep !== "object" || !data) return changes;
+
+  const desiredDepIRRF = depExpectedDepIRRF(dep, data, reason);
+  if (desiredDepIRRF !== "__NO_CHANGE__" && dep?.depIRRF !== desiredDepIRRF) {
+    changes.push({ field: "depIRRF", from: dep?.depIRRF, to: desiredDepIRRF });
+  }
+
+  if (depHasBaseValue(data.dtNascto) && depIsBlankLike(dep.dtNascto)) {
+    changes.push({ field: "dtNascto", from: dep.dtNascto, to: String(data.dtNascto).trim() });
+  }
+
+  if (depHasBaseValue(data.nome) && depIsBlankLike(dep.nome)) {
+    changes.push({ field: "nome", from: dep.nome, to: String(data.nome).trim() });
+  }
+
+  const baseTp = depHasBaseValue(data.tpDepCodigo) ? String(data.tpDepCodigo).trim() : "";
+  const currentTp = dep?.tpDep?.codigo;
+
+  // A base passa a ser a referência para tpDep.codigo quando houver TIPODEP válido.
+  // Assim corrigimos tanto JSON com tpDep.codigo vazio/null/*vazio* quanto código divergente.
+  if (baseTp && String(currentTp ?? "").trim() !== baseTp) {
+    changes.push({ field: "tpDep.codigo", from: currentTp, to: baseTp });
+  }
+
+  const effectiveTp = baseTp || String(currentTp ?? "").trim();
+  if (effectiveTp === "99") {
+    const desiredDescrDep = depResolveDescrDepForTp99(data);
+    if (depIsBlankLike(dep?.descrDep) || String(dep?.descrDep ?? "").trim() !== desiredDescrDep) {
+      changes.push({ field: "descrDep", from: dep.descrDep, to: desiredDescrDep });
+    }
+  }
+
+  return changes;
+}
+
+function depApplyInfoDepUpdate(dep, changes) {
+  let changed = 0;
+  for (const ch of changes) {
+    if (ch.field === "tpDep.codigo") {
+      if (!dep.tpDep || typeof dep.tpDep !== "object") dep.tpDep = {};
+      dep.tpDep.codigo = ch.to;
+      changed += 1;
+      continue;
+    }
+    dep[ch.field] = ch.to;
+    changed += 1;
+  }
+  return changed;
+}
+
+function depCollectExistingInfoDepUpdateCandidates(plan, cpfTrab, ordem, blkIndex, blk, refDed, refPen) {
+  const infoDep = Array.isArray(blk?.s1210InfoDep) ? blk.s1210InfoDep : [];
+
+  for (const dep of infoDep) {
+    const cpfDep = normalizeCpf(dep?.cpfDep);
+    if (!cpfDep) continue;
+
+    const data = depBaseMap.get(cpfTrab)?.get(cpfDep);
+    if (!data) continue;
+
+    const reason = depGetReasonForCpf(cpfDep, refDed, refPen);
+    const changes = depGetInfoDepUpdateChanges(dep, data, reason);
+    if (!changes.length) continue;
+
+    plan.stats.existingInfoDepToUpdate += 1;
+    plan.stats.existingInfoDepFieldChanges += changes.length;
+
+    if (plan.existingInfoDepUpdatesPreview.length < 80) {
+      plan.existingInfoDepUpdatesPreview.push({
+        cpfTrab,
+        ordemRegistro: ordem,
+        blkIndex,
+        cpfDep,
+        reason,
+        changes: changes.map(c => `${c.field}: "${String(c.from ?? "")}" -> "${c.to}"`)
+      });
+    }
+  }
+}
+
+function depUpdateExistingInfoDepFromBaseInAllEvents() {
+  let depsUpdated = 0;
+  let fieldChanges = 0;
+
+  const events = getEventos();
+  for (const evt of events) {
+    const cpfTrab = normalizeCpf(evt?.trabalhador?.cpfTrab);
+    if (!cpfTrab) continue;
+
+    const complemArr = Array.isArray(evt?.s1210InfoIRComplem) ? evt.s1210InfoIRComplem : [];
+    for (const blk of complemArr) {
+      const ircrArr = Array.isArray(blk?.s1210InfoIRCR) ? blk.s1210InfoIRCR : [];
+      const refDed = new Set();
+      const refPen = new Set();
+
+      ircrArr.forEach((ircr) => {
+        const r = depGetReferencedCpfs(ircr);
+        r.dedSet.forEach(x => refDed.add(x));
+        r.penSet.forEach(x => refPen.add(x));
+      });
+
+      const infoDep = Array.isArray(blk?.s1210InfoDep) ? blk.s1210InfoDep : [];
+      for (const dep of infoDep) {
+        const cpfDep = normalizeCpf(dep?.cpfDep);
+        if (!cpfDep) continue;
+
+        const data = depBaseMap.get(cpfTrab)?.get(cpfDep);
+        if (!data) continue;
+
+        const reason = depGetReasonForCpf(cpfDep, refDed, refPen);
+        const changes = depGetInfoDepUpdateChanges(dep, data, reason);
+        if (!changes.length) continue;
+
+        fieldChanges += depApplyInfoDepUpdate(dep, changes);
+        depsUpdated += 1;
+      }
+    }
+  }
+
+  return { depsUpdated, fieldChanges };
+}
+
+function depCollectDepIRRFSanitizeCandidatesInBlock(plan, cpfTrab, ordem, blkIndex, blk) {
+  const infoDep = Array.isArray(blk?.s1210InfoDep) ? blk.s1210InfoDep : [];
+  for (const dep of infoDep) {
+    if (!depIsInvalidDepIRRFForJson(dep?.depIRRF)) continue;
+    plan.stats.depIRRFSanitizeCandidates += 1;
+  }
+}
+
+function depNormalizeInvalidDepIRRFInAllEvents() {
+  let changed = 0;
+  const events = getEventos();
+  for (const evt of events) {
+    const complemArr = Array.isArray(evt?.s1210InfoIRComplem) ? evt.s1210InfoIRComplem : [];
+    for (const blk of complemArr) {
+      const infoDep = Array.isArray(blk?.s1210InfoDep) ? blk.s1210InfoDep : [];
+      for (const dep of infoDep) {
+        if (!depIsInvalidDepIRRFForJson(dep?.depIRRF)) continue;
+        dep.depIRRF = null;
+        changed += 1;
+      }
+    }
+  }
+  return changed;
+}
+
 function depAnalyze() {
   const events = getEventos();
   const plan = {
     toAdd: [],              // { blkRef, cpfTrab, cpfDep, data, reason, ordemRegistro, blkIndex }
     missingInBase: [],      // { cpfTrab, cpfDep, ordemRegistro, blkIndex, reason, why }
     duplicatesInfoDep: [],  // { cpfTrab, ordemRegistro, blkIndex, cpfDep }
-    cpfFixCandidatesPreview: [], // preview limitado (até 80)
-    descrDepCleanupPreview: [],  // preview limitado (até 80)
+    cpfFixCandidatesPreview: [], // amostra limitada (até 80)
+    descrDepCleanupPreview: [],  // amostra limitada (até 80)
+    existingInfoDepUpdatesPreview: [], // amostra limitada (até 80)
     stats: {
       totalReferenced: 0,
       totalToAdd: 0,
@@ -1758,7 +2982,10 @@ function depAnalyze() {
       referencedDed: 0,
       referencedPen: 0,
       cpfFixCandidates: 0,
-      descrDepCleanupCandidates: 0
+      descrDepCleanupCandidates: 0,
+      existingInfoDepToUpdate: 0,
+      existingInfoDepFieldChanges: 0,
+      depIRRFSanitizeCandidates: 0
     }
   };
 
@@ -1776,6 +3003,7 @@ function depAnalyze() {
     complemArr.forEach((blk, blkIndex) => {
       depCollectCpfFixCandidatesInBlock(plan, cpfTrab, ordem, blkIndex, blk);
       depCollectDescrDepCleanupCandidatesInBlock(plan, cpfTrab, ordem, blkIndex, blk);
+      depCollectDepIRRFSanitizeCandidatesInBlock(plan, cpfTrab, ordem, blkIndex, blk);
 
       const ircrArr = Array.isArray(blk?.s1210InfoIRCR) ? blk.s1210InfoIRCR : [];
       const infoDepArr = Array.isArray(blk?.s1210InfoDep) ? blk.s1210InfoDep : [];
@@ -1803,6 +3031,8 @@ function depAnalyze() {
       plan.stats.referencedDed += refDed.size;
       plan.stats.referencedPen += refPen.size;
 
+      depCollectExistingInfoDepUpdateCandidates(plan, cpfTrab, ordem, blkIndex, blk, refDed, refPen);
+
       const all = new Set([...refDed, ...refPen]);
       all.forEach((cpfDep) => {
         const hasDed = refDed.has(cpfDep);
@@ -1825,12 +3055,7 @@ if (reason === "DED") {
     plan.missingInBase.push({ cpfTrab, cpfDep, ordemRegistro: ordem, blkIndex, reason, why: "DED_EXIGE_tpDep" });
     return;
   }
-  if (__tpDep === "99") {
-    if (!data.descrDep || String(data.descrDep).trim() === "") {
-      plan.missingInBase.push({ cpfTrab, cpfDep, ordemRegistro: ordem, blkIndex, reason, why: "tpDep=99_EXIGE_descrDep" });
-      return;
-    }
-  }
+  // Se TIPODEP=99 e a base não trouxer descrDep, a rotina usará "Cotista" como fallback obrigatório.
 }
 
 plan.toAdd.push({ blkRef: blk, cpfTrab, cpfDep, data, reason, ordemRegistro: ordem, blkIndex });
@@ -1861,6 +3086,10 @@ function depReportText(plan) {
   lines.push(`- Duplicidades detectadas (s1210InfoDep): ${plan.duplicatesInfoDep.length}`);
   lines.push(`- CPFs de dependentes a corrigir (cpfDep com 10 dígitos): ${plan.stats.cpfFixCandidates}`);
   lines.push(`- descrDep indevido a remover (tpDep.codigo diferente de 99): ${plan.stats.descrDepCleanupCandidates}`);
+  lines.push(`- Regra ativa: tpDep.codigo=99 sempre terá descrDep preenchido com PARENTESCO da base; se a base não informar, será usado "Cotista".`);
+  lines.push(`- Regra ativa: depIRRF só será "S" quando houver Dedução de Dependente; nos demais casos ficará null.`);
+  lines.push(`- depIRRF inválidos a converter para null: ${plan.stats.depIRRFSanitizeCandidates}`);
+  lines.push(`- Dependentes existentes a atualizar pela base: ${plan.stats.existingInfoDepToUpdate} (${plan.stats.existingInfoDepFieldChanges} campo(s))`);
   lines.push("");
 
   if (plan.stats.totalMissing) {
@@ -1879,7 +3108,7 @@ function depReportText(plan) {
       lines.push(`- cpfTrab ${cpfTrab}: ${arr.join(", ")}`);
       shown += 1;
     }
-    if (grp.size > 60) lines.push(`... (${grp.size - 60} grupos adicionais omitidos no preview)`);
+    if (grp.size > 60) lines.push(`... (${grp.size - 60} grupos adicionais omitidos no relatório)`);
     lines.push("");
   }
 
@@ -1895,25 +3124,36 @@ function depReportText(plan) {
   }
 
   if (plan.stats.cpfFixCandidates) {
-    lines.push("CPFs de dependentes com ajuste sugerido (preview):");
+    lines.push("CPFs de dependentes com ajuste sugerido (amostra):");
     plan.cpfFixCandidatesPreview.forEach(it => {
       lines.push(`- cpfTrab ${it.cpfTrab} (ordemRegistro ${it.ordemRegistro}, bloco ${it.blkIndex}) [${it.section}]: "${it.old}" -> "${it.new}"`);
     });
     if (plan.stats.cpfFixCandidates > plan.cpfFixCandidatesPreview.length) {
-      lines.push(`... (${plan.stats.cpfFixCandidates - plan.cpfFixCandidatesPreview.length} ocorrências adicionais omitidas no preview)`);
+      lines.push(`... (${plan.stats.cpfFixCandidates - plan.cpfFixCandidatesPreview.length} ocorrências adicionais omitidas no relatório)`);
     }
   }
 
   if (plan.stats.descrDepCleanupCandidates) {
     lines.push("");
-    lines.push("descrDep indevido com remoção sugerida (preview):");
+    lines.push("descrDep indevido com remoção sugerida (amostra):");
 
     plan.descrDepCleanupPreview.forEach(it => {
       lines.push(`- cpfTrab ${it.cpfTrab} (ordemRegistro ${it.ordemRegistro}, bloco ${it.blkIndex}) cpfDep ${it.cpfDep}: tpDep=${it.tpDep || "*vazio*"}, descrDep="${it.descrDep}" -> remover campo`);
     });
 
     if (plan.stats.descrDepCleanupCandidates > plan.descrDepCleanupPreview.length) {
-      lines.push(`... (${plan.stats.descrDepCleanupCandidates - plan.descrDepCleanupPreview.length} ocorrências adicionais omitidas no preview)`);
+      lines.push(`... (${plan.stats.descrDepCleanupCandidates - plan.descrDepCleanupPreview.length} ocorrências adicionais omitidas no relatório)`);
+    }
+  }
+
+  if (plan.stats.existingInfoDepToUpdate) {
+    lines.push("");
+    lines.push("Dependentes existentes com preenchimento/correção pela base (amostra):");
+    plan.existingInfoDepUpdatesPreview.forEach(it => {
+      lines.push(`- cpfTrab ${it.cpfTrab} (ordemRegistro ${it.ordemRegistro}, bloco ${it.blkIndex}) cpfDep ${it.cpfDep} [${it.reason}]: ${it.changes.join("; ")}`);
+    });
+    if (plan.stats.existingInfoDepToUpdate > plan.existingInfoDepUpdatesPreview.length) {
+      lines.push(`... (${plan.stats.existingInfoDepToUpdate - plan.existingInfoDepUpdatesPreview.length} dependentes adicionais omitidos no relatório)`);
     }
   }
 
@@ -1923,19 +3163,19 @@ function depReportText(plan) {
 function depBuildInfoDepObj(cpfDep, data, reason) {
   const obj = {
     cpfDep: cpfDep,
-    depIRRF: (reason === "DED") ? "S" : "*vazio*",
+    depIRRF: (reason === "DED") ? "S" : null,
     dtNascto: data?.dtNascto ?? "*datavazia*",
     nome: data?.nome ?? "*vazio*"
   };
 
   // Regra prática adotada:
   // - DED => depIRRF="S" e tpDep obrigatório (da base). descrDep somente se tpDep==99.
-  // - PEN_ONLY => cotista: tpDep=99 e descrDep="Cotista" (fixo).
+  // - PEN_ONLY => depIRRF=null; cotista: tpDep=99 e descrDep="Cotista" (fixo).
   if (reason === "DED") {
     const tp = String(data?.tpDepCodigo ?? "*vazio*").trim() || "*vazio*";
     obj.tpDep = { codigo: tp };
     if (tp === "99") {
-      obj.descrDep = (data?.descrDep && String(data.descrDep).trim() !== "") ? data.descrDep : "";
+      obj.descrDep = depResolveDescrDepForTp99(data);
     }
   } else {
     // Somente Pensão Alimentícia -> Cotista
@@ -2054,6 +3294,13 @@ function depApplyFixes() {
     addedCount += 1;
   }
 
+  const existingUpdateResult = depUpdateExistingInfoDepFromBaseInAllEvents();
+  const existingDepsUpdated = existingUpdateResult.depsUpdated;
+  const existingFieldChanges = existingUpdateResult.fieldChanges;
+
+  const depIRRFNullified = depNormalizeInvalidDepIRRFInAllEvents();
+
+  const descrDepFilledTp99 = depEnsureDescrDepForTp99InAllEvents();
   const descrDepCleared = depCleanupInvalidDescrDepInAllEvents();
 
   let dedupRemoved = 0;
@@ -2094,6 +3341,9 @@ function depApplyFixes() {
   const rep = [];
   rep.push("Aplicação concluída");
   rep.push(`- Dependentes adicionados: ${addedCount}`);
+  rep.push(`- Dependentes existentes atualizados pela base: ${existingDepsUpdated} (${existingFieldChanges} campo(s))`);
+  rep.push(`- depIRRF inválidos convertidos para null: ${depIRRFNullified}`);
+  rep.push(`- descrDep preenchidos obrigatoriamente em tpDep.codigo=99: ${descrDepFilledTp99}`);
   rep.push(`- descrDep removidos por tpDep.codigo diferente de 99: ${descrDepCleared}`);
   rep.push(`- Duplicidades removidas em s1210InfoDep (opcional): ${dedupRemoved}`);
   rep.push(`- Pendências (não corrigidas): ${plan.missingInBase.length}`);
@@ -2142,6 +3392,9 @@ setStatus(`<div class="alert alert-success mb-0">
     Dependentes adicionados: <strong>${addedCount}</strong> |
     Pendências: <strong>${plan.missingInBase.length}</strong> |
     InfoDep duplicados removidos: <strong>${dedupRemoved}</strong> |
+    Dependentes existentes atualizados: <strong>${existingDepsUpdated}</strong> |
+    depIRRF para null: <strong>${depIRRFNullified}</strong> |
+    descrDep 99 preenchidos: <strong>${descrDepFilledTp99}</strong> |
     descrDep removidos: <strong>${descrDepCleared}</strong>
     ${doConsolidateIrcr ? `| IRCR mesclados: <strong>${ircrMerged}</strong>` : ""}
     ${doFixCpfDep ? `| CPFs cpfDep ajustados: <strong>${cpfFixed}</strong>` : ""}
@@ -2152,6 +3405,7 @@ $('#depSyncModal').on('shown.bs.modal', function () {
   depBaseMap = new Map();
   depPlan = null;
   document.getElementById("depTextarea").value = "";
+  if (document.getElementById("depFileInput")) document.getElementById("depFileInput").value = "";
   document.getElementById("depPreview").textContent = "(nenhuma linha válida carregada)";
   document.getElementById("depStats").textContent = "";
   document.getElementById("depReport").textContent = "";
@@ -2787,6 +4041,43 @@ function liqApply(plan) {
   renderEventosTable();
 }
 
+function attachCsvTextFileLoader(inputId, textareaId, afterLoad) {
+  const input = document.getElementById(inputId);
+  const textarea = document.getElementById(textareaId);
+  if (!input || !textarea) return;
+  input.addEventListener("change", function () {
+    const file = this.files && this.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function (e) {
+      textarea.value = e.target.result || "";
+      if (typeof afterLoad === "function") afterLoad();
+    };
+    reader.readAsText(file, "UTF-8");
+  });
+}
+
+attachCsvTextFileLoader("depFileInput", "depTextarea", () => {
+  depBaseMap = new Map();
+  depPlan = null;
+  document.getElementById("depReport").textContent = "";
+});
+
+attachCsvTextFileLoader("liqFileInput", "liqTextarea", () => {
+  liqBaseRows = [];
+  liqBaseIndex = new Map();
+  liqBaseByCpf = new Map();
+  document.getElementById("liqReport").textContent = "";
+});
+
+$('#liqSyncModal').on('shown.bs.modal', function () {
+  if (document.getElementById("liqFileInput")) document.getElementById("liqFileInput").value = "";
+  document.getElementById("liqTextarea").value = "";
+  document.getElementById("liqPreview").textContent = "(nenhuma linha válida)";
+  document.getElementById("liqStats").textContent = "";
+  document.getElementById("liqReport").textContent = "";
+});
+
 document.getElementById("liqAnalyzeBtn").addEventListener("click", () => {
   liqIngestText(document.getElementById("liqTextarea").value || "");
   liqPreviewUpdate();
@@ -2833,6 +4124,8 @@ document.getElementById("depAnalyzeBtn").addEventListener("click", () => {
     Análise concluída: Inclusões: <strong>${plan.stats.totalToAdd}</strong> |
     Pendências: <strong>${plan.stats.totalMissing}</strong> |
     InfoDep duplicidades: <strong>${plan.duplicatesInfoDep.length}</strong> |
+    Dependentes existentes a atualizar: <strong>${plan.stats.existingInfoDepToUpdate}</strong> |
+    depIRRF inválidos: <strong>${plan.stats.depIRRFSanitizeCandidates}</strong> |
     descrDep a remover: <strong>${plan.stats.descrDepCleanupCandidates}</strong>
   </div>`);
 });
@@ -2851,10 +4144,12 @@ document.getElementById("depApplyBtn").addEventListener("click", () => {
   const hasDedup = doDedupInfoDep && plan.duplicatesInfoDep.length > 0;
   const hasCpfFix = doFixCpfDep && plan.stats.cpfFixCandidates > 0;
   const hasDescrDepCleanup = plan.stats.descrDepCleanupCandidates > 0;
+  const hasExistingInfoDepUpdate = plan.stats.existingInfoDepToUpdate > 0;
+  const hasDepIRRFSanitize = plan.stats.depIRRFSanitizeCandidates > 0;
 
   // Observação: consolidação de IRCR pode ou não gerar alterações; se o usuário marcou,
   // executamos de qualquer forma (não fazemos "short-circuit").
-  if (!hasAdd && !hasPend && !hasDedup && !hasCpfFix && !hasDescrDepCleanup && !doConsolidateIrcr) {
+  if (!hasAdd && !hasPend && !hasDedup && !hasCpfFix && !hasDescrDepCleanup && !hasExistingInfoDepUpdate && !hasDepIRRFSanitize && !doConsolidateIrcr) {
     document.getElementById("depReport").textContent = "Nenhuma ação necessária. Não há pendências detectadas.";
     return;
   }

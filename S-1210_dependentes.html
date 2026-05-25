@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tratador de Dependentes ERGON/eSocial</title>
+  <style>
+    body{font-family:Arial,Helvetica,sans-serif;background:#f4f6f8;margin:0;color:#1f2937}header{background:#0f172a;color:#fff;padding:24px}main{max-width:1300px;margin:auto;padding:18px}.card{background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:16px;margin-bottom:16px;box-shadow:0 8px 20px rgba(0,0,0,.06)}h1{margin:0 0 8px;font-size:24px}h2{margin:0 0 12px;font-size:18px}.grid{display:grid;grid-template-columns:1fr;gap:12px}@media(min-width:900px){.grid{grid-template-columns:1fr 1fr}.grid3{grid-template-columns:repeat(3,1fr)}}label{font-weight:700;font-size:13px;display:block;margin:10px 0 5px}input,textarea{width:100%;box-sizing:border-box;border:1px solid #d1d5db;border-radius:10px;padding:10px;font-size:14px}textarea{min-height:150px;font-family:Consolas,monospace}.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}button{border:0;border-radius:10px;padding:10px 14px;font-weight:700;cursor:pointer;background:#1d4ed8;color:#fff}button.secondary{background:#374151}button.light{background:#e5e7eb;color:#111827}button:disabled{opacity:.5;cursor:not-allowed}.stats{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}@media(min-width:900px){.stats{grid-template-columns:repeat(5,1fr)}}.stat{background:#f9fafb;border:1px solid #e5e7eb;border-radius:12px;padding:12px}.stat strong{display:block;font-size:24px}.small{font-size:12px;color:#6b7280;line-height:1.4}.notice{background:#eff6ff;border-left:4px solid #1d4ed8;padding:10px;border-radius:8px;font-size:13px;margin-top:10px}.tabs{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px}.tab{background:#e5e7eb;color:#111827}.tab.active{background:#1d4ed8;color:#fff}.hidden{display:none}.table-wrap{overflow:auto;max-height:520px;border:1px solid #e5e7eb;border-radius:12px}table{width:100%;border-collapse:collapse;font-size:13px}th,td{border-bottom:1px solid #e5e7eb;padding:8px;white-space:nowrap;text-align:left}th{position:sticky;top:0;background:#f3f4f6}.badge{border-radius:999px;padding:3px 7px;font-weight:700;font-size:12px}.ok{background:#d1fae5;color:#065f46}.warn{background:#fef3c7;color:#92400e}.danger{background:#fee2e2;color:#991b1b}.raw{background:#0b1020;color:#e5e7eb;padding:12px;border-radius:12px;white-space:pre;overflow:auto;min-height:220px;font-family:Consolas,monospace;font-size:12px}
+  </style>
+</head>
+<body>
+<header>
+  <h1>Tratador de Dependentes ERGON/eSocial</h1>
+  <div>Gera o TXT completo de dependentes e o CSV dep dedução IR para apoio ao tratamento do S-1210.</div>
+</header>
+<main>
+  <section class="card">
+    <h2>1. Entrada</h2>
+    <div class="grid">
+      <div>
+        <label>Arquivo CSV/TXT separado por ponto e vírgula</label>
+        <input id="fileInput" type="file" accept=".csv,.txt,text/csv,text/plain">
+        <label>Ou cole o conteúdo da base ERGON</label>
+        <textarea id="pasteInput" placeholder="MATRIC;CPFTRAB;NOMEFUNC;NUMDEP;NOMEDEP;DTNASC;IDADE;CPF;PARENTESCO;SEXO;TIPODEPEN;DTINI;DTFIM;BANCO;AGENCIA;CONTA;TIPOPAG;BASE;PERCENTUAL;INIRP;FIMRP;TIPOREAJ;PAGA_13;PAGA_ADIANT_FER;PAGA_ABONO_CONST;PAGA_ABONO"></textarea>
+      </div>
+      <div>
+        <div class="grid">
+          <div>
+            <label>Competência do CSV dep dedução IR</label>
+            <input id="competenciaInput" type="month">
+            <div class="small">A competência será gravada no CSV como mes_referencia, no formato MM/AAAA.</div>
+          </div>
+          <div>
+            <label>Valor vlrDedDep por dependente</label>
+            <input id="valorInput" type="text" value="189,59">
+            <div class="small">O valor padrão é 189,59, mas pode ser alterado.</div>
+          </div>
+        </div>
+        <div class="notice">
+          O TXT completo remove duplicidade por CPFTRAB + CPF do dependente, priorizando INIRP mais recente e depois DTINI mais recente. O CSV dep dedução IR gera: matric;mes_referencia;cpftrab;cpf;vlrDedDep.
+        </div>
+        <div class="actions">
+          <button id="processBtn">Processar</button>
+          <button id="clearBtn" class="light">Limpar</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>2. Resumo</h2>
+    <div class="stats">
+      <div class="stat"><strong id="sRead">0</strong><span>linhas lidas</span></div>
+      <div class="stat"><strong id="sTxt">0</strong><span>dependentes no TXT completo</span></div>
+      <div class="stat"><strong id="sIr">0</strong><span>linhas no CSV dep dedução IR</span></div>
+      <div class="stat"><strong id="sDup">0</strong><span>duplicidades removidas</span></div>
+      <div class="stat"><strong id="sIgn">0</strong><span>ocorrências/ignorados</span></div>
+    </div>
+    <div class="actions">
+      <button id="downloadTxt" disabled>Baixar TXT completo</button>
+      <button id="downloadIr" disabled>Baixar CSV dep dedução IR</button>
+      <button id="downloadAudit" class="secondary" disabled>Baixar auditoria CSV</button>
+      <button id="copyTxt" class="light" disabled>Copiar TXT completo</button>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="tabs">
+      <button class="tab active" data-tab="tabTxt">Prévia TXT completo</button>
+      <button class="tab" data-tab="tabIr">Prévia CSV dep dedução IR</button>
+      <button class="tab" data-tab="tabOcorr">Ocorrências</button>
+      <button class="tab" data-tab="tabMap">De/para TIPODEP</button>
+      <button class="tab" data-tab="tabRawTxt">TXT bruto</button>
+      <button class="tab" data-tab="tabRawIr">CSV dep dedução IR bruto</button>
+    </div>
+
+    <div id="tabTxt" class="pane">
+      <div class="table-wrap"><table><thead><tr><th>CPFTRAB</th><th>CPF</th><th>NUMDEP</th><th>DTNASCTO</th><th>NOMEDEP</th><th>TIPODEP</th><th>PARENTESCO</th><th>INIRP</th><th>DTINI</th><th>Linha</th><th>Status</th></tr></thead><tbody id="bodyTxt"><tr><td colspan="11">Nenhum processamento.</td></tr></tbody></table></div>
+    </div>
+    <div id="tabIr" class="pane hidden">
+      <div class="table-wrap"><table><thead><tr><th>matric</th><th>mes_referencia</th><th>cpftrab</th><th>cpf</th><th>vlrDedDep</th><th>TIPODEPEN</th><th>DTINI</th><th>DTFIM</th><th>Linha</th></tr></thead><tbody id="bodyIr"><tr><td colspan="9">Nenhum processamento.</td></tr></tbody></table></div>
+    </div>
+    <div id="tabOcorr" class="pane hidden">
+      <div class="table-wrap"><table><thead><tr><th>Grupo</th><th>Linha</th><th>Motivo</th><th>CPFTRAB</th><th>CPF</th><th>NUMDEP</th><th>NOMEDEP</th><th>TIPODEPEN</th><th>INIRP</th><th>DTINI</th><th>DTFIM</th></tr></thead><tbody id="bodyOcorr"><tr><td colspan="11">Nenhuma ocorrência.</td></tr></tbody></table></div>
+    </div>
+    <div id="tabMap" class="pane hidden"><div class="table-wrap"><table><thead><tr><th>PARENTESCO ERGON</th><th>TIPODEP</th></tr></thead><tbody id="bodyMap"></tbody></table></div></div>
+    <div id="tabRawTxt" class="pane hidden"><div id="rawTxt" class="raw">Nenhum TXT gerado.</div></div>
+    <div id="tabRawIr" class="pane hidden"><div id="rawIr" class="raw">Nenhum CSV dep dedução IR gerado.</div></div>
+  </section>
+</main>
+<script>
+const TXT_HEADER = ["CPFTRAB","CPF","NUMDEP","DTNASCTO","NOMEDEP","TIPODEP","PARENTESCO"];
+const IR_HEADER = ["matric","mes_referencia","cpftrab","cpf","vlrDedDep"];
+const MAP_LIST = [["Conjuge","01"],["Companheiro","02"],["Filho","03"],["Adotivo","03"],["Filha Maior 21","03"],["Enteado","03"],["Filho Universitario","04"],["Genitor","09"],["Curatelado","11"],["Tutelado","11"],["Ex-Conjuge Jud.","12"],["Outros","99"],["Cotista","99"],["Sobrinho","99"],["Cunhado","99"],["Natimorto","99"],["Irmao","99"],["Neto","99"],["Ex-Companheiro Jud.","99"],["Guarda e Posse","99"],["Legatario","99"],["Menor Pobre","99"],["Padrasto","99"],["Primo","99"],["Sogro","99"],["Tio","99"]];
+const TIPO_DEP = new Map(MAP_LIST.map(([k,v]) => [canon(k), v]));
+let outTxt = "", outIr = "", outAudit = "";
+const el = id => document.getElementById(id);
+el("processBtn").onclick = processar;
+el("clearBtn").onclick = limpar;
+el("downloadTxt").onclick = () => baixar("dependentes_esocial_tratado.txt", outTxt);
+el("downloadIr").onclick = () => baixar("csv_dep_deducao_ir.csv", outIr);
+el("downloadAudit").onclick = () => baixar("auditoria_dependentes.csv", outAudit);
+el("copyTxt").onclick = async () => { await navigator.clipboard.writeText(outTxt); alert("TXT copiado."); };
+document.querySelectorAll(".tab").forEach(b => b.onclick = () => abrirAba(b.dataset.tab));
+renderMap();
+async function processar(){
+  const texto = await obterTexto();
+  if(!texto.trim()) return alert("Selecione um arquivo ou cole a base ERGON.");
+  const comp = competencia(el("competenciaInput").value);
+  if(!comp) return alert("Informe a competência para geração do CSV dep dedução IR.");
+  const valorDed = dinheiroBR(el("valorInput").value || "189,59");
+  const matriz = parseCSV(texto, ";");
+  if(matriz.length < 2) return alert("Não foi possível identificar cabeçalho e dados.");
+  const headers = matriz[0].map(normalizaHeader);
+  const idx = Object.fromEntries(headers.map((h,i) => [h,i]));
+  const obrig = ["MATRIC","CPFTRAB","NUMDEP","NOMEDEP","DTNASC","CPF","PARENTESCO","TIPODEPEN","DTINI","DTFIM","INIRP"];
+  const faltantes = obrig.filter(c => idx[c] === undefined);
+  if(faltantes.length) return alert("Campos obrigatórios ausentes: " + faltantes.join(", "));
+  const linhas = matriz.slice(1).filter(r => r.some(c => String(c||"").trim()));
+  const base = [], ignorados = [], irBase = [], irIgnorados = [];
+  linhas.forEach((r, i) => {
+    const linha = i + 2;
+    const o = original(r, idx);
+    const cpfTrab = cpf11(o.CPFTRAB);
+    const cpfDep = cpf11(o.CPF);
+    if(!cpfDep){ ignorados.push(oc("TXT_COMPLETO", linha, "Ignorado: CPF do dependente não informado.", o)); return; }
+    if(!cpfTrab){ ignorados.push(oc("TXT_COMPLETO", linha, "Ignorado: CPFTRAB não informado.", o)); return; }
+    if(cpfDep.length !== 11){ ignorados.push(oc("TXT_COMPLETO", linha, "Ignorado: CPF do dependente ficou com mais de 11 dígitos após limpeza.", o)); return; }
+    if(cpfTrab.length !== 11){ ignorados.push(oc("TXT_COMPLETO", linha, "Ignorado: CPFTRAB ficou com mais de 11 dígitos após limpeza.", o)); return; }
+    const parentesco = limpa(o.PARENTESCO);
+    const nome = nomeLimpo(o.NOMEDEP);
+    const item = {
+      MATRIC: limpa(o.MATRIC), CPFTRAB: cpfTrab, CPF: cpfDep, NUMDEP: limpa(o.NUMDEP),
+      DTNASCTO: dataISO(o.DTNASC), NOMEDEP: nome, TIPODEP: TIPO_DEP.get(canon(parentesco)) || "99", PARENTESCO: parentesco,
+      matric: limpa(o.MATRIC), mes_referencia: comp.label, cpftrab: cpfTrab, cpf: cpfDep, vlrDedDep: valorDed,
+      linha, original: o, pINIRP: tempo(o.INIRP), pDTINI: tempo(o.DTINI), status: statusItem(nome, parentesco, o.DTNASC)
+    };
+    base.push(item);
+    const ir = elegivelIR(item, comp);
+    if(ir.ok) irBase.push(item);
+    else if(ir.relevante) irIgnorados.push(oc("CSV_DEP_DEDUCAO_IR", linha, ir.motivo, o));
+  });
+  const selTxt = selecionaMelhor(base, "TXT_COMPLETO");
+  const selIr = selecionaMelhor(irBase, "CSV_DEP_DEDUCAO_IR");
+  const ocorr = [...ignorados, ...selTxt.duplicidades, ...irIgnorados, ...selIr.duplicidades];
+  outTxt = montaTXT(selTxt.itens);
+  outIr = montaIR(selIr.itens);
+  outAudit = montaAuditoria(selTxt.itens, selIr.itens, ocorr);
+  el("sRead").textContent = linhas.length;
+  el("sTxt").textContent = selTxt.itens.length;
+  el("sIr").textContent = selIr.itens.length;
+  el("sDup").textContent = selTxt.duplicidades.length + selIr.duplicidades.length;
+  el("sIgn").textContent = ocorr.length;
+  renderTxt(selTxt.itens); renderIr(selIr.itens); renderOcorr(ocorr);
+  el("rawTxt").textContent = outTxt || "Nenhum TXT gerado.";
+  el("rawIr").textContent = outIr || "Nenhum CSV dep dedução IR gerado.";
+  el("downloadTxt").disabled = !selTxt.itens.length;
+  el("downloadIr").disabled = !selIr.itens.length;
+  el("downloadAudit").disabled = false;
+  el("copyTxt").disabled = !selTxt.itens.length;
+  abrirAba("tabIr");
+}
+async function obterTexto(){
+  if(el("pasteInput").value.trim()) return el("pasteInput").value;
+  const f = el("fileInput").files[0];
+  if(!f) return "";
+  return new Promise((res, rej) => { const rd = new FileReader(); rd.onload = () => res(String(rd.result||"")); rd.onerror = rej; rd.readAsText(f, "windows-1252"); });
+}
+function parseCSV(texto, sep){
+  const rows=[]; let row=[], val="", q=false; texto=String(texto||"").replace(/^\uFEFF/,"");
+  for(let i=0;i<texto.length;i++){ const c=texto[i], n=texto[i+1];
+    if(c==='"'){ if(q && n==='"'){ val+='"'; i++; } else q=!q; }
+    else if(c===sep && !q){ row.push(val); val=""; }
+    else if((c==='\n'||c==='\r') && !q){ if(c==='\r'&&n==='\n') i++; row.push(val); rows.push(row); row=[]; val=""; }
+    else val+=c;
+  }
+  row.push(val); rows.push(row); return rows.filter(r => r.some(c => String(c||"").trim()));
+}
+function original(r, idx){ const g=c => String(r[idx[c]] ?? "").trim(); return {MATRIC:g("MATRIC"),CPFTRAB:g("CPFTRAB"),NUMDEP:g("NUMDEP"),NOMEDEP:g("NOMEDEP"),DTNASC:g("DTNASC"),CPF:g("CPF"),PARENTESCO:g("PARENTESCO"),TIPODEPEN:g("TIPODEPEN"),DTINI:g("DTINI"),DTFIM:g("DTFIM"),INIRP:g("INIRP")}; }
+function selecionaMelhor(itens, grupo){
+  const map = new Map(), ordem=[];
+  itens.forEach(it => { const k = it.CPFTRAB+"|"+it.CPF; if(!map.has(k)){map.set(k,[]); ordem.push(k);} map.get(k).push(it); });
+  const finais=[], duplicidades=[];
+  ordem.forEach(k => { const arr = map.get(k).sort((a,b) => (score(b.pINIRP)-score(a.pINIRP)) || (score(b.pDTINI)-score(a.pDTINI)) || (a.linha-b.linha)); const mantido = arr[0]; finais.push(mantido); arr.slice(1).forEach(perdido => duplicidades.push(oc(grupo, perdido.linha, `Duplicidade removida: mantida a linha ${mantido.linha}, priorizando INIRP mais recente e depois DTINI mais recente.`, perdido.original))); });
+  return {itens:finais, duplicidades};
+}
+function elegivelIR(it, comp){
+  if(!tipoIR(it.original.TIPODEPEN)) return {ok:false, relevante:false};
+  const ini = tempo(it.original.DTINI), fim = tempo(it.original.DTFIM);
+  if(!Number.isFinite(ini)) return {ok:false, relevante:true, motivo:"Ignorado no CSV dep dedução IR: TIPODEPEN é de IR, mas DTINI está vazia ou inválida."};
+  if(ini > comp.fim) return {ok:false, relevante:true, motivo:"Ignorado no CSV dep dedução IR: DTINI posterior à competência informada."};
+  if(Number.isFinite(fim) && fim <= comp.fim) return {ok:false, relevante:true, motivo:"Ignorado no CSV dep dedução IR: DTFIM encerrada na própria competência ou anteriormente."};
+  return {ok:true, relevante:true};
+}
+function tipoIR(v){ const c = canon(v); return c.includes("SAL FAM IR") || c.includes("IMPOSTO DE RENDA") || c.includes("SALARIO FAMILIA IR"); }
+function statusItem(nome, parentesco, nasc){ const a=[]; if(!dataISO(nasc)) a.push("DTNASC inválida/vazia"); if(!nome) a.push("NOMEDEP vazio"); if(!parentesco) a.push("PARENTESCO vazio; TIPODEP 99"); else if(!TIPO_DEP.has(canon(parentesco))) a.push("PARENTESCO não mapeado; TIPODEP 99"); return a.length ? a.join("; ") : "OK"; }
+function cpf11(v){ const d=String(v||"").replace(/\D/g,""); return !d ? "" : d.length>11 ? d : d.padStart(11,"0"); }
+function normalizaHeader(v){ return String(v||"").replace(/^\uFEFF/,"").trim().toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^A-Z0-9_]/g,""); }
+function canon(v){ return String(v||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toUpperCase().replace(/[^A-Z0-9]+/g," ").replace(/\s+/g," ").trim(); }
+function limpa(v){ return String(v||"").replace(/\s+/g," ").trim(); }
+function nomeLimpo(v){ return String(v||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toUpperCase().replace(/[\.\-_/\\]/g," ").replace(/[^A-Z0-9 ]/g," ").replace(/\s+/g," ").trim(); }
+function tempo(v){ const raw=String(v||"").trim(); if(!raw) return NaN; let m=raw.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})$/); if(m) return dt(m[1],m[2],m[3]); m=raw.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{2,4})$/); if(m){ let y=m[3]; if(y.length===2) y=Number(y)>30?"19"+y:"20"+y; return dt(y,m[2],m[1]); } m=raw.match(/^\d+(?:[,.]\d+)?$/); if(m){ const n=Number(raw.replace(",",".")); if(n>20000&&n<80000) return Date.UTC(1899,11,30+Math.floor(n)); } return NaN; }
+function dt(y,m,d){ y=Number(y); m=Number(m); d=Number(d); const t=Date.UTC(y,m-1,d), x=new Date(t); return x.getUTCFullYear()===y && x.getUTCMonth()===m-1 && x.getUTCDate()===d ? t : NaN; }
+function dataISO(v){ const t=tempo(v); return Number.isFinite(t) ? new Date(t).toISOString().slice(0,10) : ""; }
+function competencia(v){ const m=String(v||"").match(/^(\d{4})-(\d{2})$/); if(!m) return null; const y=Number(m[1]), mo=Number(m[2]); return {inicio:Date.UTC(y,mo-1,1), fim:Date.UTC(y,mo,0), label:String(mo).padStart(2,"0")+"/"+y}; }
+function score(v){ return Number.isFinite(v) ? v : -8640000000000000; }
+function dinheiroBR(v){ let s=String(v||"189,59").replace(/R\$/gi,"").replace(/\s/g,""); if(s.includes(",")) s=s.replace(/\./g,"").replace(",","."); const n=Number(s); return Number.isFinite(n) ? n.toFixed(2).replace(".",",") : "189,59"; }
+function oc(grupo, linha, motivo, o){ return {grupo, linha, motivo, original:o}; }
+function montaTXT(itens){ return [TXT_HEADER.join(";"), ...itens.map(i => TXT_HEADER.map(h => safe(i[h])).join(";"))].join("\r\n"); }
+function montaIR(itens){ return [IR_HEADER.join(";"), ...itens.map(i => IR_HEADER.map(h => safe(i[h])).join(";"))].join("\r\n"); }
+function safe(v){ return String(v??"").replace(/[\r\n]+/g," ").replace(/;/g,",").trim(); }
+function csv(v){ const t=String(v??"").replace(/"/g,'""'); return /[;"\r\n]/.test(t) ? `"${t}"` : t; }
+function montaAuditoria(txt, ir, ocorr){
+  const h=["TIPO","LINHA","MOTIVO_STATUS","MATRIC","MES_REFERENCIA","CPFTRAB","CPF","NUMDEP","DTNASCTO","NOMEDEP","TIPODEP","PARENTESCO","vlrDedDep","TIPODEPEN_ORIG","DTINI_ORIG","DTFIM_ORIG","INIRP_ORIG"];
+  const out=[h.join(";")];
+  txt.forEach(i=>out.push(["TXT_COMPLETO_GERADO",i.linha,i.status,i.MATRIC,"",i.CPFTRAB,i.CPF,i.NUMDEP,i.DTNASCTO,i.NOMEDEP,i.TIPODEP,i.PARENTESCO,"",i.original.TIPODEPEN,i.original.DTINI,i.original.DTFIM,i.original.INIRP].map(csv).join(";")));
+  ir.forEach(i=>out.push(["CSV_DEP_DEDUCAO_IR_GERADO",i.linha,"OK",i.matric,i.mes_referencia,i.cpftrab,i.cpf,"","","","","",i.vlrDedDep,i.original.TIPODEPEN,i.original.DTINI,i.original.DTFIM,i.original.INIRP].map(csv).join(";")));
+  ocorr.forEach(o=>out.push([o.grupo,o.linha,o.motivo,o.original.MATRIC,"",o.original.CPFTRAB,o.original.CPF,o.original.NUMDEP,"",o.original.NOMEDEP,"",o.original.PARENTESCO,"",o.original.TIPODEPEN,o.original.DTINI,o.original.DTFIM,o.original.INIRP].map(csv).join(";")));
+  return out.join("\r\n");
+}
+function renderTxt(itens){ const b=el("bodyTxt"); b.innerHTML = itens.length ? "" : '<tr><td colspan="11">Nenhum dependente gerado.</td></tr>'; itens.forEach(i=>{ const cls=i.status==="OK"?"ok":"warn"; b.insertAdjacentHTML("beforeend",`<tr><td>${e(i.CPFTRAB)}</td><td>${e(i.CPF)}</td><td>${e(i.NUMDEP)}</td><td>${e(i.DTNASCTO)}</td><td>${e(i.NOMEDEP)}</td><td>${e(i.TIPODEP)}</td><td>${e(i.PARENTESCO)}</td><td>${e(i.original.INIRP)}</td><td>${e(i.original.DTINI)}</td><td>${i.linha}</td><td><span class="badge ${cls}">${e(i.status)}</span></td></tr>`); }); }
+function renderIr(itens){ const b=el("bodyIr"); b.innerHTML = itens.length ? "" : '<tr><td colspan="9">Nenhum CSV dep dedução IR gerado.</td></tr>'; itens.forEach(i=>b.insertAdjacentHTML("beforeend",`<tr><td>${e(i.matric)}</td><td>${e(i.mes_referencia)}</td><td>${e(i.cpftrab)}</td><td>${e(i.cpf)}</td><td>${e(i.vlrDedDep)}</td><td>${e(i.original.TIPODEPEN)}</td><td>${e(i.original.DTINI)}</td><td>${e(i.original.DTFIM)}</td><td>${i.linha}</td></tr>`)); }
+function renderOcorr(itens){ const b=el("bodyOcorr"); b.innerHTML = itens.length ? "" : '<tr><td colspan="11">Nenhuma ocorrência.</td></tr>'; itens.forEach(o=>{ const cls=o.motivo.includes("Duplicidade")?"warn":"danger"; b.insertAdjacentHTML("beforeend",`<tr><td>${e(o.grupo)}</td><td>${o.linha}</td><td><span class="badge ${cls}">${e(o.motivo)}</span></td><td>${e(o.original.CPFTRAB)}</td><td>${e(o.original.CPF)}</td><td>${e(o.original.NUMDEP)}</td><td>${e(o.original.NOMEDEP)}</td><td>${e(o.original.TIPODEPEN)}</td><td>${e(o.original.INIRP)}</td><td>${e(o.original.DTINI)}</td><td>${e(o.original.DTFIM)}</td></tr>`); }); }
+function renderMap(){ const b=el("bodyMap"); MAP_LIST.forEach(([p,t])=>b.insertAdjacentHTML("beforeend",`<tr><td>${e(p)}</td><td>${t}</td></tr>`)); }
+function abrirAba(id){ document.querySelectorAll(".tab").forEach(b=>b.classList.toggle("active", b.dataset.tab===id)); document.querySelectorAll(".pane").forEach(p=>p.classList.add("hidden")); el(id).classList.remove("hidden"); }
+function baixar(nome, conteudo){ const blob=new Blob([conteudo],{type:"text/plain;charset=utf-8"}); const url=URL.createObjectURL(blob); const a=document.createElement("a"); a.href=url; a.download=nome; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url); }
+function limpar(){ el("fileInput").value=""; el("pasteInput").value=""; el("competenciaInput").value=""; el("valorInput").value="189,59"; ["sRead","sTxt","sIr","sDup","sIgn"].forEach(id=>el(id).textContent="0"); outTxt=outIr=outAudit=""; renderTxt([]); renderIr([]); renderOcorr([]); el("rawTxt").textContent="Nenhum TXT gerado."; el("rawIr").textContent="Nenhum CSV dep dedução IR gerado."; ["downloadTxt","downloadIr","downloadAudit","copyTxt"].forEach(id=>el(id).disabled=true); abrirAba("tabTxt"); }
+function e(v){ return String(v??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#039;"); }
+</script>
+</body>
+</html>
