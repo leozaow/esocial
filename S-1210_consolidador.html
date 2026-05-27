@@ -1,0 +1,1771 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Consolidador CSV S-1202/S1200 — Líquidos eSocial</title>
+  <style>
+    :root {
+      --bg: #f6f7fb;
+      --surface: #ffffff;
+      --surface-2: #f9fafc;
+      --text: #172033;
+      --muted: #667085;
+      --line: #d8dee9;
+      --brand: #1d4ed8;
+      --brand-2: #0f3ca6;
+      --ok: #067647;
+      --warn: #b54708;
+      --danger: #b42318;
+      --shadow: 0 18px 45px rgba(16, 24, 40, .08);
+      --radius: 18px;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background: radial-gradient(circle at top left, #eaf1ff 0, rgba(234,241,255,0) 360px), var(--bg);
+      color: var(--text);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+      line-height: 1.45;
+    }
+
+    .wrap {
+      width: min(1380px, calc(100vw - 32px));
+      margin: 28px auto 52px;
+    }
+
+    header {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 18px;
+      align-items: end;
+      margin-bottom: 22px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(1.7rem, 3vw, 2.45rem);
+      letter-spacing: -.04em;
+      color: #101828;
+    }
+
+    .subtitle {
+      margin: 8px 0 0;
+      color: var(--muted);
+      max-width: 980px;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      border-radius: 999px;
+      background: #eaf1ff;
+      color: #143b8f;
+      font-size: .86rem;
+      font-weight: 800;
+      white-space: nowrap;
+      border: 1px solid #cddcff;
+    }
+
+    .grid { display: grid; gap: 18px; }
+
+    .panel {
+      background: rgba(255,255,255,.92);
+      border: 1px solid rgba(216,222,233,.9);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .panel-head {
+      display: flex;
+      gap: 14px;
+      justify-content: space-between;
+      align-items: center;
+      padding: 18px 20px;
+      border-bottom: 1px solid var(--line);
+      background: linear-gradient(180deg, #fff, #fbfcff);
+    }
+
+    .panel-title {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 1.05rem;
+      font-weight: 850;
+      margin: 0;
+    }
+
+    .step {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      display: inline-grid;
+      place-items: center;
+      background: var(--brand);
+      color: #fff;
+      font-weight: 850;
+      font-size: .92rem;
+      flex: none;
+    }
+
+    .panel-body { padding: 20px; }
+
+    .import-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(280px, 1fr));
+      gap: 14px;
+      align-items: stretch;
+    }
+
+    .import-card {
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: #fff;
+      padding: 16px;
+      display: grid;
+      gap: 12px;
+      align-content: start;
+    }
+
+    .import-card h3 {
+      margin: 0;
+      font-size: 1rem;
+      color: #101828;
+    }
+
+    .import-card p { margin: 0; }
+
+    .import-card .card-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 2px;
+    }
+
+    .dropzone {
+      border: 2px dashed #9fb7ea;
+      border-radius: 20px;
+      background: #f8fbff;
+      padding: 28px;
+      text-align: center;
+      transition: .18s ease;
+      cursor: pointer;
+      display: grid;
+      gap: 6px;
+      min-height: 148px;
+      place-items: center;
+    }
+
+    .dropzone.dragover {
+      border-color: var(--brand);
+      background: #eff6ff;
+      transform: translateY(-1px);
+    }
+
+    .dropzone strong { display: block; font-size: 1.05rem; }
+    .dropzone span { color: var(--muted); }
+    input[type="file"] { display: none; }
+
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 10px;
+    }
+
+    button, .fake-btn {
+      appearance: none;
+      border: 1px solid transparent;
+      border-radius: 12px;
+      background: var(--brand);
+      color: #fff;
+      font-weight: 780;
+      padding: 10px 14px;
+      cursor: pointer;
+      transition: .14s ease;
+      font-size: .94rem;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    button:hover, .fake-btn:hover { background: var(--brand-2); }
+    button.secondary {
+      background: #fff;
+      color: #24324a;
+      border-color: var(--line);
+    }
+    button.secondary:hover { background: #f3f6fb; }
+    button.ghost {
+      background: transparent;
+      border-color: transparent;
+      color: var(--brand);
+      padding-inline: 8px;
+    }
+    button.ghost:hover { background: #eef4ff; }
+    button.danger { background: #b42318; }
+    button.danger:hover { background: #8f1d14; }
+    button:disabled { opacity: .45; cursor: not-allowed; }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 12px;
+      margin-top: 16px;
+    }
+
+    .stat-card {
+      padding: 14px;
+      border: 1px solid var(--line);
+      border-radius: 15px;
+      background: #fff;
+    }
+    .stat-card .label { color: var(--muted); font-size: .82rem; font-weight: 750; text-transform: uppercase; letter-spacing: .04em; }
+    .stat-card .value { margin-top: 5px; font-size: 1.35rem; font-weight: 880; color: #101828; }
+
+    .options-row {
+      display: grid;
+      grid-template-columns: 1.4fr 1fr auto 1fr;
+      gap: 12px;
+      align-items: end;
+      margin-bottom: 14px;
+    }
+
+    label.field, .field {
+      display: grid;
+      gap: 6px;
+      font-weight: 760;
+      color: #344054;
+      font-size: .9rem;
+    }
+
+    input[type="text"], input[type="date"], select {
+      width: 100%;
+      min-height: 40px;
+      border: 1px solid var(--line);
+      border-radius: 11px;
+      background: #fff;
+      color: var(--text);
+      padding: 9px 11px;
+      font: inherit;
+    }
+
+    input[type="checkbox"] {
+      width: 18px;
+      height: 18px;
+      accent-color: var(--brand);
+      cursor: pointer;
+    }
+
+    .hint {
+      color: var(--muted);
+      font-size: .9rem;
+      margin: 0;
+    }
+
+    .table-wrap {
+      overflow: auto;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: #fff;
+      max-height: 470px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+      min-width: 980px;
+    }
+
+    th, td {
+      padding: 10px 12px;
+      border-bottom: 1px solid #eef1f6;
+      text-align: left;
+      vertical-align: middle;
+      font-size: .92rem;
+      white-space: nowrap;
+    }
+
+    th {
+      position: sticky;
+      top: 0;
+      background: #f8fafc;
+      color: #344054;
+      z-index: 2;
+      font-size: .78rem;
+      text-transform: uppercase;
+      letter-spacing: .05em;
+    }
+
+    tr:last-child td { border-bottom: 0; }
+    tr:hover td { background: #fbfdff; }
+
+    .num { text-align: right; font-variant-numeric: tabular-nums; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace; }
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      padding: 4px 8px;
+      border-radius: 999px;
+      font-size: .8rem;
+      font-weight: 850;
+      background: #f2f4f7;
+      color: #344054;
+    }
+    .tag.ok { background: #dcfae6; color: var(--ok); }
+    .tag.warn { background: #fef0c7; color: var(--warn); }
+    .tag.danger { background: #fee4e2; color: var(--danger); }
+    .tag.info { background: #eaf1ff; color: #143b8f; }
+
+    .message {
+      border-radius: 15px;
+      padding: 12px 14px;
+      margin-top: 14px;
+      border: 1px solid var(--line);
+      background: #fff;
+      color: #344054;
+    }
+    .message.ok { border-color: #abefc6; background: #ecfdf3; color: #054f31; }
+    .message.warn { border-color: #fedf89; background: #fffaeb; color: #7a2e0e; }
+    .message.danger { border-color: #fecdca; background: #fef3f2; color: #7a271a; }
+    .message.info { border-color: #bfdbfe; background: #eff6ff; color: #1e3a8a; }
+
+    details {
+      border: 1px solid var(--line);
+      border-radius: 15px;
+      background: #fff;
+      overflow: hidden;
+      margin-top: 14px;
+    }
+    summary {
+      cursor: pointer;
+      padding: 12px 14px;
+      font-weight: 850;
+      background: #fbfcff;
+    }
+    .details-body { padding: 0 14px 14px; color: #344054; }
+    .details-body ul { margin: 8px 0 0; padding-left: 20px; }
+
+    .footer-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      justify-content: flex-end;
+      align-items: center;
+      margin-top: 16px;
+    }
+
+    .empty {
+      padding: 24px;
+      text-align: center;
+      color: var(--muted);
+      border: 1px dashed var(--line);
+      border-radius: 16px;
+      background: var(--surface-2);
+    }
+
+    .split {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 18px;
+    }
+
+    .date-cell {
+      display: grid;
+      grid-template-columns: minmax(160px, 1fr) auto;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .source-note { display: inline-flex; align-items: center; gap: 6px; }
+
+    .modal {
+      position: fixed;
+      inset: 0;
+      z-index: 40;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      background: rgba(15, 23, 42, .48);
+      backdrop-filter: blur(2px);
+    }
+
+    .modal.open { display: flex; }
+
+    .modal-card {
+      width: min(760px, calc(100vw - 32px));
+      max-height: min(760px, calc(100vh - 32px));
+      overflow: auto;
+      background: #fff;
+      border-radius: 22px;
+      box-shadow: 0 24px 80px rgba(16, 24, 40, .24);
+      border: 1px solid rgba(255,255,255,.6);
+    }
+
+    .modal-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 18px 20px;
+      border-bottom: 1px solid var(--line);
+      background: linear-gradient(180deg, #fff, #fbfcff);
+    }
+
+    .modal-head h2 { margin: 0; font-size: 1.1rem; }
+    .modal-head p { margin: 4px 0 0; color: var(--muted); }
+    .modal-body { padding: 20px; }
+    .close-x { width: 38px; height: 38px; padding: 0; border-radius: 12px; }
+
+    @media (max-width: 980px) {
+      header, .split, .import-grid { grid-template-columns: 1fr; }
+      .stats { grid-template-columns: repeat(2, 1fr); }
+      .options-row { grid-template-columns: 1fr; }
+      .panel-head { align-items: flex-start; flex-direction: column; }
+      .toolbar { width: 100%; }
+      .date-cell { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <header>
+      <div>
+        <h1>Consolidador de CSV S-1202/S1200 — Líquidos eSocial</h1>
+        <p class="subtitle">Importe CSVs com <strong>Id Edm Dev</strong> dos eventos <strong>S-1202</strong> e/ou <strong>S1200</strong>, selecione as folhas detectadas por <strong>número da folha + mês/ano</strong>, informe ou importe a <strong>dtPgto</strong> e exporte um único CSV consolidado com <code>cpfTrab;tpPgto;perRef;ideDmDev;vrLiq;dtPgto</code>.</p>
+      </div>
+      <span class="badge">S-1202: tpPgto 4 · S1200: tpPgto 1</span>
+    </header>
+
+    <section class="grid">
+      <div class="panel">
+        <div class="panel-head">
+          <h2 class="panel-title"><span class="step">1</span> Importar arquivos</h2>
+          <div class="toolbar">
+            <button class="secondary" id="btnClear" type="button">Limpar</button>
+          </div>
+        </div>
+        <div class="panel-body">
+          <div class="import-grid">
+            <div class="import-card">
+              <h3>CSV principal — S-1202 ou S1200</h3>
+              <p class="hint">Use aqui os CSVs principais com as rubricas. Arquivos iniciados por <strong>S-1202</strong> ou <strong>S1202</strong> geram <code>tpPgto = 4</code>; arquivos iniciados por <strong>S1200</strong>, inclusive nomes como <code>S1200RemuTrabRGPS.csv</code>, geram <code>tpPgto = 1</code>.</p>
+              <div class="card-actions">
+                <button id="btnOpenMainModal" type="button">Importar CSV(s)</button>
+              </div>
+            </div>
+
+            <div class="import-card">
+              <h3>CSV auxiliar — Folhas empresa</h3>
+              <p class="hint">Opcional. Use para preencher automaticamente a <strong>dtPgto</strong> cruzando <code>MES_ANO + NUMERO</code> com <code>DTCRED</code>.</p>
+              <div class="card-actions">
+                <button class="secondary" id="btnOpenFolhasEmpresaModal" type="button">Importar datas das folhas</button>
+              </div>
+            </div>
+          </div>
+
+          <div id="importStatus"></div>
+          <div id="folhasEmpresaStatus"></div>
+          <div class="stats" id="stats" style="display:none"></div>
+        </div>
+      </div>
+
+      <div class="panel" id="selectionPanel" style="display:none">
+        <div class="panel-head">
+          <h2 class="panel-title"><span class="step">2</span> Selecionar folhas e informar dtPgto</h2>
+          <div class="toolbar">
+            <button class="secondary" id="btnSelectAll" type="button">Selecionar todas</button>
+            <button class="secondary" id="btnUnselectAll" type="button">Desmarcar todas</button>
+            <button class="secondary" id="btnOpenFolhasEmpresaModal2" type="button">Importar datas</button>
+          </div>
+        </div>
+        <div class="panel-body">
+          <div class="options-row">
+            <label class="field">Filtrar folha/mês
+              <input id="filterFolhas" type="text" placeholder="Ex.: 11, 01/2025, 122024" />
+            </label>
+            <label class="field">Aplicar dtPgto nas selecionadas
+              <input id="bulkDate" type="date" />
+            </label>
+            <div class="field">
+              <span>&nbsp;</span>
+              <button id="btnApplyDate" type="button">Aplicar data</button>
+            </div>
+            <label class="field">Formato da dtPgto exportada
+              <select id="dateFormat">
+                <option value="iso" selected>AAAA-MM-DD</option>
+                <option value="br">DD/MM/AAAA</option>
+              </select>
+            </label>
+          </div>
+          <p class="hint">A tela não separa mais pelo tipo da folha. Ex.: <code>857.588-0/1-11-NORMAL-122024</code> e outra ocorrência da folha <code>11</code> em <code>12/2024</code> ficam no mesmo grupo de seleção de data. A data inicial sugerida é o dia 01 do mês/ano detectado, apenas para facilitar a abertura do seletor de data; se importar o CSV de folhas empresa, o <code>DTCRED</code> substitui automaticamente essa sugestão quando houver correspondência.</p>
+          <div class="table-wrap" style="margin-top:14px">
+            <table id="folhasTable">
+              <thead>
+                <tr>
+                  <th>Usar</th>
+                  <th>Nº folha</th>
+                  <th>Mês/ano do Id Edm Dev</th>
+                  <th class="num">Linhas úteis</th>
+                  <th class="num">Consolidados</th>
+                  <th class="num">vrLiq preliminar</th>
+                  <th>dtPgto obrigatória</th>
+                  <th>Origem</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel" id="exportPanel" style="display:none">
+        <div class="panel-head">
+          <h2 class="panel-title"><span class="step">3</span> Conferir e exportar</h2>
+          <div class="toolbar">
+            <button class="secondary" id="btnPreview" type="button">Atualizar prévia</button>
+            <button id="btnExport" type="button">Baixar CSV consolidado</button>
+          </div>
+        </div>
+        <div class="panel-body">
+          <div class="options-row">
+            <label class="field">Formato do vrLiq exportado
+              <select id="numberFormat">
+                <option value="comma" selected>Decimal com vírgula: 1234,56</option>
+                <option value="dot">Decimal com ponto: 1234.56</option>
+              </select>
+            </label>
+            <label class="field">Separador do CSV
+              <select id="outDelimiter">
+                <option value=";" selected>Ponto e vírgula (;)</option>
+                <option value=",">Vírgula (,)</option>
+              </select>
+            </label>
+            <label class="field">Compatibilidade Excel
+              <select id="bomOption">
+                <option value="bom" selected>Incluir BOM UTF-8</option>
+                <option value="no-bom">Não incluir BOM</option>
+              </select>
+            </label>
+            <label class="field">Zerados
+              <select id="zeroOption">
+                <option value="keep" selected>Manter vrLiq zerado</option>
+                <option value="drop">Excluir vrLiq zerado</option>
+              </select>
+            </label>
+          </div>
+
+          <div id="validationBox"></div>
+
+          <div class="split" style="margin-top:14px">
+            <div>
+              <h3 style="margin:0 0 10px;font-size:1rem">Prévia do CSV final</h3>
+              <div class="table-wrap" style="max-height:360px">
+                <table id="previewTable">
+                  <thead>
+                    <tr>
+                      <th>cpfTrab</th>
+                      <th>tpPgto</th>
+                      <th>perRef</th>
+                      <th>ideDmDev</th>
+                      <th class="num">vrLiq</th>
+                      <th>dtPgto</th>
+                    </tr>
+                  </thead>
+                  <tbody></tbody>
+                </table>
+              </div>
+            </div>
+            <div>
+              <h3 style="margin:0 0 10px;font-size:1rem">Regras aplicadas</h3>
+              <div class="message">
+                <div><span class="tag ok">VANT</span> entra como valor positivo.</div>
+                <div style="margin-top:8px"><span class="tag danger">DESC</span> entra como valor negativo.</div>
+                <div style="margin-top:8px"><span class="tag warn">AUX</span> é ignorado/desprezado.</div>
+                <div style="margin-top:8px"><strong>Seleção da folha:</strong> agrupada por <code>Nº folha + mês/ano do Id Edm Dev</code>, sem separar por tipo.</div>
+                <div style="margin-top:8px"><strong>Consolidação:</strong> soma por <code>tpPgto + cpfTrab + perRef + ideDmDev</code>, considerando apenas as folhas selecionadas.</div>
+                <div style="margin-top:8px"><strong>Saída:</strong> <code>tpPgto</code> será <code>4</code> para arquivos S-1202 e <code>1</code> para arquivos S1200.</div><div style="margin-top:8px"><strong>Deduplicação:</strong> antes da soma, linhas repetidas são eliminadas pela combinação evento + CPF + categoria + apuração + ideDmDev + perRef + rubrica + natureza + valor.</div>
+              </div>
+              <div id="warningsBox"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div class="modal" id="mainImportModal" role="dialog" aria-modal="true" aria-labelledby="mainImportTitle">
+    <div class="modal-card">
+      <div class="modal-head">
+        <div>
+          <h2 id="mainImportTitle">Importar CSV(s) com Id Edm Dev</h2>
+          <p>Selecione ou arraste um ou mais CSVs principais dos eventos S-1202/S1202 e/ou S1200.</p>
+        </div>
+        <button class="secondary close-x" data-close-modal="mainImportModal" type="button">✕</button>
+      </div>
+      <div class="modal-body">
+        <label class="dropzone" id="mainDropzone" for="fileInput">
+          <div>
+            <strong>Clique para selecionar ou arraste aqui</strong>
+            <span>S-1202 usa cabeçalhos com espaços; S1200 usa cabeçalhos compactos, como cpftrab, idedmdev e vrrubr. Nomes como S1200RemuTrabRGPS (1).csv são aceitos.</span>
+          </div>
+        </label>
+        <input id="fileInput" type="file" accept=".csv,text/csv" multiple />
+        <div class="message info">O sistema consolida todos os arquivos principais importados em uma única saída e deduplica linhas equivalentes antes do cálculo.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="folhasEmpresaModal" role="dialog" aria-modal="true" aria-labelledby="folhasEmpresaTitle">
+    <div class="modal-card">
+      <div class="modal-head">
+        <div>
+          <h2 id="folhasEmpresaTitle">Importar CSV de folhas empresa</h2>
+          <p>Use o arquivo que contém <code>MES_ANO</code>, <code>NUMERO</code> e <code>DTCRED</code>.</p>
+        </div>
+        <button class="secondary close-x" data-close-modal="folhasEmpresaModal" type="button">✕</button>
+      </div>
+      <div class="modal-body">
+        <label class="dropzone" id="folhasEmpresaDropzone" for="folhasEmpresaInput">
+          <div>
+            <strong>Clique para selecionar ou arraste o CSV aqui</strong>
+            <span>Correspondência usada: <code>MES_ANO + NUMERO</code>. Data aplicada: <code>DTCRED</code>.</span>
+          </div>
+        </label>
+        <input id="folhasEmpresaInput" type="file" accept=".csv,text/csv" />
+        <div class="message info">O arquivo pode ser importado antes ou depois do CSV principal. Quando houver correspondência, a dtPgto será preenchida automaticamente.</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const FIELD_ALIASES = {
+      cpfTrab: ['CPF Trabalhador', 'cpftrab'],
+      categoria: ['Categoria', 'categoria'],
+      indApuracao: ['Ind. Apuracao', 'Ind. Apuração', 'indapuracao'],
+      perApur: ['Per. Apur', 'perapur'],
+      ideDmDev: ['Id Edm Dev', 'idedmdev'],
+      perRefRubrica: ['Per Ref', 'perref'],
+      codRubr: ['Cod Rubr', 'codrubr'],
+      idetabRubr: ['Idetab Rubr', 'idetabrubr'],
+      vrRubr: ['Vlr Rubr', 'vrrubr']
+    };
+
+    const FIELD_LABELS = {
+      cpfTrab: 'CPF Trabalhador / cpftrab',
+      categoria: 'Categoria / categoria',
+      indApuracao: 'Ind. Apuracao / indapuracao',
+      perApur: 'Per. Apur / perapur',
+      ideDmDev: 'Id Edm Dev / idedmdev',
+      perRefRubrica: 'Per Ref / perref',
+      codRubr: 'Cod Rubr / codrubr',
+      idetabRubr: 'Idetab Rubr / idetabrubr',
+      vrRubr: 'Vlr Rubr / vrrubr'
+    };
+
+    const REQUIRED_FIELDS = Object.keys(FIELD_ALIASES);
+    const FOLHAS_EMPRESA_COLUMNS = ['MES_ANO', 'NUMERO', 'DTCRED'];
+
+    const EVENT_CONFIGS = [
+      { prefix: 'S-1202', regex: /^S-1202(?:[^0-9a-zA-Z]|$)/i, tpPgto: '4', label: 'S-1202' },
+      { prefix: 'S1200', regex: /^S1200(?:[^0-9a-zA-Z]|$)/i, tpPgto: '1', label: 'S1200' }
+    ];
+
+    const state = {
+      files: [],
+      eventCounts: { 'S-1202': 0, 'S1200': 0 },
+      rowsRead: 0,
+      usefulRows: 0,
+      duplicateRows: 0,
+      ignoredAux: 0,
+      ignoredInvalid: 0,
+      vantRows: 0,
+      descRows: 0,
+      warnings: [],
+      dedupeKeys: new Set(),
+      folhas: new Map(),
+      groups: new Map(),
+      selectedFolhas: new Set(),
+      folhasEmpresa: {
+        loaded: false,
+        fileName: '',
+        totalRows: 0,
+        indexedRows: 0,
+        emptyDtcred: 0,
+        matched: 0,
+        index: new Map(),
+        warnings: []
+      }
+    };
+
+    const $ = (sel) => document.querySelector(sel);
+    const $$ = (sel) => Array.from(document.querySelectorAll(sel));
+
+    const els = {
+      fileInput: $('#fileInput'),
+      folhasEmpresaInput: $('#folhasEmpresaInput'),
+      mainDropzone: $('#mainDropzone'),
+      folhasEmpresaDropzone: $('#folhasEmpresaDropzone'),
+      importStatus: $('#importStatus'),
+      folhasEmpresaStatus: $('#folhasEmpresaStatus'),
+      stats: $('#stats'),
+      selectionPanel: $('#selectionPanel'),
+      exportPanel: $('#exportPanel'),
+      folhasTableBody: $('#folhasTable tbody'),
+      previewTableBody: $('#previewTable tbody'),
+      filterFolhas: $('#filterFolhas'),
+      bulkDate: $('#bulkDate'),
+      dateFormat: $('#dateFormat'),
+      numberFormat: $('#numberFormat'),
+      outDelimiter: $('#outDelimiter'),
+      bomOption: $('#bomOption'),
+      zeroOption: $('#zeroOption'),
+      validationBox: $('#validationBox'),
+      warningsBox: $('#warningsBox')
+    };
+
+    function resetMainState() {
+      state.files = [];
+      state.eventCounts = { 'S-1202': 0, 'S1200': 0 };
+      state.rowsRead = 0;
+      state.usefulRows = 0;
+      state.duplicateRows = 0;
+      state.ignoredAux = 0;
+      state.ignoredInvalid = 0;
+      state.vantRows = 0;
+      state.descRows = 0;
+      state.warnings = [];
+      state.dedupeKeys = new Set();
+      state.folhas = new Map();
+      state.groups = new Map();
+      state.selectedFolhas = new Set();
+      els.fileInput.value = '';
+      els.importStatus.innerHTML = '';
+      els.stats.style.display = 'none';
+      els.stats.innerHTML = '';
+      els.selectionPanel.style.display = 'none';
+      els.exportPanel.style.display = 'none';
+      els.folhasTableBody.innerHTML = '';
+      els.previewTableBody.innerHTML = '';
+      els.validationBox.innerHTML = '';
+      els.warningsBox.innerHTML = '';
+      els.filterFolhas.value = '';
+      els.bulkDate.value = '';
+    }
+
+    function resetAllState() {
+      resetMainState();
+      state.folhasEmpresa = {
+        loaded: false,
+        fileName: '',
+        totalRows: 0,
+        indexedRows: 0,
+        emptyDtcred: 0,
+        matched: 0,
+        index: new Map(),
+        warnings: []
+      };
+      els.folhasEmpresaInput.value = '';
+      els.folhasEmpresaStatus.innerHTML = '';
+    }
+
+    function htmlEscape(value) {
+      return String(value ?? '')
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#039;');
+    }
+
+    function showMessage(target, type, text) {
+      target.innerHTML = `<div class="message ${type}">${text}</div>`;
+    }
+
+    function normalizeHeader(header) {
+      return String(header ?? '').replace(/^\uFEFF/, '').trim().replace(/\s+/g, ' ');
+    }
+
+    function foldText(text) {
+      return normalizeHeader(text)
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, '');
+    }
+
+    function normalizeKey(text) {
+      return normalizeHeader(text).toLowerCase();
+    }
+
+    function detectEventConfig(fileName) {
+      const base = String(fileName || '').replace(/^\uFEFF/, '').trim();
+      const compact = base.replace(/\s+/g, '').replace(/_/g, '-');
+
+      // Aceita nomes como:
+      // S-1202 arquivo.csv, S1202 arquivo.csv, S1200RemuTrabRGPS.csv,
+      // S1200RemuTrabRGPS (1).csv, S-1200 arquivo.csv.
+      if (/^S-?1202/i.test(compact)) return EVENT_CONFIGS.find(cfg => cfg.label === 'S-1202');
+      if (/^S-?1200/i.test(compact)) return EVENT_CONFIGS.find(cfg => cfg.label === 'S1200');
+      return null;
+    }
+
+    function buildHeaderIndex(headers) {
+      const index = new Map();
+      for (const header of headers) {
+        const folded = foldText(header);
+        if (folded && !index.has(folded)) index.set(folded, header);
+      }
+      return index;
+    }
+
+    function getCanonicalValue(record, headerIndex, field) {
+      const aliases = FIELD_ALIASES[field] || [];
+      for (const alias of aliases) {
+        const actual = headerIndex.get(foldText(alias));
+        if (actual !== undefined) return record[actual] ?? '';
+      }
+      return '';
+    }
+
+    function findMissingCanonicalFields(headers) {
+      const index = buildHeaderIndex(headers);
+      return REQUIRED_FIELDS.filter(field => !FIELD_ALIASES[field].some(alias => index.has(foldText(alias))));
+    }
+
+    function countDelimiterOutsideQuotes(line, delimiter) {
+      let count = 0;
+      let inQuotes = false;
+      for (let i = 0; i < line.length; i++) {
+        const ch = line[i];
+        if (ch === '"') {
+          if (inQuotes && line[i + 1] === '"') i++;
+          else inQuotes = !inQuotes;
+        } else if (!inQuotes && ch === delimiter) {
+          count++;
+        }
+      }
+      return count;
+    }
+
+    function detectDelimiter(headerLine) {
+      const candidates = [';', ',', '\t'];
+      let best = ';';
+      let bestCount = -1;
+      for (const delimiter of candidates) {
+        const count = countDelimiterOutsideQuotes(headerLine, delimiter);
+        if (count > bestCount) {
+          bestCount = count;
+          best = delimiter;
+        }
+      }
+      return best;
+    }
+
+    function parseCsv(text) {
+      const firstLine = String(text).split(/\r\n|\n|\r/).find(line => line.trim().length > 0) || '';
+      const delimiter = detectDelimiter(firstLine);
+      const rows = [];
+      let row = [];
+      let cell = '';
+      let inQuotes = false;
+
+      for (let i = 0; i < text.length; i++) {
+        const ch = text[i];
+        const next = text[i + 1];
+
+        if (ch === '"') {
+          if (inQuotes && next === '"') {
+            cell += '"';
+            i++;
+          } else {
+            inQuotes = !inQuotes;
+          }
+        } else if (!inQuotes && ch === delimiter) {
+          row.push(cell);
+          cell = '';
+        } else if (!inQuotes && (ch === '\n' || ch === '\r')) {
+          row.push(cell);
+          cell = '';
+          if (row.some(v => String(v).trim() !== '')) rows.push(row);
+          row = [];
+          if (ch === '\r' && next === '\n') i++;
+        } else {
+          cell += ch;
+        }
+      }
+      row.push(cell);
+      if (row.some(v => String(v).trim() !== '')) rows.push(row);
+
+      if (!rows.length) return { delimiter, headers: [], records: [], headerIndex: new Map() };
+      const headers = rows[0].map(normalizeHeader);
+      const records = rows.slice(1).map((values, index) => {
+        const obj = { __line: index + 2 };
+        headers.forEach((header, idx) => obj[header] = values[idx] ?? '');
+        return obj;
+      });
+      return { delimiter, headers, records, headerIndex: buildHeaderIndex(headers) };
+    }
+
+    function decodeArrayBuffer(buffer) {
+      try {
+        return new TextDecoder('utf-8', { fatal: true }).decode(buffer);
+      } catch (e) {
+        try {
+          return new TextDecoder('windows-1252').decode(buffer);
+        } catch (fallbackError) {
+          return new TextDecoder('iso-8859-1').decode(buffer);
+        }
+      }
+    }
+
+    function getColumn(record, columnName) {
+      const target = foldText(columnName);
+      for (const key of Object.keys(record)) {
+        if (foldText(key) === target) return record[key];
+      }
+      return '';
+    }
+
+    function findMissingColumns(headers, required) {
+      const normalized = new Set(headers.map(foldText));
+      return required.filter(col => !normalized.has(foldText(col)));
+    }
+
+    function cleanCpf(value) {
+      const digits = String(value ?? '').replace(/\D/g, '');
+      if (!digits) return '';
+      if (digits.length <= 11) return digits.padStart(11, '0');
+      return digits;
+    }
+
+    function cleanToken(value) {
+      return String(value ?? '').trim().replace(/\s+/g, ' ');
+    }
+
+    function parseMoney(value) {
+      let s = String(value ?? '').trim();
+      if (!s) return null;
+      s = s.replace(/R\$/gi, '').replace(/\s+/g, '');
+      const negativeByParentheses = /^\(.*\)$/.test(s);
+      s = s.replace(/[()]/g, '');
+      let negative = s.startsWith('-') || negativeByParentheses;
+      s = s.replace(/^[-+]/, '');
+
+      const lastComma = s.lastIndexOf(',');
+      const lastDot = s.lastIndexOf('.');
+      if (lastComma >= 0 && lastDot >= 0) {
+        if (lastComma > lastDot) s = s.replace(/\./g, '').replace(',', '.');
+        else s = s.replace(/,/g, '');
+      } else if (lastComma >= 0) {
+        s = s.replace(',', '.');
+      }
+      s = s.replace(/[^0-9.]/g, '');
+      if (!s) return null;
+      const parsed = Number(s);
+      if (!Number.isFinite(parsed)) return null;
+      return negative ? -Math.abs(parsed) : parsed;
+    }
+
+    function round2(value) {
+      return Math.round((value + Number.EPSILON) * 100) / 100;
+    }
+
+    function formatMoney(value, mode = 'comma') {
+      const fixed = round2(value).toFixed(2);
+      return mode === 'comma' ? fixed.replace('.', ',') : fixed;
+    }
+
+    function formatDisplayMoney(value) {
+      return round2(value).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    function normalizeMesAno(raw) {
+      const text = String(raw ?? '').trim();
+      if (!text) return '';
+
+      const isoDateTime = text.match(/^(\d{4})-(\d{1,2})-(\d{1,2})(?:\s+.*)?$/);
+      if (isoDateTime) return `${isoDateTime[2].padStart(2, '0')}${isoDateTime[1]}`;
+
+      if (/^\d{1,2}\/\d{4}$/.test(text)) {
+        const [m, y] = text.split('/');
+        return `${m.padStart(2, '0')}${y}`;
+      }
+
+      if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(text)) {
+        const [, m, y] = text.split('/');
+        return `${m.padStart(2, '0')}${y}`;
+      }
+
+      const digits = text.replace(/\D/g, '');
+      if (!digits) return '';
+      if (digits.length === 6) return digits.padStart(6, '0');
+      if (digits.length === 5) return digits.padStart(6, '0');
+      if (digits.length === 8) {
+        const maybeDay = digits.slice(0, 2);
+        const maybeMonth = digits.slice(2, 4);
+        const maybeYear = digits.slice(4);
+        if (Number(maybeDay) >= 1 && Number(maybeDay) <= 31 && Number(maybeMonth) >= 1 && Number(maybeMonth) <= 12) {
+          return `${maybeMonth}${maybeYear}`;
+        }
+      }
+      return digits;
+    }
+
+    function normalizePeriodoParaSaida(raw) {
+      const text = String(raw ?? '').trim();
+      if (!text) return '';
+
+      const isoDateTime = text.match(/^(\d{4})-(\d{1,2})-(\d{1,2})(?:\s+.*)?$/);
+      if (isoDateTime) {
+        const y = isoDateTime[1];
+        const m = isoDateTime[2].padStart(2, '0');
+        const d = isoDateTime[3].padStart(2, '0');
+        return `${d}/${m}/${y}`;
+      }
+
+      const br = text.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+      if (br) return `${br[1].padStart(2, '0')}/${br[2].padStart(2, '0')}/${br[3]}`;
+
+      const mesAno = text.match(/^(\d{1,2})\/(\d{4})$/);
+      if (mesAno) return `01/${mesAno[1].padStart(2, '0')}/${mesAno[2]}`;
+
+      const digits = text.replace(/\D/g, '');
+      if (digits.length === 8) return `${digits.slice(0,2)}/${digits.slice(2,4)}/${digits.slice(4)}`;
+      if (digits.length === 6) return `01/${digits.slice(0,2)}/${digits.slice(2)}`;
+      return text;
+    }
+
+    function displayMesAno(raw) {
+      const norm = normalizeMesAno(raw);
+      if (norm.length !== 6) return raw || '';
+      return `${norm.slice(0, 2)}/${norm.slice(2)}`;
+    }
+
+    function suggestDateFromMesAno(mesAno) {
+      const norm = normalizeMesAno(mesAno);
+      if (norm.length !== 6) return '';
+      const month = norm.slice(0, 2);
+      const year = norm.slice(2);
+      return `${year}-${month}-01`;
+    }
+
+    function parseDateToIso(raw) {
+      const text = String(raw ?? '').trim();
+      if (!text) return '';
+      const isoDateTime = text.match(/^(\d{4})-(\d{1,2})-(\d{1,2})(?:\s+.*)?$/);
+      if (isoDateTime) return `${isoDateTime[1]}-${isoDateTime[2].padStart(2, '0')}-${isoDateTime[3].padStart(2, '0')}`;
+      const br = text.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+      if (br) {
+        const d = br[1].padStart(2, '0');
+        const m = br[2].padStart(2, '0');
+        const y = br[3];
+        return `${y}-${m}-${d}`;
+      }
+      const digits = text.replace(/\D/g, '');
+      if (digits.length === 8) {
+        const d = digits.slice(0, 2);
+        const m = digits.slice(2, 4);
+        const y = digits.slice(4);
+        return `${y}-${m}-${d}`;
+      }
+      return '';
+    }
+
+    function formatBrDate(isoDate) {
+      if (!isoDate || !/^\d{4}-\d{2}-\d{2}$/.test(isoDate)) return '';
+      const [y, m, d] = isoDate.split('-');
+      return `${d}/${m}/${y}`;
+    }
+
+    function extractFolha(ideDmDev) {
+      const s = String(ideDmDev ?? '').trim();
+      const direct = s.match(/^(.+?-\d+(?:\/\d+)?)-(\d+)-(.+)-(\d{5,6})$/);
+      if (direct) {
+        const numero = direct[2];
+        const tipo = direct[3];
+        const mesAnoRaw = direct[4];
+        const mesAno = normalizeMesAno(mesAnoRaw);
+        return {
+          ok: true,
+          matricula: direct[1],
+          numero,
+          tipo,
+          mesAnoRaw,
+          mesAno,
+          mesAnoDisplay: displayMesAno(mesAnoRaw),
+          key: `${numero}|||${mesAno}`
+        };
+      }
+
+      const parts = s.split('-');
+      if (parts.length >= 5) {
+        const mesAnoRaw = parts.at(-1);
+        const tipo = parts.at(-2);
+        const numero = parts.at(-3);
+        if (/^\d+$/.test(numero || '') && /^\d{5,6}$/.test(mesAnoRaw || '')) {
+          const mesAno = normalizeMesAno(mesAnoRaw);
+          return {
+            ok: true,
+            matricula: parts.slice(0, -3).join('-'),
+            numero,
+            tipo,
+            mesAnoRaw,
+            mesAno,
+            mesAnoDisplay: displayMesAno(mesAnoRaw),
+            key: `${numero}|||${mesAno}`
+          };
+        }
+      }
+      return { ok: false, key: 'NAO_IDENTIFICADA' };
+    }
+
+    function addWarning(message) {
+      state.warnings.push(message);
+      if (state.warnings.length > 400) state.warnings.shift();
+    }
+
+    function getOrCreateFolha(folha, config) {
+      if (!state.folhas.has(folha.key)) {
+        const suggestedDate = suggestDateFromMesAno(folha.mesAno);
+        state.folhas.set(folha.key, {
+          key: folha.key,
+          numero: folha.numero,
+          tipos: new Set([folha.tipo]),
+          eventos: new Set([config.label]),
+          tpPgtos: new Set([config.tpPgto]),
+          mesAno: folha.mesAno,
+          mesAnoDisplay: folha.mesAnoDisplay,
+          usefulRows: 0,
+          consolidatedCount: 0,
+          net: 0,
+          selected: true,
+          suggestedDate,
+          dtPgto: suggestedDate,
+          dtSource: suggestedDate ? 'sugerida' : 'vazia'
+        });
+        state.selectedFolhas.add(folha.key);
+      } else {
+        const existing = state.folhas.get(folha.key);
+        if (folha.tipo) existing.tipos.add(folha.tipo);
+        existing.eventos.add(config.label);
+        existing.tpPgtos.add(config.tpPgto);
+      }
+      return state.folhas.get(folha.key);
+    }
+
+    function readCanonical(record, headerIndex, config) {
+      const rawVrRubr = getCanonicalValue(record, headerIndex, 'vrRubr');
+      const parsedValue = parseMoney(rawVrRubr);
+      return {
+        eventLabel: config.label,
+        tpPgto: config.tpPgto,
+        cpfTrab: cleanCpf(getCanonicalValue(record, headerIndex, 'cpfTrab')),
+        categoria: cleanToken(getCanonicalValue(record, headerIndex, 'categoria')),
+        indApuracao: cleanToken(getCanonicalValue(record, headerIndex, 'indApuracao')),
+        perApur: normalizePeriodoParaSaida(getCanonicalValue(record, headerIndex, 'perApur')),
+        ideDmDev: cleanToken(getCanonicalValue(record, headerIndex, 'ideDmDev')),
+        perRefRubrica: normalizePeriodoParaSaida(getCanonicalValue(record, headerIndex, 'perRefRubrica')),
+        codRubr: cleanToken(getCanonicalValue(record, headerIndex, 'codRubr')),
+        idetabRubr: cleanToken(getCanonicalValue(record, headerIndex, 'idetabRubr')).toUpperCase(),
+        vrRubrRaw: rawVrRubr,
+        vrRubrNumber: parsedValue
+      };
+    }
+
+    function buildDedupeKey(c) {
+      const valueKey = c.vrRubrNumber === null ? '' : Math.abs(round2(c.vrRubrNumber)).toFixed(2);
+      return [
+        c.eventLabel,
+        c.cpfTrab,
+        c.categoria,
+        c.indApuracao,
+        c.perApur,
+        c.ideDmDev,
+        c.perRefRubrica,
+        c.codRubr,
+        c.idetabRubr,
+        valueKey
+      ].join('|||');
+    }
+
+    function processRecord(record, fileName, headerIndex, config) {
+      state.rowsRead++;
+      const lineInfo = `${htmlEscape(fileName)}, linha ${record.__line}`;
+      const c = readCanonical(record, headerIndex, config);
+
+      if (c.idetabRubr === 'AUX') {
+        state.ignoredAux++;
+        return;
+      }
+
+      if (c.idetabRubr !== 'VANT' && c.idetabRubr !== 'DESC') {
+        state.ignoredInvalid++;
+        addWarning(`${lineInfo}: Idetab Rubr/idetabrubr "${htmlEscape(c.idetabRubr || '(vazio)')}" não é VANT, DESC ou AUX. Linha ignorada.`);
+        return;
+      }
+
+      if (c.vrRubrNumber === null) {
+        state.ignoredInvalid++;
+        addWarning(`${lineInfo}: Vlr Rubr/vrrubr inválido ou vazio: "${htmlEscape(c.vrRubrRaw)}". Linha ignorada.`);
+        return;
+      }
+
+      if (!c.cpfTrab) {
+        state.ignoredInvalid++;
+        addWarning(`${lineInfo}: CPF Trabalhador/cpftrab vazio ou inválido. Linha ignorada.`);
+        return;
+      }
+
+      if (!c.perApur) {
+        state.ignoredInvalid++;
+        addWarning(`${lineInfo}: Per. Apur/perapur vazio. Linha ignorada.`);
+        return;
+      }
+
+      const ideDmDev = c.ideDmDev;
+      const folha = extractFolha(ideDmDev);
+      if (!folha.ok) {
+        state.ignoredInvalid++;
+        addWarning(`${lineInfo}: não foi possível identificar número/mês da folha em Id Edm Dev/idedmdev "${htmlEscape(ideDmDev)}". Linha ignorada.`);
+        return;
+      }
+
+      const dedupeKey = buildDedupeKey(c);
+      if (state.dedupeKeys.has(dedupeKey)) {
+        state.duplicateRows++;
+        return;
+      }
+      state.dedupeKeys.add(dedupeKey);
+
+      const absValue = Math.abs(c.vrRubrNumber);
+      const signedValue = c.idetabRubr === 'VANT' ? absValue : -absValue;
+      if (c.idetabRubr === 'VANT') state.vantRows++;
+      if (c.idetabRubr === 'DESC') state.descRows++;
+      state.usefulRows++;
+
+      const folhaObj = getOrCreateFolha(folha, config);
+      folhaObj.usefulRows++;
+      folhaObj.net = round2(folhaObj.net + signedValue);
+
+      const groupKey = `${c.tpPgto}|||${c.cpfTrab}|||${c.perApur}|||${ideDmDev}`;
+      if (!state.groups.has(groupKey)) {
+        state.groups.set(groupKey, {
+          cpfTrab: c.cpfTrab,
+          tpPgto: c.tpPgto,
+          perRef: c.perApur,
+          ideDmDev,
+          folhaKey: folha.key,
+          vrLiq: 0,
+          sourceRows: 0,
+          eventLabel: c.eventLabel
+        });
+      }
+      const group = state.groups.get(groupKey);
+      group.vrLiq = round2(group.vrLiq + signedValue);
+      group.sourceRows++;
+    }
+
+    function recalcFolhaConsolidatedCounts() {
+      for (const folha of state.folhas.values()) folha.consolidatedCount = 0;
+      for (const group of state.groups.values()) {
+        const folha = state.folhas.get(group.folhaKey);
+        if (folha) folha.consolidatedCount++;
+      }
+    }
+
+    function applyFolhasEmpresaDates(showStatus = true) {
+      if (!state.folhasEmpresa.loaded || !state.folhas.size) {
+        if (showStatus && state.folhasEmpresa.loaded) renderFolhasEmpresaStatus();
+        return;
+      }
+
+      let matched = 0;
+      for (const folha of state.folhas.values()) {
+        const dt = state.folhasEmpresa.index.get(folha.key);
+        if (dt) {
+          folha.dtPgto = dt;
+          folha.dtSource = 'folhas empresa';
+          matched++;
+        }
+      }
+      state.folhasEmpresa.matched = matched;
+      if (showStatus) renderFolhasEmpresaStatus();
+    }
+
+    async function handleFiles(fileList) {
+      const files = Array.from(fileList || []).filter(file => /\.csv$/i.test(file.name) || file.type.includes('csv') || file.type === '');
+      if (!files.length) {
+        showMessage(els.importStatus, 'danger', 'Nenhum arquivo CSV principal válido foi selecionado.');
+        return;
+      }
+      resetMainState();
+      showMessage(els.importStatus, 'warn', 'Lendo, validando e deduplicando os arquivos principais selecionados...');
+
+      for (const file of files) {
+        const config = detectEventConfig(file.name);
+        if (!config) {
+          addWarning(`${htmlEscape(file.name)}: prefixo não reconhecido. O arquivo foi ignorado. Use arquivos iniciados por S-1202/S1202 ou S1200, inclusive S1200RemuTrabRGPS.`);
+          continue;
+        }
+
+        try {
+          const buffer = await file.arrayBuffer();
+          const text = decodeArrayBuffer(buffer);
+          const parsed = parseCsv(text);
+          const missing = findMissingCanonicalFields(parsed.headers);
+          if (missing.length) {
+            state.ignoredInvalid += parsed.records.length;
+            const labels = missing.map(field => FIELD_LABELS[field] || field).join(', ');
+            addWarning(`${htmlEscape(file.name)}: colunas obrigatórias ausentes: ${htmlEscape(labels)}. Arquivo ignorado.`);
+            continue;
+          }
+          state.files.push({ name: file.name, rows: parsed.records.length, delimiter: parsed.delimiter, eventLabel: config.label, tpPgto: config.tpPgto });
+          state.eventCounts[config.label] = (state.eventCounts[config.label] || 0) + 1;
+          for (const record of parsed.records) processRecord(record, file.name, parsed.headerIndex, config);
+        } catch (err) {
+          addWarning(`${htmlEscape(file.name)}: falha na leitura do arquivo. ${htmlEscape(err?.message || err)}`);
+        }
+      }
+
+      recalcFolhaConsolidatedCounts();
+      applyFolhasEmpresaDates(false);
+      renderAll();
+      renderFolhasEmpresaStatus();
+      closeModal('mainImportModal');
+    }
+
+    async function handleFolhasEmpresaFile(fileList) {
+      const file = Array.from(fileList || [])[0];
+      if (!file) return;
+      if (!/\.csv$/i.test(file.name) && !file.type.includes('csv') && file.type !== '') {
+        showMessage(els.folhasEmpresaStatus, 'danger', 'Selecione um arquivo CSV válido para as folhas empresa.');
+        return;
+      }
+
+      const next = {
+        loaded: false,
+        fileName: file.name,
+        totalRows: 0,
+        indexedRows: 0,
+        emptyDtcred: 0,
+        matched: 0,
+        index: new Map(),
+        warnings: []
+      };
+
+      try {
+        showMessage(els.folhasEmpresaStatus, 'warn', 'Lendo o CSV de folhas empresa...');
+        const buffer = await file.arrayBuffer();
+        const text = decodeArrayBuffer(buffer);
+        const parsed = parseCsv(text);
+        const missing = findMissingColumns(parsed.headers, FOLHAS_EMPRESA_COLUMNS);
+        if (missing.length) {
+          showMessage(els.folhasEmpresaStatus, 'danger', `O CSV de folhas empresa não possui as colunas obrigatórias: ${htmlEscape(missing.join(', '))}.`);
+          return;
+        }
+
+        next.totalRows = parsed.records.length;
+        for (const record of parsed.records) {
+          const numero = String(getColumn(record, 'NUMERO')).replace(/\D/g, '');
+          const mesAno = normalizeMesAno(getColumn(record, 'MES_ANO'));
+          const rawDtcred = getColumn(record, 'DTCRED');
+          const dtcred = parseDateToIso(rawDtcred);
+
+          if (!numero || !mesAno) {
+            next.warnings.push(`${htmlEscape(file.name)}, linha ${record.__line}: MES_ANO ou NUMERO inválido. Registro ignorado.`);
+            continue;
+          }
+
+          if (!String(rawDtcred ?? '').trim()) {
+            next.emptyDtcred++;
+            continue;
+          }
+
+          if (!dtcred) {
+            next.warnings.push(`${htmlEscape(file.name)}, linha ${record.__line}: DTCRED inválido: "${htmlEscape(rawDtcred)}". Registro ignorado.`);
+            continue;
+          }
+
+          const key = `${numero}|||${mesAno}`;
+          if (next.index.has(key) && next.index.get(key) !== dtcred) {
+            next.warnings.push(`${htmlEscape(file.name)}, linha ${record.__line}: chave duplicada para folha ${numero} e mês ${displayMesAno(mesAno)}. Foi mantida a data mais recente lida: ${formatBrDate(dtcred)}.`);
+          }
+          next.index.set(key, dtcred);
+          next.indexedRows++;
+        }
+
+        next.loaded = true;
+        state.folhasEmpresa = next;
+        applyFolhasEmpresaDates(false);
+        renderFolhasEmpresaStatus();
+        renderFolhasTable();
+        renderPreview();
+        renderWarnings();
+        closeModal('folhasEmpresaModal');
+      } catch (err) {
+        showMessage(els.folhasEmpresaStatus, 'danger', `Falha ao ler o CSV de folhas empresa. ${htmlEscape(err?.message || err)}`);
+      }
+    }
+
+    function renderStats() {
+      const stats = [
+        ['Arquivos lidos', state.files.length],
+        ['Arquivos S-1202', state.eventCounts['S-1202'] || 0],
+        ['Arquivos S1200', state.eventCounts['S1200'] || 0],
+        ['Linhas totais', state.rowsRead],
+        ['Linhas úteis', state.usefulRows],
+        ['Duplicidades', state.duplicateRows],
+        ['AUX ignorado', state.ignoredAux],
+        ['Inconsistências', state.ignoredInvalid]
+      ];
+      els.stats.innerHTML = stats.map(([label, value]) => `
+        <div class="stat-card">
+          <div class="label">${label}</div>
+          <div class="value">${value.toLocaleString('pt-BR')}</div>
+        </div>
+      `).join('');
+      els.stats.style.display = 'grid';
+    }
+
+    function renderFolhasEmpresaStatus() {
+      const aux = state.folhasEmpresa;
+      if (!aux.loaded) {
+        els.folhasEmpresaStatus.innerHTML = '';
+        return;
+      }
+
+      const unmatched = Math.max(0, aux.index.size - aux.matched);
+      let type = aux.matched > 0 ? 'ok' : 'warn';
+      let msg = `CSV de folhas empresa importado: <strong>${htmlEscape(aux.fileName)}</strong>. ${aux.index.size.toLocaleString('pt-BR')} chave(s) com DTCRED foram indexadas.`;
+      if (state.folhas.size) {
+        msg += ` Correspondências aplicadas nas folhas detectadas: <strong>${aux.matched.toLocaleString('pt-BR')}</strong>.`;
+        if (unmatched) msg += ` Chaves sem uso no CSV principal atual: ${unmatched.toLocaleString('pt-BR')}.`;
+      } else {
+        msg += ' As datas serão aplicadas quando o CSV principal for importado.';
+      }
+      if (aux.emptyDtcred) msg += ` Registros com DTCRED vazio ignorados: ${aux.emptyDtcred.toLocaleString('pt-BR')}.`;
+      showMessage(els.folhasEmpresaStatus, type, msg);
+    }
+
+    function getDateSourceTag(folha) {
+      if (folha.dtSource === 'folhas empresa') return '<span class="tag ok">Folhas empresa</span>';
+      if (folha.dtSource === 'manual') return '<span class="tag info">Manual</span>';
+      if (folha.dtSource === 'sugerida') return '<span class="tag warn">Sugestão</span>';
+      return '<span class="tag danger">Vazia</span>';
+    }
+
+    function renderFolhasTable() {
+      if (!state.folhas.size) return;
+      const filter = normalizeKey(els.filterFolhas.value);
+      const folhas = Array.from(state.folhas.values())
+        .sort((a, b) => `${a.mesAno}|${a.numero.padStart(4, '0')}`.localeCompare(`${b.mesAno}|${b.numero.padStart(4, '0')}`));
+
+      const visible = folhas.filter(folha => {
+        if (!filter) return true;
+        const tipos = Array.from(folha.tipos).join(' ');
+        const eventos = Array.from(folha.eventos).join(' ');
+        const tpPgtos = Array.from(folha.tpPgtos).join(' ');
+        return normalizeKey(`${folha.numero} ${folha.mesAnoDisplay} ${folha.mesAno} ${tipos} ${eventos} ${tpPgtos}`).includes(filter);
+      });
+
+      els.folhasTableBody.innerHTML = visible.map(folha => `
+        <tr data-folha-key="${htmlEscape(folha.key)}">
+          <td><input type="checkbox" class="folha-check" ${state.selectedFolhas.has(folha.key) ? 'checked' : ''} aria-label="Selecionar folha"></td>
+          <td class="mono"><strong>${htmlEscape(folha.numero)}</strong></td>
+          <td class="mono">${htmlEscape(folha.mesAnoDisplay)}</td>
+          <td class="num">${folha.usefulRows.toLocaleString('pt-BR')}</td>
+          <td class="num">${folha.consolidatedCount.toLocaleString('pt-BR')}</td>
+          <td class="num mono">${formatDisplayMoney(folha.net)}</td>
+          <td>
+            <div class="date-cell">
+              <input type="date" class="folha-date" value="${htmlEscape(folha.dtPgto)}" data-suggested="${htmlEscape(folha.suggestedDate)}">
+              <button class="secondary btn-use-suggestion" type="button" title="Usar sugestão pelo mês/ano">Usar sugestão</button>
+            </div>
+          </td>
+          <td>${getDateSourceTag(folha)}</td>
+        </tr>
+      `).join('');
+
+      $$('.folha-check').forEach(input => input.addEventListener('change', onFolhaInputChange));
+      $$('.folha-date').forEach(input => input.addEventListener('change', onFolhaInputChange));
+      $$('.btn-use-suggestion').forEach(button => button.addEventListener('click', useSuggestedDateForRow));
+    }
+
+    function onFolhaInputChange(event) {
+      const tr = event.target.closest('tr');
+      const key = tr?.dataset?.folhaKey;
+      if (!key || !state.folhas.has(key)) return;
+      const folha = state.folhas.get(key);
+      const checked = tr.querySelector('.folha-check').checked;
+      const date = tr.querySelector('.folha-date').value;
+      folha.dtPgto = date;
+      if (event.target.classList.contains('folha-date')) folha.dtSource = date ? 'manual' : 'vazia';
+      if (checked) state.selectedFolhas.add(key);
+      else state.selectedFolhas.delete(key);
+      renderFolhasTable();
+      renderValidation();
+      renderPreview();
+    }
+
+    function useSuggestedDateForRow(event) {
+      const tr = event.target.closest('tr');
+      const key = tr?.dataset?.folhaKey;
+      if (!key || !state.folhas.has(key)) return;
+      const folha = state.folhas.get(key);
+      folha.dtPgto = folha.suggestedDate;
+      folha.dtSource = folha.suggestedDate ? 'sugerida' : 'vazia';
+      renderFolhasTable();
+      renderValidation();
+      renderPreview();
+    }
+
+    function applyDateToSelected() {
+      const date = els.bulkDate.value;
+      if (!date) {
+        showMessage(els.validationBox, 'danger', 'Informe uma data no campo “Aplicar dtPgto nas selecionadas”.');
+        return;
+      }
+      for (const key of state.selectedFolhas) {
+        const folha = state.folhas.get(key);
+        if (folha) {
+          folha.dtPgto = date;
+          folha.dtSource = 'manual';
+        }
+      }
+      renderFolhasTable();
+      renderValidation();
+      renderPreview();
+    }
+
+    function setAllFolhas(selected) {
+      if (selected) {
+        for (const key of state.folhas.keys()) state.selectedFolhas.add(key);
+      } else {
+        state.selectedFolhas.clear();
+      }
+      renderFolhasTable();
+      renderValidation();
+      renderPreview();
+    }
+
+    function formatOutputDate(isoDate) {
+      if (!isoDate) return '';
+      if (els.dateFormat.value === 'br') return formatBrDate(isoDate);
+      return isoDate;
+    }
+
+    function buildOutputRows() {
+      const numberMode = els.numberFormat.value;
+      const dropZero = els.zeroOption.value === 'drop';
+      const rows = [];
+      const sortedGroups = Array.from(state.groups.values()).sort((a, b) => {
+        const af = state.folhas.get(a.folhaKey);
+        const bf = state.folhas.get(b.folhaKey);
+        return `${af?.mesAno || ''}|${af?.numero || ''}|${a.tpPgto}|${a.cpfTrab}|${a.ideDmDev}`
+          .localeCompare(`${bf?.mesAno || ''}|${bf?.numero || ''}|${b.tpPgto}|${b.cpfTrab}|${b.ideDmDev}`);
+      });
+
+      for (const group of sortedGroups) {
+        if (!state.selectedFolhas.has(group.folhaKey)) continue;
+        const folha = state.folhas.get(group.folhaKey);
+        if (!folha || !folha.dtPgto) continue;
+        const rounded = round2(group.vrLiq);
+        if (dropZero && rounded === 0) continue;
+        rows.push({
+          cpfTrab: group.cpfTrab,
+          tpPgto: group.tpPgto,
+          perRef: group.perRef,
+          ideDmDev: group.ideDmDev,
+          vrLiq: formatMoney(rounded, numberMode),
+          dtPgto: formatOutputDate(folha.dtPgto)
+        });
+      }
+      return rows;
+    }
+
+    function validateSelection() {
+      const selected = Array.from(state.selectedFolhas).map(key => state.folhas.get(key)).filter(Boolean);
+      const missingDates = selected.filter(folha => !folha.dtPgto);
+      const rows = buildOutputRows();
+      return { selected, missingDates, rows };
+    }
+
+    function renderValidation() {
+      const { selected, missingDates, rows } = validateSelection();
+      if (!state.folhas.size) {
+        els.validationBox.innerHTML = '';
+        return;
+      }
+      if (!selected.length) {
+        showMessage(els.validationBox, 'danger', 'Nenhuma folha foi selecionada para consolidação.');
+        return;
+      }
+      if (missingDates.length) {
+        const sample = missingDates.slice(0, 4).map(f => `${f.numero} - ${f.mesAnoDisplay}`).join('; ');
+        showMessage(els.validationBox, 'danger', `Informe a dtPgto das folhas selecionadas. Pendências: ${htmlEscape(sample)}${missingDates.length > 4 ? '...' : ''}`);
+        return;
+      }
+      showMessage(els.validationBox, 'ok', `${rows.length.toLocaleString('pt-BR')} linha(s) serão exportadas no CSV consolidado.`);
+    }
+
+    function renderPreview() {
+      renderValidation();
+      const rows = buildOutputRows().slice(0, 80);
+      if (!rows.length) {
+        els.previewTableBody.innerHTML = `<tr><td colspan="6" class="empty">A prévia aparecerá após selecionar ao menos uma folha e informar a dtPgto.</td></tr>`;
+        return;
+      }
+      els.previewTableBody.innerHTML = rows.map(row => `
+        <tr>
+          <td class="mono">${htmlEscape(row.cpfTrab)}</td>
+          <td class="mono">${htmlEscape(row.tpPgto)}</td>
+          <td class="mono">${htmlEscape(row.perRef)}</td>
+          <td class="mono">${htmlEscape(row.ideDmDev)}</td>
+          <td class="num mono">${htmlEscape(row.vrLiq)}</td>
+          <td class="mono">${htmlEscape(row.dtPgto)}</td>
+        </tr>
+      `).join('');
+    }
+
+    function renderWarnings() {
+      const allWarnings = [...state.warnings, ...state.folhasEmpresa.warnings];
+      if (!allWarnings.length) {
+        els.warningsBox.innerHTML = `<div class="message ok" style="margin-top:14px">Nenhuma inconsistência crítica foi identificada na importação.</div>`;
+        return;
+      }
+      const visible = allWarnings.slice(0, 120);
+      els.warningsBox.innerHTML = `
+        <details open>
+          <summary>Inconsistências e avisos (${allWarnings.length.toLocaleString('pt-BR')})</summary>
+          <div class="details-body">
+            <ul>${visible.map(w => `<li>${w}</li>`).join('')}</ul>
+            ${allWarnings.length > visible.length ? `<p class="hint">Exibindo os primeiros ${visible.length} avisos.</p>` : ''}
+          </div>
+        </details>
+      `;
+    }
+
+    function renderAll() {
+      if (!state.files.length && !state.rowsRead) {
+        showMessage(els.importStatus, 'danger', 'Nenhum arquivo pôde ser aproveitado. Verifique se os arquivos começam por S-1202/S1202 ou S1200 e se os cabeçalhos estão corretos.');
+        renderWarnings();
+        return;
+      }
+      renderStats();
+
+      if (!state.folhas.size) {
+        showMessage(els.importStatus, 'danger', 'Os arquivos foram lidos, mas nenhuma folha válida foi detectada no campo Id Edm Dev/idedmdev.');
+        els.selectionPanel.style.display = 'none';
+        els.exportPanel.style.display = 'block';
+        renderWarnings();
+        return;
+      }
+
+      const fileNames = state.files.map(f => `${htmlEscape(f.name)} [${htmlEscape(f.eventLabel)} → tpPgto ${htmlEscape(f.tpPgto)}] (${f.rows.toLocaleString('pt-BR')} linha(s))`).join('; ');
+      showMessage(els.importStatus, 'ok', `Importação concluída. Arquivos principais aproveitados: ${fileNames}. Duplicidades desconsideradas antes do cálculo: <strong>${state.duplicateRows.toLocaleString('pt-BR')}</strong>.`);
+      els.selectionPanel.style.display = 'block';
+      els.exportPanel.style.display = 'block';
+      renderFolhasTable();
+      renderPreview();
+      renderWarnings();
+    }
+
+    function escapeCsv(value, delimiter) {
+      const s = String(value ?? '');
+      if (s.includes('"') || s.includes('\n') || s.includes('\r') || s.includes(delimiter)) {
+        return `"${s.replaceAll('"', '""')}"`;
+      }
+      return s;
+    }
+
+    function exportCsv() {
+      const { selected, missingDates, rows } = validateSelection();
+      if (!selected.length || missingDates.length) {
+        renderValidation();
+        return;
+      }
+      if (!rows.length) {
+        showMessage(els.validationBox, 'danger', 'Não há linhas para exportar com as opções atuais.');
+        return;
+      }
+
+      const delimiter = els.outDelimiter.value;
+      const header = ['cpfTrab', 'tpPgto', 'perRef', 'ideDmDev', 'vrLiq', 'dtPgto'];
+      const lines = [header.join(delimiter)];
+      for (const row of rows) lines.push(header.map(col => escapeCsv(row[col], delimiter)).join(delimiter));
+      const bom = els.bomOption.value === 'bom' ? '\uFEFF' : '';
+      const csv = bom + lines.join('\r\n') + '\r\n';
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const a = document.createElement('a');
+      const now = new Date();
+      const stamp = `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}_${String(now.getHours()).padStart(2,'0')}${String(now.getMinutes()).padStart(2,'0')}`;
+      a.href = URL.createObjectURL(blob);
+      a.download = `S1200_S1202_consolidado_vrLiq_${stamp}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      URL.revokeObjectURL(a.href);
+      a.remove();
+      showMessage(els.validationBox, 'ok', `CSV exportado com ${rows.length.toLocaleString('pt-BR')} linha(s), ${selected.length.toLocaleString('pt-BR')} folha(s) selecionada(s) e tpPgto definido conforme o prefixo do arquivo de origem.`);
+    }
+
+    function openModal(id) {
+      const modal = document.getElementById(id);
+      if (modal) modal.classList.add('open');
+    }
+
+    function closeModal(id) {
+      const modal = document.getElementById(id);
+      if (modal) modal.classList.remove('open');
+    }
+
+    function bindDropzone(dropzone, input, handler) {
+      dropzone.addEventListener('dragover', (event) => {
+        event.preventDefault();
+        dropzone.classList.add('dragover');
+      });
+      dropzone.addEventListener('dragleave', () => dropzone.classList.remove('dragover'));
+      dropzone.addEventListener('drop', (event) => {
+        event.preventDefault();
+        dropzone.classList.remove('dragover');
+        handler(event.dataTransfer.files);
+      });
+      input.addEventListener('change', (event) => handler(event.target.files));
+    }
+
+    $('#btnOpenMainModal').addEventListener('click', () => openModal('mainImportModal'));
+    $('#btnOpenFolhasEmpresaModal').addEventListener('click', () => openModal('folhasEmpresaModal'));
+    $('#btnOpenFolhasEmpresaModal2').addEventListener('click', () => openModal('folhasEmpresaModal'));
+    $$('[data-close-modal]').forEach(btn => btn.addEventListener('click', () => closeModal(btn.dataset.closeModal)));
+    $$('.modal').forEach(modal => modal.addEventListener('click', (event) => {
+      if (event.target === modal) closeModal(modal.id);
+    }));
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') $$('.modal.open').forEach(modal => closeModal(modal.id));
+    });
+
+    $('#btnClear').addEventListener('click', resetAllState);
+    $('#btnSelectAll').addEventListener('click', () => setAllFolhas(true));
+    $('#btnUnselectAll').addEventListener('click', () => setAllFolhas(false));
+    $('#btnApplyDate').addEventListener('click', applyDateToSelected);
+    $('#btnPreview').addEventListener('click', renderPreview);
+    $('#btnExport').addEventListener('click', exportCsv);
+    els.filterFolhas.addEventListener('input', renderFolhasTable);
+    els.dateFormat.addEventListener('change', renderPreview);
+    els.numberFormat.addEventListener('change', renderPreview);
+    els.zeroOption.addEventListener('change', renderPreview);
+
+    bindDropzone(els.mainDropzone, els.fileInput, handleFiles);
+    bindDropzone(els.folhasEmpresaDropzone, els.folhasEmpresaInput, handleFolhasEmpresaFile);
+  </script>
+</body>
+</html>
