@@ -340,7 +340,7 @@
             <div class="alert alert-info">
               Objetivo: quando houver <strong>Ded. Dependente (s1210DedDepen)</strong> ou <strong>Pensão Alimentícia (s1210PenAlim)</strong>,
               garantir que o <strong>cpfDep</strong> esteja cadastrado em <strong>Dependentes (s1210InfoDep)</strong> no mesmo bloco IR Complem.
-              O script só adiciona o necessário, preservando a integridade do arquivo.
+              O script só adiciona o necessário, preservando a integridade do arquivo. Para beneficiário apenas de pensão, serão omitidos <span class="mono">depIRRF</span>, <span class="mono">tpDep</span> e <span class="mono">descrDep</span>.
             </div>
 
             <div class="small-hint mb-3">Cole a base abaixo (uma linha por registro), separada por <span class="mono">;</span>. Formato principal com cabeçalho: <span class="mono">CPFTRAB;CPF;NUMDEP;DTNASCTO;NOMEDEP;TIPODEP;PARENTESCO</span>. A rotina usa <span class="mono">TIPODEP</span> como origem de <span class="mono">tpDep.codigo</span> e, quando <span class="mono">TIPODEP=99</span>, usa <span class="mono">PARENTESCO</span> como origem de <span class="mono">descrDep</span>. CPFs são normalizados para 11 dígitos.</div>
@@ -791,7 +791,7 @@
       (blk.s1210InfoDep || []).forEach((dep, depIdx) => addDepRow(depTbody, dep, depIdx));
 
       card.querySelector(".ir-add-dep").addEventListener("click", () => {
-        const dep = { cpfDep:"*vazio*", depIRRF:null, dtNascto:"*datavazia*", nome:"*vazio*", tpDep:{codigo:"*vazio*"} };
+        const dep = { cpfDep:"*vazio*", dtNascto:"*datavazia*", nome:"*vazio*" };
         addDepRow(depTbody, dep, null, true);
       });
 
@@ -1270,44 +1270,35 @@ pcApplyDefaultCnpjBtn.addEventListener("click", () => {
                 let dep = (!rIsNew && ridx !== null && oldDeps[ridx]) ? oldDeps[ridx] : JSON.parse(tr.dataset.template || "{}");
 
                 setIfChanged(dep, "cpfDep", safeValue(tr, ".dep-cpfDep"));
-                setIfChanged(dep, "depIRRF", depSanitizeDepIRRFForJson(safeValue(tr, ".dep-depIRRF")));
                 setIfChanged(dep, "dtNascto", safeValue(tr, ".dep-dtNascto"));
                 setIfChanged(dep, "nome", safeValue(tr, ".dep-nome"));
-                if (dep.tpDep && typeof dep.tpDep === "object") setIfChanged(dep.tpDep, "codigo", safeValue(tr, ".dep-tpDep"));
 
-                
-                
+                const __depIRRF = depSanitizeDepIRRFForJson(safeValue(tr, ".dep-depIRRF"));
+                const __tp = safeValue(tr, ".dep-tpDep");
+                const __descrDep = safeValue(tr, ".dep-descrDep");
 
-const __depIRRF = depSanitizeDepIRRFForJson(safeValue(tr, ".dep-depIRRF"));
-const __tp = safeValue(tr, ".dep-tpDep");
-const __descrDep = safeValue(tr, ".dep-descrDep");
+                // Regras do leiaute S-1210:
+                // - depIRRF somente pode existir com valor "S".
+                // - tpDep é obrigatório e exclusivo quando depIRRF="S".
+                // - descrDep é obrigatório e exclusivo quando tpDep="99".
+                // - Para beneficiário apenas de pensão, omitir depIRRF, tpDep e descrDep.
+                if (__depIRRF === "S") {
+                  setIfChanged(dep, "depIRRF", "S");
+                  if (!dep.tpDep || typeof dep.tpDep !== "object") dep.tpDep = {};
+                  setIfChanged(dep.tpDep, "codigo", __tp);
 
-// Regras:
-// - Se depIRRF == "S": tpDep obrigatório; descrDep somente se tpDep==99
-// - Se depIRRF != "S": o campo é gravado como null; se tpDep==99, descrDep é obrigatória.
-if (String(__depIRRF).trim() === "S") {
-  if (!dep.tpDep || typeof dep.tpDep !== "object") dep.tpDep = { codigo: "" };
-  setIfChanged(dep.tpDep, "codigo", __tp);
-
-  if (String(__tp).trim() === "99") {
-    const __descrDepFinal = depHasBaseValue(__descrDep) ? __descrDep : "Cotista";
-    setIfChanged(dep, "descrDep", __descrDepFinal);
-  } else {
-    if ("descrDep" in dep) delete dep.descrDep;
-  }
-} else {
-  // cotista ou outro cenário sem dedução: tpDep pode existir, mas descrDep só faz sentido se tpDep==99
-  if (!dep.tpDep || typeof dep.tpDep !== "object") dep.tpDep = { codigo: "" };
-  setIfChanged(dep.tpDep, "codigo", __tp);
-
-  if (String(__tp).trim() === "99") {
-    const __descrDepFinal = depHasBaseValue(__descrDep) ? __descrDep : "Cotista";
-    setIfChanged(dep, "descrDep", __descrDepFinal);
-  } else {
-    if ("descrDep" in dep) delete dep.descrDep;
-  }
-}
-newDeps.push(dep);
+                  if (String(__tp).trim() === "99") {
+                    const __descrDepFinal = depHasBaseValue(__descrDep) ? __descrDep : "Cotista";
+                    setIfChanged(dep, "descrDep", __descrDepFinal);
+                  } else if ("descrDep" in dep) {
+                    delete dep.descrDep;
+                  }
+                } else {
+                  if ("depIRRF" in dep) delete dep.depIRRF;
+                  if ("tpDep" in dep) delete dep.tpDep;
+                  if ("descrDep" in dep) delete dep.descrDep;
+                }
+                newDeps.push(dep);
               });
               if (newDeps.length === 0) delete blk.s1210InfoDep;
               else blk.s1210InfoDep = newDeps;
@@ -2440,7 +2431,7 @@ document.getElementById("ircrApplyBtn").addEventListener("click", () => {
 // ============================================================================
 // Regras de inteligência (motivo da inclusão):
 // - Se houver referência em s1210DedDepen: depIRRF = "S" e ignora descrDep
-// - Se o ÚNICO motivo for s1210PenAlim: depIRRF = null e descrDep deve vir preenchido na base
+// - Se o ÚNICO motivo for s1210PenAlim: cadastrar somente cpfDep/dtNascto/nome; omitir depIRRF, tpDep e descrDep
 //
 // Base: depBaseMap.get(cpfTrab11).get(cpfDep11) => { dtNascto, nome, tpDepCodigo, descrDep }
 let depBaseMap = new Map();
@@ -2685,16 +2676,23 @@ function depCollectCpfFixCandidatesInBlock(plan, cpfTrab, ordem, blkIndex, blk) 
   }
 }
 
+function depHasIrrfDeduction(dep) {
+  return String(dep?.depIRRF ?? "").trim().toUpperCase() === "S";
+}
+
+function depNeedsTpDepCleanup(dep) {
+  // No S-1210, tpDep é exclusivo de dependente com depIRRF="S".
+  if (!dep || typeof dep !== "object") return false;
+  return !depHasIrrfDeduction(dep) && ("tpDep" in dep);
+}
+
 function depNeedsDescrDepCleanup(dep) {
-  // Regra eSocial: descrDep só deve existir quando tpDep.codigo == 99.
+  // descrDep só pode existir quando houver depIRRF="S" e tpDep.codigo="99".
   if (!dep || typeof dep !== "object") return false;
   if (!("descrDep" in dep)) return false;
 
   const tp = String(dep?.tpDep?.codigo ?? "").trim();
-  if (tp === "99") return false;
-
-  // Se o campo existe e tpDep é diferente de 99, remove o campo do JSON.
-  return true;
+  return !depHasIrrfDeduction(dep) || tp !== "99";
 }
 
 function depCollectDescrDepCleanupCandidatesInBlock(plan, cpfTrab, ordem, blkIndex, blk) {
@@ -2718,8 +2716,18 @@ function depCollectDescrDepCleanupCandidatesInBlock(plan, cpfTrab, ordem, blkInd
   }
 }
 
-function depCleanupInvalidDescrDepInAllEvents() {
-  let removed = 0;
+function depCollectTpDepCleanupCandidatesInBlock(plan, cpfTrab, ordem, blkIndex, blk) {
+  const infoDep = Array.isArray(blk?.s1210InfoDep) ? blk.s1210InfoDep : [];
+  for (const dep of infoDep) {
+    if (!depNeedsTpDepCleanup(dep)) continue;
+    plan.stats.tpDepCleanupCandidates += 1;
+  }
+}
+
+function depCleanupInvalidConditionalFieldsInAllEvents() {
+  let depIRRFRemoved = 0;
+  let tpDepRemoved = 0;
+  let descrDepRemoved = 0;
   const events = getEventos();
 
   for (const evt of events) {
@@ -2729,15 +2737,26 @@ function depCleanupInvalidDescrDepInAllEvents() {
       const infoDep = Array.isArray(blk?.s1210InfoDep) ? blk.s1210InfoDep : [];
 
       for (const dep of infoDep) {
-        if (!depNeedsDescrDepCleanup(dep)) continue;
+        const hasS = depHasIrrfDeduction(dep);
 
-        delete dep.descrDep;
-        removed += 1;
+        // Campo opcional: valor null, vazio, N ou token deve ser removido, não serializado.
+        if (("depIRRF" in dep) && !hasS) {
+          delete dep.depIRRF;
+          depIRRFRemoved += 1;
+        }
+        if (depNeedsTpDepCleanup(dep)) {
+          delete dep.tpDep;
+          tpDepRemoved += 1;
+        }
+        if (depNeedsDescrDepCleanup(dep)) {
+          delete dep.descrDep;
+          descrDepRemoved += 1;
+        }
       }
     }
   }
 
-  return removed;
+  return { depIRRFRemoved, tpDepRemoved, descrDepRemoved };
 }
 
 
@@ -2771,6 +2790,7 @@ function depResolveDescrDepForTp99(data) {
 
 function depNeedsDescrDepForTp99(dep) {
   if (!dep || typeof dep !== "object") return false;
+  if (!depHasIrrfDeduction(dep)) return false;
   const tp = String(dep?.tpDep?.codigo ?? "").trim();
   if (tp !== "99") return false;
   return depIsBlankLike(dep.descrDep);
@@ -2806,22 +2826,18 @@ function depGetReasonForCpf(cpfDep, refDed, refPen) {
   return "BASE_ONLY";
 }
 
-function depExpectedDepIRRF(dep, data, reason) {
-  if (reason === "DED") return "S";
-
-  // Fora de Ded. Dependente, o campo não deve receber "*vazio*" nem qualquer outro valor.
-  // Se o campo não existir ou já estiver null, não há alteração. Se existir qualquer valor, vira null.
-  if (!dep || !("depIRRF" in dep) || dep.depIRRF === null) return "__NO_CHANGE__";
-  return null;
-}
-
 function depGetInfoDepUpdateChanges(dep, data, reason) {
   const changes = [];
   if (!dep || typeof dep !== "object" || !data) return changes;
 
-  const desiredDepIRRF = depExpectedDepIRRF(dep, data, reason);
-  if (desiredDepIRRF !== "__NO_CHANGE__" && dep?.depIRRF !== desiredDepIRRF) {
-    changes.push({ field: "depIRRF", from: dep?.depIRRF, to: desiredDepIRRF });
+  if (reason === "DED") {
+    if (!depHasIrrfDeduction(dep)) {
+      changes.push({ field: "depIRRF", from: dep?.depIRRF, to: "S" });
+    }
+  } else {
+    if ("depIRRF" in dep) changes.push({ field: "depIRRF", from: dep.depIRRF, action: "delete" });
+    if ("tpDep" in dep) changes.push({ field: "tpDep", from: dep.tpDep, action: "delete" });
+    if ("descrDep" in dep) changes.push({ field: "descrDep", from: dep.descrDep, action: "delete" });
   }
 
   if (depHasBaseValue(data.dtNascto) && depIsBlankLike(dep.dtNascto)) {
@@ -2832,20 +2848,22 @@ function depGetInfoDepUpdateChanges(dep, data, reason) {
     changes.push({ field: "nome", from: dep.nome, to: String(data.nome).trim() });
   }
 
-  const baseTp = depHasBaseValue(data.tpDepCodigo) ? String(data.tpDepCodigo).trim() : "";
-  const currentTp = dep?.tpDep?.codigo;
+  if (reason === "DED") {
+    const baseTp = depHasBaseValue(data.tpDepCodigo) ? String(data.tpDepCodigo).trim() : "";
+    const currentTp = dep?.tpDep?.codigo;
 
-  // A base passa a ser a referência para tpDep.codigo quando houver TIPODEP válido.
-  // Assim corrigimos tanto JSON com tpDep.codigo vazio/null/*vazio* quanto código divergente.
-  if (baseTp && String(currentTp ?? "").trim() !== baseTp) {
-    changes.push({ field: "tpDep.codigo", from: currentTp, to: baseTp });
-  }
+    if (baseTp && String(currentTp ?? "").trim() !== baseTp) {
+      changes.push({ field: "tpDep.codigo", from: currentTp, to: baseTp });
+    }
 
-  const effectiveTp = baseTp || String(currentTp ?? "").trim();
-  if (effectiveTp === "99") {
-    const desiredDescrDep = depResolveDescrDepForTp99(data);
-    if (depIsBlankLike(dep?.descrDep) || String(dep?.descrDep ?? "").trim() !== desiredDescrDep) {
-      changes.push({ field: "descrDep", from: dep.descrDep, to: desiredDescrDep });
+    const effectiveTp = baseTp || String(currentTp ?? "").trim();
+    if (effectiveTp === "99") {
+      const desiredDescrDep = depResolveDescrDepForTp99(data);
+      if (depIsBlankLike(dep?.descrDep) || String(dep?.descrDep ?? "").trim() !== desiredDescrDep) {
+        changes.push({ field: "descrDep", from: dep.descrDep, to: desiredDescrDep });
+      }
+    } else if ("descrDep" in dep) {
+      changes.push({ field: "descrDep", from: dep.descrDep, action: "delete" });
     }
   }
 
@@ -2855,6 +2873,13 @@ function depGetInfoDepUpdateChanges(dep, data, reason) {
 function depApplyInfoDepUpdate(dep, changes) {
   let changed = 0;
   for (const ch of changes) {
+    if (ch.action === "delete") {
+      if (ch.field in dep) {
+        delete dep[ch.field];
+        changed += 1;
+      }
+      continue;
+    }
     if (ch.field === "tpDep.codigo") {
       if (!dep.tpDep || typeof dep.tpDep !== "object") dep.tpDep = {};
       dep.tpDep.codigo = ch.to;
@@ -2942,26 +2967,10 @@ function depUpdateExistingInfoDepFromBaseInAllEvents() {
 function depCollectDepIRRFSanitizeCandidatesInBlock(plan, cpfTrab, ordem, blkIndex, blk) {
   const infoDep = Array.isArray(blk?.s1210InfoDep) ? blk.s1210InfoDep : [];
   for (const dep of infoDep) {
-    if (!depIsInvalidDepIRRFForJson(dep?.depIRRF)) continue;
+    if (!("depIRRF" in dep)) continue;
+    if (depHasIrrfDeduction(dep)) continue;
     plan.stats.depIRRFSanitizeCandidates += 1;
   }
-}
-
-function depNormalizeInvalidDepIRRFInAllEvents() {
-  let changed = 0;
-  const events = getEventos();
-  for (const evt of events) {
-    const complemArr = Array.isArray(evt?.s1210InfoIRComplem) ? evt.s1210InfoIRComplem : [];
-    for (const blk of complemArr) {
-      const infoDep = Array.isArray(blk?.s1210InfoDep) ? blk.s1210InfoDep : [];
-      for (const dep of infoDep) {
-        if (!depIsInvalidDepIRRFForJson(dep?.depIRRF)) continue;
-        dep.depIRRF = null;
-        changed += 1;
-      }
-    }
-  }
-  return changed;
 }
 
 function depAnalyze() {
@@ -2983,6 +2992,7 @@ function depAnalyze() {
       referencedPen: 0,
       cpfFixCandidates: 0,
       descrDepCleanupCandidates: 0,
+      tpDepCleanupCandidates: 0,
       existingInfoDepToUpdate: 0,
       existingInfoDepFieldChanges: 0,
       depIRRFSanitizeCandidates: 0
@@ -3003,6 +3013,7 @@ function depAnalyze() {
     complemArr.forEach((blk, blkIndex) => {
       depCollectCpfFixCandidatesInBlock(plan, cpfTrab, ordem, blkIndex, blk);
       depCollectDescrDepCleanupCandidatesInBlock(plan, cpfTrab, ordem, blkIndex, blk);
+      depCollectTpDepCleanupCandidatesInBlock(plan, cpfTrab, ordem, blkIndex, blk);
       depCollectDepIRRFSanitizeCandidatesInBlock(plan, cpfTrab, ordem, blkIndex, blk);
 
       const ircrArr = Array.isArray(blk?.s1210InfoIRCR) ? blk.s1210InfoIRCR : [];
@@ -3085,10 +3096,11 @@ function depReportText(plan) {
   lines.push(`- Pendências (não corrigidas): ${plan.stats.totalMissing}`);
   lines.push(`- Duplicidades detectadas (s1210InfoDep): ${plan.duplicatesInfoDep.length}`);
   lines.push(`- CPFs de dependentes a corrigir (cpfDep com 10 dígitos): ${plan.stats.cpfFixCandidates}`);
-  lines.push(`- descrDep indevido a remover (tpDep.codigo diferente de 99): ${plan.stats.descrDepCleanupCandidates}`);
-  lines.push(`- Regra ativa: tpDep.codigo=99 sempre terá descrDep preenchido com PARENTESCO da base; se a base não informar, será usado "Cotista".`);
-  lines.push(`- Regra ativa: depIRRF só será "S" quando houver Dedução de Dependente; nos demais casos ficará null.`);
-  lines.push(`- depIRRF inválidos a converter para null: ${plan.stats.depIRRFSanitizeCandidates}`);
+  lines.push(`- tpDep indevido a remover (sem depIRRF="S"): ${plan.stats.tpDepCleanupCandidates}`);
+  lines.push(`- descrDep indevido a remover (sem depIRRF="S" ou tpDep diferente de 99): ${plan.stats.descrDepCleanupCandidates}`);
+  lines.push(`- Regra ativa: quando depIRRF="S" e tpDep.codigo=99, descrDep será preenchido com PARENTESCO da base; se ausente, será usado "Cotista".`);
+  lines.push(`- Regra ativa: beneficiário apenas de pensão terá somente cpfDep/dtNascto/nome; depIRRF, tpDep e descrDep serão omitidos.`);
+  lines.push(`- depIRRF inválidos/null a remover do JSON: ${plan.stats.depIRRFSanitizeCandidates}`);
   lines.push(`- Dependentes existentes a atualizar pela base: ${plan.stats.existingInfoDepToUpdate} (${plan.stats.existingInfoDepFieldChanges} campo(s))`);
   lines.push("");
 
@@ -3163,39 +3175,56 @@ function depReportText(plan) {
 function depBuildInfoDepObj(cpfDep, data, reason) {
   const obj = {
     cpfDep: cpfDep,
-    depIRRF: (reason === "DED") ? "S" : null,
     dtNascto: data?.dtNascto ?? "*datavazia*",
     nome: data?.nome ?? "*vazio*"
   };
 
-  // Regra prática adotada:
-  // - DED => depIRRF="S" e tpDep obrigatório (da base). descrDep somente se tpDep==99.
-  // - PEN_ONLY => depIRRF=null; cotista: tpDep=99 e descrDep="Cotista" (fixo).
+  // DED: depIRRF="S", tpDep obrigatório e descrDep apenas quando tpDep=99.
+  // PEN_ONLY: não informar depIRRF, tpDep nem descrDep.
   if (reason === "DED") {
     const tp = String(data?.tpDepCodigo ?? "*vazio*").trim() || "*vazio*";
+    obj.depIRRF = "S";
     obj.tpDep = { codigo: tp };
-    if (tp === "99") {
-      obj.descrDep = depResolveDescrDepForTp99(data);
-    }
-  } else {
-    // Somente Pensão Alimentícia -> Cotista
-    obj.tpDep = { codigo: "99" };
-    obj.descrDep = "Cotista";
+    if (tp === "99") obj.descrDep = depResolveDescrDepForTp99(data);
   }
 
   return obj;
 }
 
+function depInfoDepScore(dep) {
+  let score = 0;
+  if (depHasIrrfDeduction(dep)) score += 100;
+  if (depHasBaseValue(dep?.tpDep?.codigo)) score += 20;
+  if (depHasBaseValue(dep?.dtNascto)) score += 5;
+  if (depHasBaseValue(dep?.nome)) score += 5;
+  if (depHasBaseValue(dep?.descrDep)) score += 2;
+  return score;
+}
+
+function depMergeInfoDepKeeper(a, b) {
+  const keeper = depInfoDepScore(b) > depInfoDepScore(a) ? b : a;
+  const other = keeper === a ? b : a;
+  for (const field of ["dtNascto", "nome"]) {
+    if (depIsBlankLike(keeper?.[field]) && depHasBaseValue(other?.[field])) keeper[field] = other[field];
+  }
+  return keeper;
+}
+
 function depDedupInfoDepArr(arr) {
   const out = [];
-  const seen = new Set();
+  const indexByCpf = new Map();
   let removed = 0;
   for (const dep of arr) {
     const c = normalizeCpf(dep?.cpfDep);
     if (!c) { out.push(dep); continue; }
-    if (seen.has(c)) { removed += 1; continue; }
-    seen.add(c);
-    out.push(dep);
+    if (!indexByCpf.has(c)) {
+      indexByCpf.set(c, out.length);
+      out.push(dep);
+      continue;
+    }
+    const idx = indexByCpf.get(c);
+    out[idx] = depMergeInfoDepKeeper(out[idx], dep);
+    removed += 1;
   }
   return { out, removed };
 }
@@ -3298,10 +3327,12 @@ function depApplyFixes() {
   const existingDepsUpdated = existingUpdateResult.depsUpdated;
   const existingFieldChanges = existingUpdateResult.fieldChanges;
 
-  const depIRRFNullified = depNormalizeInvalidDepIRRFInAllEvents();
+  const conditionalCleanup = depCleanupInvalidConditionalFieldsInAllEvents();
+  const depIRRFRemoved = conditionalCleanup.depIRRFRemoved;
+  const tpDepRemoved = conditionalCleanup.tpDepRemoved;
+  const descrDepCleared = conditionalCleanup.descrDepRemoved;
 
   const descrDepFilledTp99 = depEnsureDescrDepForTp99InAllEvents();
-  const descrDepCleared = depCleanupInvalidDescrDepInAllEvents();
 
   let dedupRemoved = 0;
   if (doDedupInfoDep) {
@@ -3342,9 +3373,10 @@ function depApplyFixes() {
   rep.push("Aplicação concluída");
   rep.push(`- Dependentes adicionados: ${addedCount}`);
   rep.push(`- Dependentes existentes atualizados pela base: ${existingDepsUpdated} (${existingFieldChanges} campo(s))`);
-  rep.push(`- depIRRF inválidos convertidos para null: ${depIRRFNullified}`);
-  rep.push(`- descrDep preenchidos obrigatoriamente em tpDep.codigo=99: ${descrDepFilledTp99}`);
-  rep.push(`- descrDep removidos por tpDep.codigo diferente de 99: ${descrDepCleared}`);
+  rep.push(`- depIRRF inválidos/null removidos do JSON: ${depIRRFRemoved}`);
+  rep.push(`- tpDep removidos por ausência de depIRRF="S": ${tpDepRemoved}`);
+  rep.push(`- descrDep preenchidos quando depIRRF="S" e tpDep.codigo=99: ${descrDepFilledTp99}`);
+  rep.push(`- descrDep indevidos removidos: ${descrDepCleared}`);
   rep.push(`- Duplicidades removidas em s1210InfoDep (opcional): ${dedupRemoved}`);
   rep.push(`- Pendências (não corrigidas): ${plan.missingInBase.length}`);
   if (doConsolidateIrcr) {
@@ -3393,7 +3425,8 @@ setStatus(`<div class="alert alert-success mb-0">
     Pendências: <strong>${plan.missingInBase.length}</strong> |
     InfoDep duplicados removidos: <strong>${dedupRemoved}</strong> |
     Dependentes existentes atualizados: <strong>${existingDepsUpdated}</strong> |
-    depIRRF para null: <strong>${depIRRFNullified}</strong> |
+    depIRRF removidos: <strong>${depIRRFRemoved}</strong> |
+    tpDep removidos: <strong>${tpDepRemoved}</strong> |
     descrDep 99 preenchidos: <strong>${descrDepFilledTp99}</strong> |
     descrDep removidos: <strong>${descrDepCleared}</strong>
     ${doConsolidateIrcr ? `| IRCR mesclados: <strong>${ircrMerged}</strong>` : ""}
@@ -4125,7 +4158,8 @@ document.getElementById("depAnalyzeBtn").addEventListener("click", () => {
     Pendências: <strong>${plan.stats.totalMissing}</strong> |
     InfoDep duplicidades: <strong>${plan.duplicatesInfoDep.length}</strong> |
     Dependentes existentes a atualizar: <strong>${plan.stats.existingInfoDepToUpdate}</strong> |
-    depIRRF inválidos: <strong>${plan.stats.depIRRFSanitizeCandidates}</strong> |
+    depIRRF inválidos/null: <strong>${plan.stats.depIRRFSanitizeCandidates}</strong> |
+    tpDep a remover: <strong>${plan.stats.tpDepCleanupCandidates}</strong> |
     descrDep a remover: <strong>${plan.stats.descrDepCleanupCandidates}</strong>
   </div>`);
 });
@@ -4144,12 +4178,13 @@ document.getElementById("depApplyBtn").addEventListener("click", () => {
   const hasDedup = doDedupInfoDep && plan.duplicatesInfoDep.length > 0;
   const hasCpfFix = doFixCpfDep && plan.stats.cpfFixCandidates > 0;
   const hasDescrDepCleanup = plan.stats.descrDepCleanupCandidates > 0;
+  const hasTpDepCleanup = plan.stats.tpDepCleanupCandidates > 0;
   const hasExistingInfoDepUpdate = plan.stats.existingInfoDepToUpdate > 0;
   const hasDepIRRFSanitize = plan.stats.depIRRFSanitizeCandidates > 0;
 
   // Observação: consolidação de IRCR pode ou não gerar alterações; se o usuário marcou,
   // executamos de qualquer forma (não fazemos "short-circuit").
-  if (!hasAdd && !hasPend && !hasDedup && !hasCpfFix && !hasDescrDepCleanup && !hasExistingInfoDepUpdate && !hasDepIRRFSanitize && !doConsolidateIrcr) {
+  if (!hasAdd && !hasPend && !hasDedup && !hasCpfFix && !hasDescrDepCleanup && !hasTpDepCleanup && !hasExistingInfoDepUpdate && !hasDepIRRFSanitize && !doConsolidateIrcr) {
     document.getElementById("depReport").textContent = "Nenhuma ação necessária. Não há pendências detectadas.";
     return;
   }
