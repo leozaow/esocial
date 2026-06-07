@@ -507,7 +507,7 @@
               </select>
             </label>
           </div>
-          <p class="hint">A tela não separa mais pelo tipo da folha. Ex.: <code>857.588-0/1-11-NORMAL-122024</code> e outra ocorrência da folha <code>11</code> em <code>12/2024</code> ficam no mesmo grupo de seleção de data. A data inicial sugerida é o dia 01 do mês/ano detectado, apenas para facilitar a abertura do seletor de data; se importar o CSV de folhas empresa, o <code>DTCRED</code> substitui automaticamente essa sugestão quando houver correspondência.</p>
+          <p class="hint">A tela não separa mais pelo tipo da folha. Ex.: <code>857.588-0/1-11-NORMAL-122024</code> e outra ocorrência da folha <code>11</code> em <code>12/2024</code> ficam no mesmo grupo de seleção de data. A data inicial sugerida é o dia 01 do mês/ano detectado, apenas para facilitar a abertura do seletor de data. Ao importar o CSV de folhas empresa, o <code>DTCRED</code> substitui essa sugestão e <strong>somente as folhas encontradas no arquivo auxiliar ficam selecionadas</strong>. Identificadores com sufixo final, como <code>855.996-5-11-NORMAL-032025-2</code>, também são reconhecidos.</p>
           <div class="table-wrap" style="margin-top:14px">
             <table id="folhasTable">
               <thead>
@@ -592,6 +592,7 @@
                 <div style="margin-top:8px"><span class="tag danger">DESC</span> entra como valor negativo.</div>
                 <div style="margin-top:8px"><span class="tag warn">AUX</span> é ignorado/desprezado.</div>
                 <div style="margin-top:8px"><strong>Seleção da folha:</strong> agrupada por <code>Nº folha + mês/ano do Id Edm Dev</code>, sem separar por tipo.</div>
+                <div style="margin-top:8px"><strong>Sufixo do Id Edm Dev:</strong> valores finais como <code>-2</code> são aceitos, sem alterar a identificação da folha nem remover o sufixo da saída.</div>
                 <div style="margin-top:8px"><strong>Consolidação:</strong> soma por <code>tpPgto + cpfTrab + perRef + ideDmDev</code>, considerando apenas as folhas selecionadas.</div>
                 <div style="margin-top:8px"><strong>Saída:</strong> <code>tpPgto</code> será <code>4</code> para arquivos S-1202 e <code>1</code> para arquivos S1200.</div><div style="margin-top:8px"><strong>Deduplicação:</strong> antes da soma, linhas repetidas são eliminadas pela combinação evento + CPF + categoria + apuração + ideDmDev + perRef + rubrica + natureza + valor.</div>
               </div>
@@ -642,7 +643,7 @@
           </div>
         </label>
         <input id="folhasEmpresaInput" type="file" accept=".csv,text/csv" />
-        <div class="message info">O arquivo pode ser importado antes ou depois do CSV principal. Quando houver correspondência, a dtPgto será preenchida automaticamente.</div>
+        <div class="message info">O arquivo pode ser importado antes ou depois do CSV principal. Quando houver correspondência, a dtPgto será preenchida automaticamente e somente as folhas correspondentes ficarão selecionadas.</div>
       </div>
     </div>
   </div>
@@ -1025,50 +1026,23 @@
       const text = String(raw ?? '').trim();
       if (!text) return '';
 
-      // Formato ISO ou timestamp vindo do S1200:
-      // 2025-01-01 ou 2025-01-01 00:00:00.0
-      const isoDateTime = text.match(/^(\d{4})-(\d{1,2})-(\d{1,2})(?:[T\s]+.*)?$/);
+      const isoDateTime = text.match(/^(\d{4})-(\d{1,2})-(\d{1,2})(?:\s+.*)?$/);
       if (isoDateTime) {
         const y = isoDateTime[1];
         const m = isoDateTime[2].padStart(2, '0');
         const d = isoDateTime[3].padStart(2, '0');
-        return `${y}-${m}-${d}`;
+        return `${d}/${m}/${y}`;
       }
 
-      // Formato brasileiro completo: 01/01/2025
       const br = text.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-      if (br) {
-        const d = br[1].padStart(2, '0');
-        const m = br[2].padStart(2, '0');
-        const y = br[3];
-        return `${y}-${m}-${d}`;
-      }
+      if (br) return `${br[1].padStart(2, '0')}/${br[2].padStart(2, '0')}/${br[3]}`;
 
-      // Apenas mês/ano: 01/2025 -> primeiro dia do mês
       const mesAno = text.match(/^(\d{1,2})\/(\d{4})$/);
-      if (mesAno) {
-        const m = mesAno[1].padStart(2, '0');
-        const y = mesAno[2];
-        return `${y}-${m}-01`;
-      }
+      if (mesAno) return `01/${mesAno[1].padStart(2, '0')}/${mesAno[2]}`;
 
       const digits = text.replace(/\D/g, '');
-
-      // DDMMAAAA
-      if (digits.length === 8) {
-        const d = digits.slice(0, 2);
-        const m = digits.slice(2, 4);
-        const y = digits.slice(4);
-        return `${y}-${m}-${d}`;
-      }
-
-      // MMAAAA
-      if (digits.length === 6) {
-        const m = digits.slice(0, 2);
-        const y = digits.slice(2);
-        return `${y}-${m}-01`;
-      }
-
+      if (digits.length === 8) return `${digits.slice(0,2)}/${digits.slice(2,4)}/${digits.slice(4)}`;
+      if (digits.length === 6) return `01/${digits.slice(0,2)}/${digits.slice(2)}`;
       return text;
     }
 
@@ -1116,11 +1090,19 @@
 
     function extractFolha(ideDmDev) {
       const s = String(ideDmDev ?? '').trim();
-      const direct = s.match(/^(.+?-\d+(?:\/\d+)?)-(\d+)-(.+)-(\d{5,6})$/);
+
+      // Formatos aceitos, entre outros:
+      // 855.996-5-11-NORMAL-032025
+      // 855.996-5-11-NORMAL-032025-2
+      // 857.588-0/1-11-NORMAL-122024
+      // O sufixo numérico final não integra a chave da folha; o ideDmDev
+      // original permanece intacto para a consolidação e para a exportação.
+      const direct = s.match(/^(.+?-\d+(?:\/\d+)?)-(\d+)-(.+?)-(\d{5,6})(?:-(\d+(?:-\d+)*))?$/);
       if (direct) {
         const numero = direct[2];
         const tipo = direct[3];
         const mesAnoRaw = direct[4];
+        const sufixo = direct[5] || '';
         const mesAno = normalizeMesAno(mesAnoRaw);
         return {
           ok: true,
@@ -1130,25 +1112,38 @@
           mesAnoRaw,
           mesAno,
           mesAnoDisplay: displayMesAno(mesAnoRaw),
+          sufixo,
           key: `${numero}|||${mesAno}`
         };
       }
 
+      // Estratégia de contingência para variações pouco usuais do identificador.
       const parts = s.split('-');
       if (parts.length >= 5) {
-        const mesAnoRaw = parts.at(-1);
-        const tipo = parts.at(-2);
-        const numero = parts.at(-3);
+        let end = parts.length;
+        let sufixo = '';
+
+        // Se o último trecho for numérico e o anterior for a competência,
+        // trata o último trecho como sufixo opcional.
+        if (/^\d+$/.test(parts.at(-1) || '') && /^\d{5,6}$/.test(parts.at(-2) || '')) {
+          sufixo = parts.at(-1);
+          end -= 1;
+        }
+
+        const mesAnoRaw = parts[end - 1];
+        const tipo = parts[end - 2];
+        const numero = parts[end - 3];
         if (/^\d+$/.test(numero || '') && /^\d{5,6}$/.test(mesAnoRaw || '')) {
           const mesAno = normalizeMesAno(mesAnoRaw);
           return {
             ok: true,
-            matricula: parts.slice(0, -3).join('-'),
+            matricula: parts.slice(0, end - 3).join('-'),
             numero,
             tipo,
             mesAnoRaw,
             mesAno,
             mesAnoDisplay: displayMesAno(mesAnoRaw),
+            sufixo,
             key: `${numero}|||${mesAno}`
           };
         }
@@ -1317,14 +1312,26 @@
       }
 
       let matched = 0;
+
+      // Ao informar o CSV de folhas empresa, ele passa a ser a referência
+      // da seleção: somente folhas com correspondência e DTCRED válido ficam marcadas.
+      state.selectedFolhas.clear();
+
       for (const folha of state.folhas.values()) {
         const dt = state.folhasEmpresa.index.get(folha.key);
         if (dt) {
           folha.dtPgto = dt;
           folha.dtSource = 'folhas empresa';
+          state.selectedFolhas.add(folha.key);
           matched++;
+        } else if (folha.dtSource === 'folhas empresa') {
+          // Evita manter uma data de um arquivo auxiliar anterior quando uma
+          // nova importação não contiver mais essa folha.
+          folha.dtPgto = folha.suggestedDate;
+          folha.dtSource = folha.suggestedDate ? 'sugerida' : 'vazia';
         }
       }
+
       state.folhasEmpresa.matched = matched;
       if (showStatus) renderFolhasEmpresaStatus();
     }
@@ -1476,9 +1483,10 @@
       let msg = `CSV de folhas empresa importado: <strong>${htmlEscape(aux.fileName)}</strong>. ${aux.index.size.toLocaleString('pt-BR')} chave(s) com DTCRED foram indexadas.`;
       if (state.folhas.size) {
         msg += ` Correspondências aplicadas nas folhas detectadas: <strong>${aux.matched.toLocaleString('pt-BR')}</strong>.`;
+        msg += ` Apenas essas ${aux.matched.toLocaleString('pt-BR')} folha(s) ficaram selecionadas para a consolidação.`;
         if (unmatched) msg += ` Chaves sem uso no CSV principal atual: ${unmatched.toLocaleString('pt-BR')}.`;
       } else {
-        msg += ' As datas serão aplicadas quando o CSV principal for importado.';
+        msg += ' As datas e a seleção das folhas serão aplicadas quando o CSV principal for importado.';
       }
       if (aux.emptyDtcred) msg += ` Registros com DTCRED vazio ignorados: ${aux.emptyDtcred.toLocaleString('pt-BR')}.`;
       showMessage(els.folhasEmpresaStatus, type, msg);
