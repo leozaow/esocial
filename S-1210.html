@@ -791,7 +791,7 @@
       (blk.s1210InfoDep || []).forEach((dep, depIdx) => addDepRow(depTbody, dep, depIdx));
 
       card.querySelector(".ir-add-dep").addEventListener("click", () => {
-        const dep = { cpfDep:"*vazio*", depIRRF:null, dtNascto:"*datavazia*", nome:"*vazio*", tpDep:{codigo:"*vazio*"} };
+        const dep = { cpfDep:"*vazio*", dtNascto:"*datavazia*", nome:"*vazio*", tpDep:{codigo:"*vazio*"} };
         addDepRow(depTbody, dep, null, true);
       });
 
@@ -1270,44 +1270,35 @@ pcApplyDefaultCnpjBtn.addEventListener("click", () => {
                 let dep = (!rIsNew && ridx !== null && oldDeps[ridx]) ? oldDeps[ridx] : JSON.parse(tr.dataset.template || "{}");
 
                 setIfChanged(dep, "cpfDep", safeValue(tr, ".dep-cpfDep"));
-                setIfChanged(dep, "depIRRF", depSanitizeDepIRRFForJson(safeValue(tr, ".dep-depIRRF")));
                 setIfChanged(dep, "dtNascto", safeValue(tr, ".dep-dtNascto"));
                 setIfChanged(dep, "nome", safeValue(tr, ".dep-nome"));
-                if (dep.tpDep && typeof dep.tpDep === "object") setIfChanged(dep.tpDep, "codigo", safeValue(tr, ".dep-tpDep"));
 
-                
-                
+                const __depIRRF = depSanitizeDepIRRFForJson(safeValue(tr, ".dep-depIRRF"));
+                const __tp = safeValue(tr, ".dep-tpDep");
+                const __descrDep = safeValue(tr, ".dep-descrDep");
 
-const __depIRRF = depSanitizeDepIRRFForJson(safeValue(tr, ".dep-depIRRF"));
-const __tp = safeValue(tr, ".dep-tpDep");
-const __descrDep = safeValue(tr, ".dep-descrDep");
+                // Regra observada no JSON aceito pela mensageria:
+                // - depIRRF só é serializado quando for "S"; nos demais casos, a chave é omitida.
+                // - tpDep continua vindo da base/edição, inclusive para beneficiário somente de pensão.
+                // - descrDep permanece apenas quando tpDep.codigo == "99".
+                if (__depIRRF === "S") setIfChanged(dep, "depIRRF", "S");
+                else if ("depIRRF" in dep) delete dep.depIRRF;
 
-// Regras:
-// - Se depIRRF == "S": tpDep obrigatório; descrDep somente se tpDep==99
-// - Se depIRRF != "S": o campo é gravado como null; se tpDep==99, descrDep é obrigatória.
-if (String(__depIRRF).trim() === "S") {
-  if (!dep.tpDep || typeof dep.tpDep !== "object") dep.tpDep = { codigo: "" };
-  setIfChanged(dep.tpDep, "codigo", __tp);
+                if (depHasBaseValue(__tp)) {
+                  if (!dep.tpDep || typeof dep.tpDep !== "object") dep.tpDep = {};
+                  setIfChanged(dep.tpDep, "codigo", __tp);
+                } else if ("tpDep" in dep) {
+                  delete dep.tpDep;
+                }
 
-  if (String(__tp).trim() === "99") {
-    const __descrDepFinal = depHasBaseValue(__descrDep) ? __descrDep : "Cotista";
-    setIfChanged(dep, "descrDep", __descrDepFinal);
-  } else {
-    if ("descrDep" in dep) delete dep.descrDep;
-  }
-} else {
-  // cotista ou outro cenário sem dedução: tpDep pode existir, mas descrDep só faz sentido se tpDep==99
-  if (!dep.tpDep || typeof dep.tpDep !== "object") dep.tpDep = { codigo: "" };
-  setIfChanged(dep.tpDep, "codigo", __tp);
+                if (String(__tp).trim() === "99") {
+                  const __descrDepFinal = depHasBaseValue(__descrDep) ? __descrDep : "Cotista";
+                  setIfChanged(dep, "descrDep", __descrDepFinal);
+                } else if ("descrDep" in dep) {
+                  delete dep.descrDep;
+                }
 
-  if (String(__tp).trim() === "99") {
-    const __descrDepFinal = depHasBaseValue(__descrDep) ? __descrDep : "Cotista";
-    setIfChanged(dep, "descrDep", __descrDepFinal);
-  } else {
-    if ("descrDep" in dep) delete dep.descrDep;
-  }
-}
-newDeps.push(dep);
+                newDeps.push(dep);
               });
               if (newDeps.length === 0) delete blk.s1210InfoDep;
               else blk.s1210InfoDep = newDeps;
@@ -2760,8 +2751,9 @@ function depSanitizeDepIRRFForJson(value, forceS=false) {
 }
 
 function depIsInvalidDepIRRFForJson(value) {
-  if (value === undefined || value === null) return false;
-  return String(value).trim().toUpperCase() !== "S";
+  // Esta função é usada somente depois de confirmar que a propriedade existe.
+  // Assim, null, vazio, "N" e tokens são inválidos; apenas "S" é mantido.
+  return String(value ?? "").trim().toUpperCase() !== "S";
 }
 
 function depResolveDescrDepForTp99(data) {
@@ -2809,10 +2801,9 @@ function depGetReasonForCpf(cpfDep, refDed, refPen) {
 function depExpectedDepIRRF(dep, data, reason) {
   if (reason === "DED") return "S";
 
-  // Fora de Ded. Dependente, o campo não deve receber "*vazio*" nem qualquer outro valor.
-  // Se o campo não existir ou já estiver null, não há alteração. Se existir qualquer valor, vira null.
-  if (!dep || !("depIRRF" in dep) || dep.depIRRF === null) return "__NO_CHANGE__";
-  return null;
+  // Fora de Ded. Dependente, depIRRF deve ser omitido do JSON, não gravado como null.
+  if (!dep || !("depIRRF" in dep)) return "__NO_CHANGE__";
+  return "__DELETE__";
 }
 
 function depGetInfoDepUpdateChanges(dep, data, reason) {
@@ -2820,7 +2811,9 @@ function depGetInfoDepUpdateChanges(dep, data, reason) {
   if (!dep || typeof dep !== "object" || !data) return changes;
 
   const desiredDepIRRF = depExpectedDepIRRF(dep, data, reason);
-  if (desiredDepIRRF !== "__NO_CHANGE__" && dep?.depIRRF !== desiredDepIRRF) {
+  if (desiredDepIRRF === "__DELETE__") {
+    changes.push({ field: "depIRRF", from: dep?.depIRRF, action: "delete" });
+  } else if (desiredDepIRRF !== "__NO_CHANGE__" && dep?.depIRRF !== desiredDepIRRF) {
     changes.push({ field: "depIRRF", from: dep?.depIRRF, to: desiredDepIRRF });
   }
 
@@ -2855,6 +2848,13 @@ function depGetInfoDepUpdateChanges(dep, data, reason) {
 function depApplyInfoDepUpdate(dep, changes) {
   let changed = 0;
   for (const ch of changes) {
+    if (ch.action === "delete") {
+      if (ch.field in dep) {
+        delete dep[ch.field];
+        changed += 1;
+      }
+      continue;
+    }
     if (ch.field === "tpDep.codigo") {
       if (!dep.tpDep || typeof dep.tpDep !== "object") dep.tpDep = {};
       dep.tpDep.codigo = ch.to;
@@ -2891,7 +2891,7 @@ function depCollectExistingInfoDepUpdateCandidates(plan, cpfTrab, ordem, blkInde
         blkIndex,
         cpfDep,
         reason,
-        changes: changes.map(c => `${c.field}: "${String(c.from ?? "")}" -> "${c.to}"`)
+        changes: changes.map(c => c.action === "delete" ? `${c.field}: "${String(c.from ?? "")}" -> remover campo` : `${c.field}: "${String(c.from ?? "")}" -> "${c.to}"`)
       });
     }
   }
@@ -2942,7 +2942,8 @@ function depUpdateExistingInfoDepFromBaseInAllEvents() {
 function depCollectDepIRRFSanitizeCandidatesInBlock(plan, cpfTrab, ordem, blkIndex, blk) {
   const infoDep = Array.isArray(blk?.s1210InfoDep) ? blk.s1210InfoDep : [];
   for (const dep of infoDep) {
-    if (!depIsInvalidDepIRRFForJson(dep?.depIRRF)) continue;
+    if (!("depIRRF" in dep)) continue;
+    if (!depIsInvalidDepIRRFForJson(dep.depIRRF)) continue;
     plan.stats.depIRRFSanitizeCandidates += 1;
   }
 }
@@ -2955,8 +2956,9 @@ function depNormalizeInvalidDepIRRFInAllEvents() {
     for (const blk of complemArr) {
       const infoDep = Array.isArray(blk?.s1210InfoDep) ? blk.s1210InfoDep : [];
       for (const dep of infoDep) {
-        if (!depIsInvalidDepIRRFForJson(dep?.depIRRF)) continue;
-        dep.depIRRF = null;
+        if (!("depIRRF" in dep)) continue;
+        if (!depIsInvalidDepIRRFForJson(dep.depIRRF)) continue;
+        delete dep.depIRRF;
         changed += 1;
       }
     }
@@ -3087,8 +3089,8 @@ function depReportText(plan) {
   lines.push(`- CPFs de dependentes a corrigir (cpfDep com 10 dígitos): ${plan.stats.cpfFixCandidates}`);
   lines.push(`- descrDep indevido a remover (tpDep.codigo diferente de 99): ${plan.stats.descrDepCleanupCandidates}`);
   lines.push(`- Regra ativa: tpDep.codigo=99 sempre terá descrDep preenchido com PARENTESCO da base; se a base não informar, será usado "Cotista".`);
-  lines.push(`- Regra ativa: depIRRF só será "S" quando houver Dedução de Dependente; nos demais casos ficará null.`);
-  lines.push(`- depIRRF inválidos a converter para null: ${plan.stats.depIRRFSanitizeCandidates}`);
+  lines.push(`- Regra ativa: depIRRF só será "S" quando houver Dedução de Dependente; nos demais casos a chave será omitida.`);
+  lines.push(`- depIRRF null/inválidos a remover do JSON: ${plan.stats.depIRRFSanitizeCandidates}`);
   lines.push(`- Dependentes existentes a atualizar pela base: ${plan.stats.existingInfoDepToUpdate} (${plan.stats.existingInfoDepFieldChanges} campo(s))`);
   lines.push("");
 
@@ -3163,24 +3165,19 @@ function depReportText(plan) {
 function depBuildInfoDepObj(cpfDep, data, reason) {
   const obj = {
     cpfDep: cpfDep,
-    depIRRF: (reason === "DED") ? "S" : null,
     dtNascto: data?.dtNascto ?? "*datavazia*",
     nome: data?.nome ?? "*vazio*"
   };
 
-  // Regra prática adotada:
-  // - DED => depIRRF="S" e tpDep obrigatório (da base). descrDep somente se tpDep==99.
-  // - PEN_ONLY => depIRRF=null; cotista: tpDep=99 e descrDep="Cotista" (fixo).
-  if (reason === "DED") {
-    const tp = String(data?.tpDepCodigo ?? "*vazio*").trim() || "*vazio*";
+  // depIRRF somente existe para dependente utilizado em s1210DedDepen.
+  if (reason === "DED") obj.depIRRF = "S";
+
+  // Em todos os casos, inclusive somente pensão, tpDep vem de TIPODEP da base.
+  // Se TIPODEP=99, descrDep vem de PARENTESCO (com fallback "Cotista").
+  const tp = String(data?.tpDepCodigo ?? "").trim();
+  if (tp && tp !== "*vazio*") {
     obj.tpDep = { codigo: tp };
-    if (tp === "99") {
-      obj.descrDep = depResolveDescrDepForTp99(data);
-    }
-  } else {
-    // Somente Pensão Alimentícia -> Cotista
-    obj.tpDep = { codigo: "99" };
-    obj.descrDep = "Cotista";
+    if (tp === "99") obj.descrDep = depResolveDescrDepForTp99(data);
   }
 
   return obj;
@@ -3298,7 +3295,7 @@ function depApplyFixes() {
   const existingDepsUpdated = existingUpdateResult.depsUpdated;
   const existingFieldChanges = existingUpdateResult.fieldChanges;
 
-  const depIRRFNullified = depNormalizeInvalidDepIRRFInAllEvents();
+  const depIRRFRemoved = depNormalizeInvalidDepIRRFInAllEvents();
 
   const descrDepFilledTp99 = depEnsureDescrDepForTp99InAllEvents();
   const descrDepCleared = depCleanupInvalidDescrDepInAllEvents();
@@ -3342,7 +3339,7 @@ function depApplyFixes() {
   rep.push("Aplicação concluída");
   rep.push(`- Dependentes adicionados: ${addedCount}`);
   rep.push(`- Dependentes existentes atualizados pela base: ${existingDepsUpdated} (${existingFieldChanges} campo(s))`);
-  rep.push(`- depIRRF inválidos convertidos para null: ${depIRRFNullified}`);
+  rep.push(`- depIRRF null/inválidos removidos do JSON: ${depIRRFRemoved}`);
   rep.push(`- descrDep preenchidos obrigatoriamente em tpDep.codigo=99: ${descrDepFilledTp99}`);
   rep.push(`- descrDep removidos por tpDep.codigo diferente de 99: ${descrDepCleared}`);
   rep.push(`- Duplicidades removidas em s1210InfoDep (opcional): ${dedupRemoved}`);
@@ -3393,7 +3390,7 @@ setStatus(`<div class="alert alert-success mb-0">
     Pendências: <strong>${plan.missingInBase.length}</strong> |
     InfoDep duplicados removidos: <strong>${dedupRemoved}</strong> |
     Dependentes existentes atualizados: <strong>${existingDepsUpdated}</strong> |
-    depIRRF para null: <strong>${depIRRFNullified}</strong> |
+    depIRRF removidos: <strong>${depIRRFRemoved}</strong> |
     descrDep 99 preenchidos: <strong>${descrDepFilledTp99}</strong> |
     descrDep removidos: <strong>${descrDepCleared}</strong>
     ${doConsolidateIrcr ? `| IRCR mesclados: <strong>${ircrMerged}</strong>` : ""}
@@ -4125,7 +4122,7 @@ document.getElementById("depAnalyzeBtn").addEventListener("click", () => {
     Pendências: <strong>${plan.stats.totalMissing}</strong> |
     InfoDep duplicidades: <strong>${plan.duplicatesInfoDep.length}</strong> |
     Dependentes existentes a atualizar: <strong>${plan.stats.existingInfoDepToUpdate}</strong> |
-    depIRRF inválidos: <strong>${plan.stats.depIRRFSanitizeCandidates}</strong> |
+    depIRRF null/inválidos: <strong>${plan.stats.depIRRFSanitizeCandidates}</strong> |
     descrDep a remover: <strong>${plan.stats.descrDepCleanupCandidates}</strong>
   </div>`);
 });
