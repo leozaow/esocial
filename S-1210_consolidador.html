@@ -1026,23 +1026,50 @@
       const text = String(raw ?? '').trim();
       if (!text) return '';
 
-      const isoDateTime = text.match(/^(\d{4})-(\d{1,2})-(\d{1,2})(?:\s+.*)?$/);
+      // Formato ISO ou timestamp vindo do S1200:
+      // 2025-01-01 ou 2025-01-01 00:00:00.0
+      const isoDateTime = text.match(/^(\d{4})-(\d{1,2})-(\d{1,2})(?:[T\s]+.*)?$/);
       if (isoDateTime) {
         const y = isoDateTime[1];
         const m = isoDateTime[2].padStart(2, '0');
         const d = isoDateTime[3].padStart(2, '0');
-        return `${d}/${m}/${y}`;
+        return `${y}-${m}-${d}`;
       }
 
+      // Formato brasileiro completo: 01/01/2025
       const br = text.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-      if (br) return `${br[1].padStart(2, '0')}/${br[2].padStart(2, '0')}/${br[3]}`;
+      if (br) {
+        const d = br[1].padStart(2, '0');
+        const m = br[2].padStart(2, '0');
+        const y = br[3];
+        return `${y}-${m}-${d}`;
+      }
 
+      // Apenas mês/ano: 01/2025 -> primeiro dia do mês
       const mesAno = text.match(/^(\d{1,2})\/(\d{4})$/);
-      if (mesAno) return `01/${mesAno[1].padStart(2, '0')}/${mesAno[2]}`;
+      if (mesAno) {
+        const m = mesAno[1].padStart(2, '0');
+        const y = mesAno[2];
+        return `${y}-${m}-01`;
+      }
 
       const digits = text.replace(/\D/g, '');
-      if (digits.length === 8) return `${digits.slice(0,2)}/${digits.slice(2,4)}/${digits.slice(4)}`;
-      if (digits.length === 6) return `01/${digits.slice(0,2)}/${digits.slice(2)}`;
+
+      // DDMMAAAA
+      if (digits.length === 8) {
+        const d = digits.slice(0, 2);
+        const m = digits.slice(2, 4);
+        const y = digits.slice(4);
+        return `${y}-${m}-${d}`;
+      }
+
+      // MMAAAA
+      if (digits.length === 6) {
+        const m = digits.slice(0, 2);
+        const y = digits.slice(2);
+        return `${y}-${m}-01`;
+      }
+
       return text;
     }
 
@@ -1313,8 +1340,8 @@
 
       let matched = 0;
 
-      // Ao informar o CSV de folhas empresa, ele passa a ser a referência
-      // da seleção: somente folhas com correspondência e DTCRED válido ficam marcadas.
+      // O CSV auxiliar passa a definir a seleção automática:
+      // somente folhas correspondentes e com DTCRED válido ficam marcadas.
       state.selectedFolhas.clear();
 
       for (const folha of state.folhas.values()) {
@@ -1325,8 +1352,8 @@
           state.selectedFolhas.add(folha.key);
           matched++;
         } else if (folha.dtSource === 'folhas empresa') {
-          // Evita manter uma data de um arquivo auxiliar anterior quando uma
-          // nova importação não contiver mais essa folha.
+          // Ao trocar o arquivo auxiliar, remove datas antigas que deixaram
+          // de possuir correspondência e restaura a sugestão da competência.
           folha.dtPgto = folha.suggestedDate;
           folha.dtSource = folha.suggestedDate ? 'sugerida' : 'vazia';
         }
