@@ -764,15 +764,29 @@
       return resultado;
     }
 
+    function gerarSufixoDataHoraDownload() {
+      const agora = new Date();
+      const pad2 = (valor) => String(valor).padStart(2, "0");
+
+      const data = String(agora.getFullYear())
+        + pad2(agora.getMonth() + 1)
+        + pad2(agora.getDate());
+
+      const hora = pad2(agora.getHours()) + pad2(agora.getMinutes());
+      return `_${data}_${hora}`;
+    }
+
     function gerarNomeArquivoDownload() {
+      const sufixoDataHora = gerarSufixoDataHoraDownload();
+
       if (Array.isArray(window.loadedFileNames) && window.loadedFileNames.length > 1) {
-        return "S-1210_unificado_editado.json";
+        return `S-1210_unificado_editado${sufixoDataHora}.json`;
       }
       if (window.loadedFileName && window.loadedFileName.toLowerCase().endsWith(".json")) {
         const base = window.loadedFileName.replace(/\.json$/i, "");
-        return base + "_editado.json";
+        return `${base}_editado${sufixoDataHora}.json`;
       }
-      return "S-1210_editado.json";
+      return `S-1210_editado${sufixoDataHora}.json`;
     }
 
     document.getElementById("downloadBtn").addEventListener("click", () => {
