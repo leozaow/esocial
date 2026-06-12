@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Comparador de Rubricas — Folha x eSocial S-1202/S1200</title>
+  <style>
+    :root {
+      --bg:#f5f7fb; --surface:#fff; --surface2:#f8fafc; --text:#172033; --muted:#667085;
+      --line:#d8dee9; --brand:#1d4ed8; --brand2:#173d9a; --ok:#067647; --warn:#b54708;
+      --danger:#b42318; --purple:#6941c6; --shadow:0 18px 48px rgba(16,24,40,.08); --radius:18px;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;background:radial-gradient(circle at top left,#eaf1ff 0,rgba(234,241,255,0) 380px),var(--bg);color:var(--text);font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;line-height:1.45}
+    code,.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono",monospace}
+    .wrap{width:min(1540px,calc(100vw - 30px));margin:26px auto 52px}
+    header{display:grid;grid-template-columns:1fr auto;gap:18px;align-items:end;margin-bottom:20px}
+    h1{margin:0;font-size:clamp(1.7rem,3vw,2.4rem);letter-spacing:-.04em;color:#101828}
+    .subtitle{margin:8px 0 0;color:var(--muted);max-width:1100px}
+    .badge{display:inline-flex;align-items:center;gap:8px;padding:8px 12px;border-radius:999px;background:#eaf1ff;color:#143b8f;font-size:.84rem;font-weight:850;white-space:nowrap;border:1px solid #cddcff}
+    .grid{display:grid;gap:18px}
+    .panel{background:rgba(255,255,255,.94);border:1px solid rgba(216,222,233,.95);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden}
+    .panel-head{display:flex;gap:14px;justify-content:space-between;align-items:center;padding:17px 20px;border-bottom:1px solid var(--line);background:linear-gradient(180deg,#fff,#fbfcff)}
+    .panel-title{display:flex;align-items:center;gap:10px;font-size:1.05rem;font-weight:850;margin:0}
+    .step{width:29px;height:29px;border-radius:50%;display:inline-grid;place-items:center;background:var(--brand);color:#fff;font-weight:850;font-size:.9rem;flex:none}
+    .panel-body{padding:20px}
+    .import-grid{display:grid;grid-template-columns:repeat(2,minmax(300px,1fr));gap:15px}
+    .import-card{border:1px solid var(--line);border-radius:17px;background:#fff;padding:17px;display:grid;gap:12px;align-content:start}
+    .import-card h3{margin:0;font-size:1rem}.import-card p{margin:0}.card-actions,.toolbar{display:flex;flex-wrap:wrap;align-items:center;gap:9px}
+    button{appearance:none;border:1px solid transparent;border-radius:11px;background:var(--brand);color:#fff;font-weight:780;padding:10px 14px;cursor:pointer;transition:.14s ease;font-size:.92rem;display:inline-flex;align-items:center;justify-content:center;gap:7px}
+    button:hover{background:var(--brand2)} button.secondary{background:#fff;color:#24324a;border-color:var(--line)} button.secondary:hover{background:#f3f6fb}
+    button.danger{background:var(--danger)} button.danger:hover{background:#8f1d14} button:disabled{opacity:.45;cursor:not-allowed}
+    .hint{color:var(--muted);font-size:.89rem;margin:0}
+    .message{border-radius:14px;padding:12px 14px;margin-top:13px;border:1px solid var(--line);background:#fff;color:#344054;font-size:.92rem}
+    .message.ok{border-color:#abefc6;background:#ecfdf3;color:#054f31}.message.warn{border-color:#fedf89;background:#fffaeb;color:#7a2e0e}.message.danger{border-color:#fecdca;background:#fef3f2;color:#7a271a}.message.info{border-color:#bfdbfe;background:#eff6ff;color:#1e3a8a}
+    .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:11px;margin-top:16px}
+    .stat{padding:13px;border:1px solid var(--line);border-radius:14px;background:#fff;min-width:0}
+    .stat .label{color:var(--muted);font-size:.76rem;font-weight:800;text-transform:uppercase;letter-spacing:.045em}.stat .value{margin-top:5px;font-size:1.32rem;font-weight:880;color:#101828;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.stat .sub{margin-top:2px;color:var(--muted);font-size:.79rem}
+    .controls{display:grid;grid-template-columns:180px 1fr 210px 210px;gap:11px;align-items:end}
+    .field{display:grid;gap:6px;font-weight:760;color:#344054;font-size:.88rem}
+    input[type="text"],input[type="number"],select{width:100%;min-height:40px;border:1px solid var(--line);border-radius:10px;background:#fff;color:var(--text);padding:9px 10px;font:inherit}
+    input[type="checkbox"]{width:18px;height:18px;accent-color:var(--brand);cursor:pointer}
+    .check-field{display:flex;gap:8px;align-items:center;min-height:40px;padding:8px 10px;border:1px solid var(--line);border-radius:10px;background:#fff;font-size:.88rem;font-weight:700;color:#344054}
+    .table-wrap{overflow:auto;border:1px solid var(--line);border-radius:15px;background:#fff;max-height:590px}
+    table{width:100%;border-collapse:separate;border-spacing:0;min-width:1540px}
+    th,td{padding:9px 11px;border-bottom:1px solid #eef1f6;text-align:left;vertical-align:middle;font-size:.87rem;white-space:nowrap}
+    th{position:sticky;top:0;background:#f8fafc;color:#344054;z-index:2;font-size:.73rem;text-transform:uppercase;letter-spacing:.05em}
+    tr:last-child td{border-bottom:0} tr:hover td{background:#fbfdff}.num{text-align:right;font-variant-numeric:tabular-nums}
+    .status{display:inline-flex;align-items:center;padding:4px 8px;border-radius:999px;font-size:.73rem;font-weight:850;letter-spacing:.015em}
+    .status.ok{background:#dcfae6;color:var(--ok)}.status.valor{background:#fee4e2;color:var(--danger)}.status.folha{background:#fef0c7;color:var(--warn)}.status.esocial{background:#eee7ff;color:var(--purple)}.status.recibo{background:#ffead5;color:#9a3412}.status.invalido{background:#f2f4f7;color:#344054}
+    .receipt{font-size:.76rem;font-weight:800}.receipt.ok{color:var(--ok)}.receipt.warn{color:var(--warn)}.receipt.none{color:var(--danger)}
+    .filter-grid{display:grid;grid-template-columns:1.5fr 240px 200px 210px;gap:11px;align-items:end;margin-bottom:13px}
+    .results-head{display:flex;justify-content:space-between;gap:12px;align-items:center;margin:12px 0 10px}.results-count{color:var(--muted);font-size:.9rem}
+    .pagination{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:12px;flex-wrap:wrap}.page-info{color:var(--muted);font-size:.88rem}
+    .empty{padding:24px;text-align:center;color:var(--muted)}
+    details{border:1px solid var(--line);border-radius:14px;background:#fff;overflow:hidden;margin-top:14px}summary{cursor:pointer;padding:12px 14px;font-weight:850;background:#fbfcff}.details-body{padding:0 14px 14px;color:#344054}.details-body ul{margin:8px 0 0;padding-left:20px}
+    .modal{position:fixed;inset:0;z-index:50;display:none;align-items:center;justify-content:center;padding:22px;background:rgba(15,23,42,.5);backdrop-filter:blur(2px)}.modal.open{display:flex}
+    .modal-card{width:min(790px,calc(100vw - 28px));max-height:min(790px,calc(100vh - 28px));overflow:auto;background:#fff;border-radius:21px;box-shadow:0 24px 80px rgba(16,24,40,.26);border:1px solid rgba(255,255,255,.6)}
+    .modal-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;padding:18px 20px;border-bottom:1px solid var(--line);background:linear-gradient(180deg,#fff,#fbfcff)}.modal-head h2{margin:0;font-size:1.08rem}.modal-head p{margin:4px 0 0;color:var(--muted)}.modal-body{padding:20px}.close-x{width:38px;height:38px;padding:0;border-radius:11px}
+    .dropzone{border:2px dashed #9fb7ea;border-radius:19px;background:#f8fbff;padding:29px;text-align:center;transition:.18s ease;cursor:pointer;display:grid;gap:6px;min-height:150px;place-items:center}.dropzone.dragover{border-color:var(--brand);background:#eff6ff;transform:translateY(-1px)}.dropzone strong{display:block;font-size:1.03rem}.dropzone span{color:var(--muted)}input[type="file"]{display:none}
+    .detail-grid{display:grid;grid-template-columns:190px 1fr;gap:8px 14px;font-size:.9rem}.detail-grid .k{font-weight:800;color:#475467}.detail-grid .v{overflow-wrap:anywhere;white-space:normal}.separator{height:1px;background:var(--line);margin:15px 0}
+    @media(max-width:1050px){header,.import-grid,.controls,.filter-grid{grid-template-columns:1fr}.panel-head{align-items:flex-start;flex-direction:column}.toolbar{width:100%}.badge{white-space:normal}.detail-grid{grid-template-columns:1fr}.detail-grid .k{margin-top:6px}}
+  </style>
+</head>
+<body>
+<main class="wrap">
+  <header>
+    <div>
+      <h1>Comparador de Rubricas — Folha x eSocial</h1>
+      <p class="subtitle">Compare as rubricas do sistema de pagamento com os itens exportados dos eventos <strong>S-1202</strong> e <strong>S1200</strong>. A ferramenta normaliza datas, identifica o número da folha no <code>Id Edm Dev</code>, converte a rubrica da folha para <code>V</code>, <code>D</code> ou <code>A</code>, consolida valores e evidencia somente as divergências.</p>
+    </div>
+    <span class="badge">CPF + competência + folha + direito + rubrica</span>
+  </header>
+
+  <section class="grid">
+    <div class="panel">
+      <div class="panel-head">
+        <h2 class="panel-title"><span class="step">1</span> Importar arquivos</h2>
+        <button class="secondary" id="btnClear" type="button">Limpar tudo</button>
+      </div>
+      <div class="panel-body">
+        <div class="import-grid">
+          <div class="import-card">
+            <h3>Arquivo do sistema de pagamento</h3>
+            <p class="hint">Aceita CSVs cujo nome comece por <code>LISTA_GM ESO S12XX FOLHAS</code>. É possível selecionar mais de um arquivo.</p>
+            <div class="card-actions"><button id="btnOpenFolha" type="button">Importar arquivo(s) da folha</button></div>
+            <div id="folhaStatus"></div>
+          </div>
+          <div class="import-card">
+            <h3>Exportações do eSocial</h3>
+            <p class="hint">Aceita simultaneamente vários CSVs iniciados por <code>S-1202</code>, <code>S1202</code> ou <code>S1200</code>.</p>
+            <div class="card-actions"><button id="btnOpenEsocial" type="button">Importar arquivo(s) do eSocial</button></div>
+            <div id="esocialStatus"></div>
+          </div>
+        </div>
+        <div class="stats" id="importStats" style="display:none"></div>
+      </div>
+    </div>
+
+    <div class="panel" id="comparisonPanel" style="display:none">
+      <div class="panel-head">
+        <h2 class="panel-title"><span class="step">2</span> Comparar e consolidar</h2>
+        <div class="toolbar"><button id="btnCompare" type="button">Atualizar comparação</button></div>
+      </div>
+      <div class="panel-body">
+        <div class="controls">
+          <label class="field">Tolerância de valor (R$)
+            <input type="number" id="tolerance" min="0" step="0.01" value="0.01" />
+          </label>
+          <label class="check-field"><input type="checkbox" id="receiptAsError" checked /> Considerar ausência de recibo como divergência</label>
+          <label class="field">Casas decimais na tela
+            <select id="decimalPlaces"><option value="2" selected>2 casas</option><option value="4">4 casas</option></select>
+          </label>
+          <div class="field"><span>&nbsp;</span><button class="secondary" id="btnRules" type="button">Ver regras aplicadas</button></div>
+        </div>
+        <div id="comparisonMessage"></div>
+        <div class="stats" id="summaryStats"></div>
+      </div>
+    </div>
+
+    <div class="panel" id="resultsPanel" style="display:none">
+      <div class="panel-head">
+        <h2 class="panel-title"><span class="step">3</span> Relatório de comparação</h2>
+        <div class="toolbar">
+          <button class="secondary" id="btnExportFiltered" type="button">Exportar visualização</button>
+          <button id="btnExportErrors" type="button">Baixar divergências</button>
+        </div>
+      </div>
+      <div class="panel-body">
+        <div class="filter-grid">
+          <label class="field">Pesquisar
+            <input id="searchInput" type="text" placeholder="CPF, rubrica, matrícula, Id Edm Dev, recibo..." />
+          </label>
+          <label class="field">Status
+            <select id="statusFilter">
+              <option value="">Todos</option><option value="OK">OK</option><option value="VALOR DIVERGENTE">Valor divergente</option><option value="APENAS NA FOLHA">Apenas na folha</option><option value="APENAS NO ESOCIAL">Apenas no eSocial</option><option value="SEM RECIBO">Sem recibo</option><option value="RECIBO PARCIAL">Recibo parcial</option><option value="DADO INVÁLIDO NA FOLHA">Dado inválido na folha</option><option value="DADO INVÁLIDO NO ESOCIAL">Dado inválido no eSocial</option>
+            </select>
+          </label>
+          <label class="field">Evento
+            <select id="eventFilter"><option value="">Todos</option><option value="S-1202">S-1202</option><option value="S1200">S1200</option><option value="MISTO">Misto</option></select>
+          </label>
+          <label class="check-field"><input type="checkbox" id="onlyErrors" checked /> Exibir apenas informações erradas</label>
+        </div>
+        <div class="results-head"><div class="results-count" id="resultsCount"></div><label class="field" style="grid-auto-flow:column;align-items:center;grid-template-columns:auto 90px">Linhas por página<select id="pageSize"><option>50</option><option selected>100</option><option>250</option><option>500</option></select></label></div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr>
+              <th>Status</th><th>CPF</th><th>Competência</th><th>Nº folha</th><th>Período direito</th><th>Rubrica</th><th class="num">Valor folha</th><th class="num">Valor eSocial</th><th class="num">Diferença</th><th>Recibo</th><th>Evento</th><th>Matrícula / Id Edm Dev</th><th>Detalhes</th>
+            </tr></thead>
+            <tbody id="resultsBody"></tbody>
+          </table>
+        </div>
+        <div class="pagination"><div class="page-info" id="pageInfo"></div><div class="toolbar"><button class="secondary" id="btnPrev" type="button">Anterior</button><button class="secondary" id="btnNext" type="button">Próxima</button></div></div>
+        <div id="warningsBox"></div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<div class="modal" id="folhaModal" role="dialog" aria-modal="true">
+  <div class="modal-card"><div class="modal-head"><div><h2>Importar CSV da folha</h2><p>Selecione um ou mais arquivos do sistema de pagamento.</p></div><button class="secondary close-x" data-close="folhaModal">✕</button></div><div class="modal-body">
+    <label class="dropzone" id="folhaDrop" for="folhaInput"><div><strong>Clique para selecionar ou arraste aqui</strong><span>Somente arquivos CSV com prefixo LISTA_GM ESO S12XX FOLHAS serão processados.</span></div></label>
+    <input id="folhaInput" type="file" accept=".csv,text/csv" multiple />
+    <div class="message info">A rubrica da folha será convertida conforme TIPORUBR e sinal do valor. O valor será sempre comparado em módulo.</div>
+  </div></div>
+</div>
+
+<div class="modal" id="esocialModal" role="dialog" aria-modal="true">
+  <div class="modal-card"><div class="modal-head"><div><h2>Importar exportações do eSocial</h2><p>Selecione simultaneamente arquivos S-1202 e/ou S1200.</p></div><button class="secondary close-x" data-close="esocialModal">✕</button></div><div class="modal-body">
+    <label class="dropzone" id="esocialDrop" for="esocialInput"><div><strong>Clique para selecionar ou arraste aqui</strong><span>A ferramenta reconhece automaticamente as diferenças de cabeçalhos, datas e valores entre S-1202 e S1200.</span></div></label>
+    <input id="esocialInput" type="file" accept=".csv,text/csv" multiple />
+    <div class="message info">O número da folha é extraído entre o segundo e o terceiro hífen do Id Edm Dev, inclusive quando existe sufixo final, como -2.</div>
+  </div></div>
+</div>
+
+<div class="modal" id="detailsModal" role="dialog" aria-modal="true">
+  <div class="modal-card"><div class="modal-head"><div><h2>Detalhes do item comparado</h2><p id="detailsSubtitle"></p></div><button class="secondary close-x" data-close="detailsModal">✕</button></div><div class="modal-body" id="detailsBody"></div></div>
+</div>
+
+<div class="modal" id="rulesModal" role="dialog" aria-modal="true">
+  <div class="modal-card"><div class="modal-head"><div><h2>Regras aplicadas</h2><p>Critérios técnicos utilizados na normalização e comparação.</p></div><button class="secondary close-x" data-close="rulesModal">✕</button></div><div class="modal-body">
+    <div class="message"><strong>Chave de comparação:</strong> CPF + competência da folha + número da folha + período de direito + rubrica qualificada.</div>
+    <div class="message"><strong>Rubrica da folha:</strong> AUXILIARES positivo = A; DESCONTOS/CONSIGNATARIAS positivo = D e negativo = V; VANTAGENS positivo = V e negativo = D.</div>
+    <div class="message"><strong>Valores:</strong> tanto a folha quanto o eSocial são comparados pelo valor absoluto. Linhas da mesma chave são somadas antes da comparação.</div>
+    <div class="message"><strong>Datas:</strong> formatos brasileiros, ISO e timestamps do S1200 são normalizados para o primeiro dia do mês no padrão AAAA-MM-01.</div>
+    <div class="message"><strong>Id Edm Dev:</strong> o número da folha é o conteúdo entre o segundo e o terceiro hífen. Assim, 855.996-5-11-NORMAL-032025-2 resulta na folha 11.</div>
+    <div class="message"><strong>Recibo:</strong> Recibo (S-1202) e retorno (S1200) são tratados como o mesmo campo. A ausência pode ser marcada como divergência.</div>
+    <div class="message"><strong>Duplicidades:</strong> linhas exatamente iguais, inclusive matrícula/Id Edm Dev e valor, são deduplicadas antes da consolidação.</div>
+  </div></div>
+</div>
+
+<script>
+(() => {
+  'use strict';
+
+  const FOLHA_ALIASES = {
+    matric:['MATRIC'], cpf:['CPF'], tipovinc:['TIPOVINC'], perApur:['MES_ANO_FOLHA'], numFolha:['NUM_FOLHA'], perRef:['MES_ANO_DIREITO'], rubrica:['RUBRICA'], tiporubr:['TIPORUBR'], valor:['SUM(FR.VALOR)','SUM FR VALOR']
+  };
+  const ESOCIAL_ALIASES = {
+    recibo:['Recibo','retorno'], cpf:['CPF Trabalhador','cpftrab'], categoria:['Categoria','categoria'], perApur:['Per. Apur','perapur'], ideDmDev:['Id Edm Dev','idedmdev'], perRef:['Per Ref','perref'], rubrica:['Cod Rubr','codrubr'], idetab:['Idetab Rubr','idetabrubr'], valor:['Vlr Rubr','vrrubr']
+  };
+  const REQUIRED_FOLHA = Object.keys(FOLHA_ALIASES);
+  const REQUIRED_ESOCIAL = ['recibo','cpf','perApur','ideDmDev','perRef','rubrica','valor'];
+
+  const state = {
+    folha:{files:[],rows:[],invalid:[],warnings:[],total:0,duplicates:0},
+    esocial:{files:[],rows:[],invalid:[],warnings:[],total:0,duplicates:0,eventCounts:{'S-1202':0,'S1200':0}},
+    results:[],filtered:[],page:1
+  };
+
+  const $ = s => document.querySelector(s);
+  const $$ = s => Array.from(document.querySelectorAll(s));
+  const els = {
+    folhaInput:$('#folhaInput'),esocialInput:$('#esocialInput'),folhaDrop:$('#folhaDrop'),esocialDrop:$('#esocialDrop'),
+    folhaStatus:$('#folhaStatus'),esocialStatus:$('#esocialStatus'),importStats:$('#importStats'),comparisonPanel:$('#comparisonPanel'),resultsPanel:$('#resultsPanel'),
+    tolerance:$('#tolerance'),receiptAsError:$('#receiptAsError'),decimalPlaces:$('#decimalPlaces'),comparisonMessage:$('#comparisonMessage'),summaryStats:$('#summaryStats'),
+    searchInput:$('#searchInput'),statusFilter:$('#statusFilter'),eventFilter:$('#eventFilter'),onlyErrors:$('#onlyErrors'),pageSize:$('#pageSize'),resultsBody:$('#resultsBody'),resultsCount:$('#resultsCount'),pageInfo:$('#pageInfo'),warningsBox:$('#warningsBox')
+  };
+
+  function htmlEscape(v){return String(v??'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#039;')}
+  function fold(v){return String(v??'').replace(/^\uFEFF/,'').trim().normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]/g,'')}
+  function clean(v){return String(v??'').trim().replace(/\s+/g,' ')}
+  function showMessage(el,type,text){el.innerHTML=`<div class="message ${type}">${text}</div>`}
+  function round(value,places=2){const p=10**places;return Math.round((value+Number.EPSILON)*p)/p}
+  function formatNumber(value){if(value===null||value===undefined||!Number.isFinite(value))return '';const p=Number(els.decimalPlaces.value||2);return round(value,p).toLocaleString('pt-BR',{minimumFractionDigits:p,maximumFractionDigits:p})}
+  function formatCsvNumber(value){if(value===null||value===undefined||!Number.isFinite(value))return '';return round(value,2).toFixed(2).replace('.',',')}
+  function normalizeCpf(v){const d=String(v??'').replace(/\D/g,'');return d ? (d.length<=11?d.padStart(11,'0'):d) : ''}
+  function normalizeCodeBase(v){let s=clean(v).toUpperCase().replace(/\s+/g,'');if(/^\d+\.0+$/.test(s))s=s.split('.')[0];if(/^0+\d+$/.test(s))s=String(Number(s));return s}
+
+  function parseMoney(v){
+    let s=String(v??'').trim();if(!s)return null;s=s.replace(/R\$/gi,'').replace(/\s+/g,'');const par=/^\(.*\)$/.test(s);s=s.replace(/[()]/g,'');const neg=s.startsWith('-')||par;s=s.replace(/^[-+]/,'');
+    const lc=s.lastIndexOf(','),ld=s.lastIndexOf('.');
+    if(lc>=0&&ld>=0){s=lc>ld?s.replace(/\./g,'').replace(',','.'):s.replace(/,/g,'')}
+    else if(lc>=0){s=s.replace(/\./g,'').replace(',','.')}
+    else if(ld>=0&&s.split('.').length>2){const parts=s.split('.');const dec=parts.pop();s=parts.join('')+'.'+dec}
+    s=s.replace(/[^0-9.]/g,'');if(!s)return null;const n=Number(s);if(!Number.isFinite(n))return null;return neg?-Math.abs(n):n;
+  }
+
+  function normalizePeriod(v){
+    const t=clean(v);if(!t)return '';
+    let m=t.match(/^(\d{4})-(\d{1,2})(?:-(\d{1,2}))?/);if(m)return `${m[1]}-${m[2].padStart(2,'0')}-01`;
+    m=t.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);if(m)return `${m[3]}-${m[2].padStart(2,'0')}-01`;
+    m=t.match(/^(\d{1,2})\/(\d{4})$/);if(m)return `${m[2]}-${m[1].padStart(2,'0')}-01`;
+    const d=t.replace(/\D/g,'');
+    if(d.length===8){const day=Number(d.slice(0,2)),month=Number(d.slice(2,4)),year=d.slice(4);if(day>=1&&day<=31&&month>=1&&month<=12)return `${year}-${String(month).padStart(2,'0')}-01`}
+    if(d.length===6){const month=Number(d.slice(0,2)),year=d.slice(2);if(month>=1&&month<=12)return `${year}-${String(month).padStart(2,'0')}-01`}
+    return '';
+  }
+
+  function extractIdeInfo(v){
+    const s=clean(v);const first=s.indexOf('-'),second=first>=0?s.indexOf('-',first+1):-1,third=second>=0?s.indexOf('-',second+1):-1;
+    const numero=second>=0&&third>second?clean(s.slice(second+1,third)):'';
+    const periodMatch=s.match(/-(\d{5,6})(?:-(\d+))?$/);let period='';
+    if(periodMatch){let digits=periodMatch[1];if(digits.length===5)digits='0'+digits;const month=digits.slice(0,2),year=digits.slice(2);if(Number(month)>=1&&Number(month)<=12)period=`${year}-${month}-01`}
+    return {ok:/^\d+$/.test(numero),numero,period,suffix:periodMatch?.[2]||'',raw:s};
+  }
+
+  function detectDelimiter(line){const cs=[';',',','\t'];let best=';',max=-1;for(const d of cs){let c=0,q=false;for(let i=0;i<line.length;i++){if(line[i]==='"'){if(q&&line[i+1]==='"')i++;else q=!q}else if(!q&&line[i]===d)c++}if(c>max){max=c;best=d}}return best}
+  function parseCsv(text){
+    const first=String(text).split(/\r\n|\n|\r/).find(x=>x.trim())||'';const delimiter=detectDelimiter(first);const rows=[];let row=[],cell='',q=false;
+    for(let i=0;i<text.length;i++){const ch=text[i],next=text[i+1];if(ch==='"'){if(q&&next==='"'){cell+='"';i++}else q=!q}else if(!q&&ch===delimiter){row.push(cell);cell=''}else if(!q&&(ch==='\n'||ch==='\r')){row.push(cell);cell='';if(row.some(x=>String(x).trim()!==''))rows.push(row);row=[];if(ch==='\r'&&next==='\n')i++}else cell+=ch}
+    row.push(cell);if(row.some(x=>String(x).trim()!==''))rows.push(row);if(!rows.length)return {headers:[],records:[],delimiter};
+    const headers=rows[0].map(x=>String(x).replace(/^\uFEFF/,'').trim());const records=rows.slice(1).map((values,i)=>{const o={__line:i+2};headers.forEach((h,j)=>o[h]=values[j]??'');return o});return {headers,records,delimiter};
+  }
+  function decode(buffer){try{return new TextDecoder('utf-8',{fatal:true}).decode(buffer)}catch(e){try{return new TextDecoder('windows-1252').decode(buffer)}catch(e2){return new TextDecoder('iso-8859-1').decode(buffer)}}}
+  function headerIndex(headers){const m=new Map();headers.forEach(h=>{const k=fold(h);if(k&&!m.has(k))m.set(k,h)});return m}
+  function getAlias(record,index,aliases){for(const a of aliases){const actual=index.get(fold(a));if(actual!==undefined)return record[actual]??''}return ''}
+  function missingFields(headers,aliases,required){const idx=headerIndex(headers);return required.filter(f=>!(aliases[f]||[]).some(a=>idx.has(fold(a))))}
+  function compactName(name){return String(name||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().replace(/[^A-Z0-9]/g,'')}
+  function isFolhaFile(name){return compactName(name).startsWith('LISTAGMESOS12XXFOLHAS')}
+  function detectEvent(name){const n=compactName(name);if(n.startsWith('S1202'))return 'S-1202';if(n.startsWith('S1200'))return 'S1200';return ''}
+
+  function deriveFolhaRubrica(base,type,value){
+    const t=fold(type);let suffix='';
+    if((t==='auxiliares'||t==='auxiliar')&&value>0)suffix='A';
+    else if(t==='descontos'||t==='desconto'||t==='consignatarias'||t==='consignataria')suffix=value>0?'D':value<0?'V':'';
+    else if(t==='vantagens'||t==='vantagem')suffix=value>0?'V':value<0?'D':'';
+    return suffix?normalizeCodeBase(base)+suffix:'';
+  }
+  function normalizeEsocialRubrica(code,idetab,warnings,context){
+    let c=normalizeCodeBase(code);if(!c)return '';
+    const existing=c.match(/([VDA])$/);const map={vant:'V',vantagem:'V',vantagens:'V',desc:'D',desconto:'D',descontos:'D',aux:'A',auxiliar:'A',auxiliares:'A'};const expected=map[fold(idetab)]||'';
+    if(existing){if(expected&&existing[1]!==expected)warnings.push(`${context}: Cod Rubr ${htmlEscape(c)} conflita com Idetab Rubr ${htmlEscape(idetab)}.`);return c}
+    return expected?c+expected:c;
+  }
+
+  function resetSide(side){
+    if(side==='folha')state.folha={files:[],rows:[],invalid:[],warnings:[],total:0,duplicates:0};
+    else state.esocial={files:[],rows:[],invalid:[],warnings:[],total:0,duplicates:0,eventCounts:{'S-1202':0,'S1200':0}};
+    state.results=[];state.filtered=[];state.page=1;renderImport();
+  }
+  function resetAll(){resetSide('folha');resetSide('esocial');els.folhaInput.value='';els.esocialInput.value='';els.comparisonPanel.style.display='none';els.resultsPanel.style.display='none';els.comparisonMessage.innerHTML='';els.summaryStats.innerHTML='';els.resultsBody.innerHTML='';els.warningsBox.innerHTML=''}
+
+  async function importFolha(fileList){
+    const files=Array.from(fileList||[]).filter(f=>/\.csv$/i.test(f.name)||f.type.includes('csv')||f.type==='');resetSide('folha');if(!files.length){showMessage(els.folhaStatus,'danger','Nenhum CSV foi selecionado.');return}
+    showMessage(els.folhaStatus,'warn','Lendo e validando os arquivos da folha...');const dedupe=new Set();
+    for(const file of files){if(!isFolhaFile(file.name)){state.folha.warnings.push(`${htmlEscape(file.name)}: nome incompatível; arquivo ignorado.`);continue}
+      try{const parsed=parseCsv(decode(await file.arrayBuffer()));const missing=missingFields(parsed.headers,FOLHA_ALIASES,REQUIRED_FOLHA);if(missing.length){state.folha.warnings.push(`${htmlEscape(file.name)}: colunas obrigatórias ausentes: ${missing.join(', ')}.`);continue}
+        const idx=headerIndex(parsed.headers);state.folha.files.push({name:file.name,rows:parsed.records.length});
+        for(const r of parsed.records){state.folha.total++;const context=`${file.name}, linha ${r.__line}`;const rawValue=getAlias(r,idx,FOLHA_ALIASES.valor);const value=parseMoney(rawValue);const row={side:'FOLHA',file:file.name,line:r.__line,matric:clean(getAlias(r,idx,FOLHA_ALIASES.matric)),cpf:normalizeCpf(getAlias(r,idx,FOLHA_ALIASES.cpf)),tipovinc:clean(getAlias(r,idx,FOLHA_ALIASES.tipovinc)),perApur:normalizePeriod(getAlias(r,idx,FOLHA_ALIASES.perApur)),numFolha:clean(getAlias(r,idx,FOLHA_ALIASES.numFolha)).replace(/\.0+$/,''),perRef:normalizePeriod(getAlias(r,idx,FOLHA_ALIASES.perRef)),rubricaBase:normalizeCodeBase(getAlias(r,idx,FOLHA_ALIASES.rubrica)),tiporubr:clean(getAlias(r,idx,FOLHA_ALIASES.tiporubr)),rawValue,value:value===null?null:Math.abs(value),signedValue:value,issue:''};
+          row.rubrica= value===null?'':deriveFolhaRubrica(row.rubricaBase,row.tiporubr,value);
+          const issues=[];if(!row.cpf)issues.push('CPF inválido');if(!row.perApur)issues.push('MES_ANO_FOLHA inválido');if(!/^\d+$/.test(row.numFolha))issues.push('NUM_FOLHA inválido');if(!row.perRef)issues.push('MES_ANO_DIREITO inválido');if(value===null)issues.push('valor inválido');if(!row.rubrica)issues.push('não foi possível qualificar a rubrica conforme TIPORUBR e sinal');
+          if(issues.length){row.issue=issues.join('; ');state.folha.invalid.push(row);continue}
+          const dk=[row.matric,row.cpf,row.tipovinc,row.perApur,row.numFolha,row.perRef,row.rubrica,row.tiporubr,row.value.toFixed(4)].join('|||');if(dedupe.has(dk)){state.folha.duplicates++;continue}dedupe.add(dk);state.folha.rows.push(row);
+        }
+      }catch(err){state.folha.warnings.push(`${htmlEscape(file.name)}: falha na leitura — ${htmlEscape(err?.message||err)}.`)}
+    }
+    els.folhaInput.value='';closeModal('folhaModal');renderImport();autoCompare();
+  }
+
+  async function importEsocial(fileList){
+    const files=Array.from(fileList||[]).filter(f=>/\.csv$/i.test(f.name)||f.type.includes('csv')||f.type==='');resetSide('esocial');if(!files.length){showMessage(els.esocialStatus,'danger','Nenhum CSV foi selecionado.');return}
+    showMessage(els.esocialStatus,'warn','Lendo e normalizando as exportações do eSocial...');const dedupe=new Set();
+    for(const file of files){const event=detectEvent(file.name);if(!event){state.esocial.warnings.push(`${htmlEscape(file.name)}: prefixo incompatível; arquivo ignorado.`);continue}
+      try{const parsed=parseCsv(decode(await file.arrayBuffer()));const missing=missingFields(parsed.headers,ESOCIAL_ALIASES,REQUIRED_ESOCIAL);if(missing.length){state.esocial.warnings.push(`${htmlEscape(file.name)}: colunas obrigatórias ausentes: ${missing.join(', ')}.`);continue}
+        const idx=headerIndex(parsed.headers);state.esocial.files.push({name:file.name,rows:parsed.records.length,event});state.esocial.eventCounts[event]++;
+        for(const r of parsed.records){state.esocial.total++;const context=`${file.name}, linha ${r.__line}`;const rawValue=getAlias(r,idx,ESOCIAL_ALIASES.valor);const parsedValue=parseMoney(rawValue);const ide=clean(getAlias(r,idx,ESOCIAL_ALIASES.ideDmDev));const ideInfo=extractIdeInfo(ide);const idetab=clean(getAlias(r,idx,ESOCIAL_ALIASES.idetab));
+          const row={side:'ESOCIAL',event,file:file.name,line:r.__line,recibo:clean(getAlias(r,idx,ESOCIAL_ALIASES.recibo)),cpf:normalizeCpf(getAlias(r,idx,ESOCIAL_ALIASES.cpf)),categoria:clean(getAlias(r,idx,ESOCIAL_ALIASES.categoria)),perApur:normalizePeriod(getAlias(r,idx,ESOCIAL_ALIASES.perApur)),ideDmDev:ide,numFolha:ideInfo.numero,idePeriod:ideInfo.period,ideSuffix:ideInfo.suffix,perRef:normalizePeriod(getAlias(r,idx,ESOCIAL_ALIASES.perRef)),idetab,rubrica:'',rawValue,value:parsedValue===null?null:Math.abs(parsedValue),issue:''};
+          row.rubrica=normalizeEsocialRubrica(getAlias(r,idx,ESOCIAL_ALIASES.rubrica),idetab,state.esocial.warnings,context);
+          const issues=[];if(!row.cpf)issues.push('CPF inválido');if(!row.perApur)issues.push('Per. Apur/perapur inválido');if(!ideInfo.ok)issues.push('não foi possível extrair o número da folha do Id Edm Dev');if(!row.perRef)issues.push('Per Ref/perref inválido');if(!row.rubrica)issues.push('Cod Rubr/codrubr inválido');if(parsedValue===null)issues.push('Vlr Rubr/vrrubr inválido');
+          if(row.idePeriod&&row.perApur&&row.idePeriod!==row.perApur)state.esocial.warnings.push(`${context}: competência do Id Edm Dev (${row.idePeriod}) difere de Per. Apur (${row.perApur}).`);
+          if(issues.length){row.issue=issues.join('; ');state.esocial.invalid.push(row);continue}
+          const dk=[row.event,row.recibo,row.cpf,row.categoria,row.perApur,row.ideDmDev,row.perRef,row.rubrica,row.idetab,row.value.toFixed(4)].join('|||');if(dedupe.has(dk)){state.esocial.duplicates++;continue}dedupe.add(dk);state.esocial.rows.push(row);
+        }
+      }catch(err){state.esocial.warnings.push(`${htmlEscape(file.name)}: falha na leitura — ${htmlEscape(err?.message||err)}.`)}
+    }
+    els.esocialInput.value='';closeModal('esocialModal');renderImport();autoCompare();
+  }
+
+  function renderImport(){
+    if(state.folha.files.length)showMessage(els.folhaStatus,'ok',`${state.folha.files.length} arquivo(s), ${state.folha.rows.length.toLocaleString('pt-BR')} linha(s) válida(s), ${state.folha.invalid.length} inválida(s) e ${state.folha.duplicates} duplicada(s).`);else if(state.folha.warnings.length)showMessage(els.folhaStatus,'danger','Nenhum arquivo da folha pôde ser aproveitado.');else els.folhaStatus.innerHTML='';
+    if(state.esocial.files.length)showMessage(els.esocialStatus,'ok',`${state.esocial.files.length} arquivo(s), ${state.esocial.rows.length.toLocaleString('pt-BR')} linha(s) válida(s), ${state.esocial.invalid.length} inválida(s) e ${state.esocial.duplicates} duplicada(s).`);else if(state.esocial.warnings.length)showMessage(els.esocialStatus,'danger','Nenhum arquivo do eSocial pôde ser aproveitado.');else els.esocialStatus.innerHTML='';
+    const has=state.folha.files.length||state.esocial.files.length;if(!has){els.importStats.style.display='none';return}
+    const items=[['Arquivos folha',state.folha.files.length],['Linhas folha válidas',state.folha.rows.length],['Arquivos S-1202',state.esocial.eventCounts['S-1202']],['Arquivos S1200',state.esocial.eventCounts['S1200']],['Linhas eSocial válidas',state.esocial.rows.length],['Duplicidades ignoradas',state.folha.duplicates+state.esocial.duplicates],['Dados inválidos',state.folha.invalid.length+state.esocial.invalid.length]];
+    els.importStats.innerHTML=items.map(([l,v])=>`<div class="stat"><div class="label">${l}</div><div class="value">${Number(v).toLocaleString('pt-BR')}</div></div>`).join('');els.importStats.style.display='grid';
+    els.comparisonPanel.style.display=state.folha.files.length&&state.esocial.files.length?'block':'none';
+  }
+
+  function comparisonKey(r){return [r.cpf,r.perApur,r.numFolha,r.perRef,r.rubrica].join('|||')}
+  function aggregate(rows,side){const map=new Map();for(const r of rows){const key=comparisonKey(r);if(!map.has(key))map.set(key,{key,cpf:r.cpf,perApur:r.perApur,numFolha:r.numFolha,perRef:r.perRef,rubrica:r.rubrica,value:0,rows:[],matriculas:new Set(),tiposVinculo:new Set(),recibos:new Set(),missingReceipt:0,eventos:new Set(),categorias:new Set(),idetabs:new Set(),ideDmDevs:new Set(),files:new Set()});const g=map.get(key);g.value+=r.value;g.rows.push(r);g.files.add(r.file);if(side==='folha'){if(r.matric)g.matriculas.add(r.matric);if(r.tipovinc)g.tiposVinculo.add(r.tipovinc)}else{if(r.recibo)g.recibos.add(r.recibo);else g.missingReceipt++;g.eventos.add(r.event);if(r.categoria)g.categorias.add(r.categoria);if(r.idetab)g.idetabs.add(r.idetab);if(r.ideDmDev)g.ideDmDevs.add(r.ideDmDev)}}for(const g of map.values())g.value=round(g.value,4);return map}
+
+  function compare(){
+    if(!state.folha.files.length||!state.esocial.files.length)return;const tolerance=Math.max(0,Number(els.tolerance.value)||0);const receiptError=els.receiptAsError.checked;const fm=aggregate(state.folha.rows,'folha'),em=aggregate(state.esocial.rows,'esocial');const keys=new Set([...fm.keys(),...em.keys()]);const out=[];
+    for(const key of keys){const f=fm.get(key),e=em.get(key);const base=f||e;let status='OK',obs=[];const fv=f?.value??null,ev=e?.value??null,diff=f&&e?round(ev-fv,4):null;let receiptStatus='—';
+      if(e){if(e.recibos.size===0)receiptStatus='SEM RECIBO';else if(e.missingReceipt>0)receiptStatus='RECIBO PARCIAL';else receiptStatus='COM RECIBO'}
+      if(!e){status='APENAS NA FOLHA';obs.push('A chave consolidada não foi localizada nas exportações do eSocial.')}else if(!f){status='APENAS NO ESOCIAL';obs.push('A chave consolidada não foi localizada no arquivo da folha.')}else if(Math.abs(diff)>tolerance){status='VALOR DIVERGENTE';obs.push(`Diferença superior à tolerância de R$ ${formatNumber(tolerance)}.`)}else if(receiptError&&receiptStatus==='SEM RECIBO'){status='SEM RECIBO';obs.push('Os valores conferem, mas nenhuma linha do eSocial possui recibo/retorno.')}else if(receiptError&&receiptStatus==='RECIBO PARCIAL'){status='RECIBO PARCIAL';obs.push('Os valores conferem, mas parte das linhas do eSocial não possui recibo/retorno.')}
+      if(e&&receiptStatus==='SEM RECIBO'&&status!=='SEM RECIBO')obs.push('Item do eSocial sem recibo/retorno.');if(e&&receiptStatus==='RECIBO PARCIAL'&&status!=='RECIBO PARCIAL')obs.push('Parte das linhas do eSocial está sem recibo/retorno.');
+      const eventLabel=e?(e.eventos.size>1?'MISTO':Array.from(e.eventos)[0]):'';
+      out.push({id:'R'+out.length,status,divergent:status!=='OK',cpf:base.cpf,perApur:base.perApur,numFolha:base.numFolha,perRef:base.perRef,rubrica:base.rubrica,valorFolha:fv,valorEsocial:ev,diferenca:diff,receiptStatus,recibos:e?Array.from(e.recibos):[],event:eventLabel,matriculas:f?Array.from(f.matriculas):[],tiposVinculo:f?Array.from(f.tiposVinculo):[],categorias:e?Array.from(e.categorias):[],idetabs:e?Array.from(e.idetabs):[],ideDmDevs:e?Array.from(e.ideDmDevs):[],filesFolha:f?Array.from(f.files):[],filesEsocial:e?Array.from(e.files):[],qtdFolha:f?.rows.length||0,qtdEsocial:e?.rows.length||0,observation:obs.join(' '),sourceFolha:f,sourceEsocial:e});
+    }
+    for(const r of state.folha.invalid){out.push({id:'IF'+out.length,status:'DADO INVÁLIDO NA FOLHA',divergent:true,cpf:r.cpf||'',perApur:r.perApur||'',numFolha:r.numFolha||'',perRef:r.perRef||'',rubrica:r.rubrica||r.rubricaBase||'',valorFolha:r.value,valorEsocial:null,diferenca:null,receiptStatus:'—',recibos:[],event:'',matriculas:r.matric?[r.matric]:[],tiposVinculo:r.tipovinc?[r.tipovinc]:[],categorias:[],idetabs:[],ideDmDevs:[],filesFolha:[r.file],filesEsocial:[],qtdFolha:1,qtdEsocial:0,observation:r.issue,sourceFolha:{rows:[r]},sourceEsocial:null})}
+    for(const r of state.esocial.invalid){out.push({id:'IE'+out.length,status:'DADO INVÁLIDO NO ESOCIAL',divergent:true,cpf:r.cpf||'',perApur:r.perApur||'',numFolha:r.numFolha||'',perRef:r.perRef||'',rubrica:r.rubrica||'',valorFolha:null,valorEsocial:r.value,diferenca:null,receiptStatus:r.recibo?'COM RECIBO':'SEM RECIBO',recibos:r.recibo?[r.recibo]:[],event:r.event||'',matriculas:[],tiposVinculo:[],categorias:r.categoria?[r.categoria]:[],idetabs:r.idetab?[r.idetab]:[],ideDmDevs:r.ideDmDev?[r.ideDmDev]:[],filesFolha:[],filesEsocial:[r.file],qtdFolha:0,qtdEsocial:1,observation:r.issue,sourceFolha:null,sourceEsocial:{rows:[r]}})}
+    const rank={'DADO INVÁLIDO NA FOLHA':0,'DADO INVÁLIDO NO ESOCIAL':0,'VALOR DIVERGENTE':1,'APENAS NA FOLHA':2,'APENAS NO ESOCIAL':3,'SEM RECIBO':4,'RECIBO PARCIAL':5,'OK':9};
+    out.sort((a,b)=>(rank[a.status]??8)-(rank[b.status]??8)||`${a.cpf}|${a.perApur}|${a.numFolha}|${a.rubrica}`.localeCompare(`${b.cpf}|${b.perApur}|${b.numFolha}|${b.rubrica}`));state.results=out;state.page=1;renderComparison();applyFilters();
+  }
+
+  function autoCompare(){if(state.folha.files.length&&state.esocial.files.length)compare()}
+  function statusClass(s){if(s==='OK')return'ok';if(s==='VALOR DIVERGENTE')return'valor';if(s==='APENAS NA FOLHA')return'folha';if(s==='APENAS NO ESOCIAL')return'esocial';if(s==='SEM RECIBO'||s==='RECIBO PARCIAL')return'recibo';return'invalido'}
+  function renderComparison(){
+    els.resultsPanel.style.display='block';const rows=state.results;const count=s=>rows.filter(r=>r.status===s).length;const divergent=rows.filter(r=>r.divergent).length;const validRows=rows.filter(r=>!r.status.startsWith('DADO INVÁLIDO'));const sumF=validRows.reduce((a,r)=>a+(r.valorFolha||0),0),sumE=validRows.reduce((a,r)=>a+(r.valorEsocial||0),0);const receiptIssues=validRows.filter(r=>r.receiptStatus==='SEM RECIBO'||r.receiptStatus==='RECIBO PARCIAL').length;
+    const stats=[['Chaves comparadas',validRows.length,'após consolidação'],['Itens OK',count('OK'),'valores e recibos'],['Divergências',divergent,'exibidas por padrão'],['Valor divergente',count('VALOR DIVERGENTE'),'acima da tolerância'],['Apenas na folha',count('APENAS NA FOLHA'),'ausentes no eSocial'],['Apenas no eSocial',count('APENAS NO ESOCIAL'),'ausentes na folha'],['Sem/recibo parcial',receiptIssues,'em qualquer situação'],['Diferença global',formatNumber(sumE-sumF),'eSocial − folha']];
+    els.summaryStats.innerHTML=stats.map(([l,v,s])=>`<div class="stat"><div class="label">${l}</div><div class="value">${v}</div><div class="sub">${s}</div></div>`).join('');
+    if(divergent===0)showMessage(els.comparisonMessage,'ok',`Comparação concluída: todas as ${count('OK').toLocaleString('pt-BR')} chaves conferem dentro da tolerância definida.`);else showMessage(els.comparisonMessage,'warn',`Comparação concluída: foram encontradas <strong>${divergent.toLocaleString('pt-BR')}</strong> divergência(s) em ${rows.length.toLocaleString('pt-BR')} resultado(s).`);
+    renderWarnings();
+  }
+
+  function applyFilters(){
+    const q=fold(els.searchInput.value),st=els.statusFilter.value,ev=els.eventFilter.value,only=els.onlyErrors.checked;
+    state.filtered=state.results.filter(r=>{if(only&&!r.divergent)return false;if(st&&r.status!==st)return false;if(ev&&r.event!==ev)return false;if(q){const hay=fold([r.status,r.cpf,r.perApur,r.numFolha,r.perRef,r.rubrica,r.receiptStatus,r.recibos.join(' '),r.event,r.matriculas.join(' '),r.ideDmDevs.join(' '),r.filesFolha.join(' '),r.filesEsocial.join(' '),r.observation].join(' '));if(!hay.includes(q))return false}return true});
+    const pageSize=Number(els.pageSize.value)||100;const max=Math.max(1,Math.ceil(state.filtered.length/pageSize));if(state.page>max)state.page=max;renderRows();
+  }
+  function renderRows(){
+    const size=Number(els.pageSize.value)||100,start=(state.page-1)*size,items=state.filtered.slice(start,start+size);els.resultsCount.textContent=`${state.filtered.length.toLocaleString('pt-BR')} resultado(s) na visualização · ${state.results.filter(r=>r.divergent).length.toLocaleString('pt-BR')} divergência(s) no total`;
+    if(!items.length)els.resultsBody.innerHTML='<tr><td colspan="13" class="empty">Nenhum item corresponde aos filtros atuais.</td></tr>';else els.resultsBody.innerHTML=items.map(r=>{
+      const receiptClass=r.receiptStatus==='COM RECIBO'?'ok':r.receiptStatus==='—'?'':'none';const matIde=[r.matriculas.join(', '),r.ideDmDevs.join(', ')].filter(Boolean).join(' ↔ ');
+      return `<tr><td><span class="status ${statusClass(r.status)}">${htmlEscape(r.status)}</span></td><td class="mono">${htmlEscape(r.cpf)}</td><td class="mono">${htmlEscape(r.perApur)}</td><td class="mono">${htmlEscape(r.numFolha)}</td><td class="mono">${htmlEscape(r.perRef)}</td><td class="mono"><strong>${htmlEscape(r.rubrica)}</strong></td><td class="num mono">${r.valorFolha===null?'—':formatNumber(r.valorFolha)}</td><td class="num mono">${r.valorEsocial===null?'—':formatNumber(r.valorEsocial)}</td><td class="num mono">${r.diferenca===null?'—':formatNumber(r.diferenca)}</td><td><span class="receipt ${receiptClass}">${htmlEscape(r.receiptStatus)}</span></td><td>${htmlEscape(r.event||'—')}</td><td class="mono" title="${htmlEscape(matIde)}">${htmlEscape(matIde.length>58?matIde.slice(0,58)+'…':matIde||'—')}</td><td><button class="secondary detail-btn" data-id="${htmlEscape(r.id)}" type="button">Abrir</button></td></tr>`}).join('');
+    $$('.detail-btn').forEach(b=>b.addEventListener('click',()=>openDetails(b.dataset.id)));const max=Math.max(1,Math.ceil(state.filtered.length/size));els.pageInfo.textContent=`Página ${state.page} de ${max}`;$('#btnPrev').disabled=state.page<=1;$('#btnNext').disabled=state.page>=max;
+  }
+
+  function renderWarnings(){const warnings=[...state.folha.warnings,...state.esocial.warnings];if(!warnings.length){els.warningsBox.innerHTML='<div class="message ok">Nenhum aviso estrutural foi identificado nos arquivos importados.</div>';return}els.warningsBox.innerHTML=`<details><summary>Avisos de importação (${warnings.length})</summary><div class="details-body"><ul>${warnings.slice(0,150).map(w=>`<li>${w}</li>`).join('')}</ul>${warnings.length>150?'<p class="hint">Exibindo os primeiros 150 avisos.</p>':''}</div></details>`}
+
+  function openDetails(id){const r=state.results.find(x=>x.id===id);if(!r)return;$('#detailsSubtitle').textContent=`${r.cpf||'Sem CPF'} · folha ${r.numFolha||'—'} · rubrica ${r.rubrica||'—'}`;const item=(k,v)=>`<div class="k">${k}</div><div class="v">${htmlEscape(v||'—')}</div>`;
+    $('#detailsBody').innerHTML=`<div class="detail-grid">${item('Status',r.status)}${item('Observação',r.observation)}${item('CPF',r.cpf)}${item('Competência',r.perApur)}${item('Número da folha',r.numFolha)}${item('Período de direito',r.perRef)}${item('Rubrica qualificada',r.rubrica)}${item('Valor folha',r.valorFolha===null?'—':formatNumber(r.valorFolha))}${item('Valor eSocial',r.valorEsocial===null?'—':formatNumber(r.valorEsocial))}${item('Diferença',r.diferenca===null?'—':formatNumber(r.diferenca))}${item('Situação do recibo',r.receiptStatus)}${item('Recibos/retornos',r.recibos.join(' | '))}${item('Evento(s)',r.event)}${item('Matrícula(s) da folha',r.matriculas.join(' | '))}${item('Tipo(s) de vínculo',r.tiposVinculo.join(' | '))}${item('Categoria(s) eSocial',r.categorias.join(' | '))}${item('Idetab Rubr',r.idetabs.join(' | '))}${item('Id Edm Dev',r.ideDmDevs.join(' | '))}${item('Arquivos da folha',r.filesFolha.join(' | '))}${item('Arquivos do eSocial',r.filesEsocial.join(' | '))}${item('Linhas consolidadas',`Folha: ${r.qtdFolha} · eSocial: ${r.qtdEsocial}`)}</div>`;openModal('detailsModal')}
+
+  function escapeCsv(v){const s=String(v??'');return /[;"\r\n]/.test(s)?`"${s.replaceAll('"','""')}"`:s}
+  function exportRows(rows,prefix){if(!rows.length){showMessage(els.comparisonMessage,'danger','Não há dados para exportar com o critério selecionado.');return}const headers=['status','cpf','mesAnoFolha','numFolha','mesAnoDireito','rubrica','valorFolha','valorEsocial','diferenca','situacaoRecibo','recibos','eventos','matriculasFolha','tiposVinculo','categoriasEsocial','idetabRubr','ideDmDev','arquivosFolha','arquivosEsocial','qtdLinhasFolha','qtdLinhasEsocial','observacao'];const lines=[headers.join(';')];for(const r of rows){const o=[r.status,r.cpf,r.perApur,r.numFolha,r.perRef,r.rubrica,formatCsvNumber(r.valorFolha),formatCsvNumber(r.valorEsocial),formatCsvNumber(r.diferenca),r.receiptStatus,r.recibos.join(' | '),r.event,r.matriculas.join(' | '),r.tiposVinculo.join(' | '),r.categorias.join(' | '),r.idetabs.join(' | '),r.ideDmDevs.join(' | '),r.filesFolha.join(' | '),r.filesEsocial.join(' | '),r.qtdFolha,r.qtdEsocial,r.observation];lines.push(o.map(escapeCsv).join(';'))}const blob=new Blob(['\uFEFF'+lines.join('\r\n')+'\r\n'],{type:'text/csv;charset=utf-8'});const a=document.createElement('a'),d=new Date(),stamp=`${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}_${String(d.getHours()).padStart(2,'0')}${String(d.getMinutes()).padStart(2,'0')}`;a.href=URL.createObjectURL(blob);a.download=`${prefix}_${stamp}.csv`;document.body.appendChild(a);a.click();URL.revokeObjectURL(a.href);a.remove()}
+
+  function openModal(id){document.getElementById(id)?.classList.add('open')}function closeModal(id){document.getElementById(id)?.classList.remove('open')}
+  function bindDrop(drop,input,handler){drop.addEventListener('dragover',e=>{e.preventDefault();drop.classList.add('dragover')});drop.addEventListener('dragleave',()=>drop.classList.remove('dragover'));drop.addEventListener('drop',e=>{e.preventDefault();drop.classList.remove('dragover');handler(e.dataTransfer.files)});input.addEventListener('change',e=>handler(e.target.files))}
+
+  $('#btnOpenFolha').addEventListener('click',()=>openModal('folhaModal'));$('#btnOpenEsocial').addEventListener('click',()=>openModal('esocialModal'));$('#btnClear').addEventListener('click',resetAll);$('#btnCompare').addEventListener('click',compare);$('#btnRules').addEventListener('click',()=>openModal('rulesModal'));
+  $$('[data-close]').forEach(b=>b.addEventListener('click',()=>closeModal(b.dataset.close)));$$('.modal').forEach(m=>m.addEventListener('click',e=>{if(e.target===m)closeModal(m.id)}));document.addEventListener('keydown',e=>{if(e.key==='Escape')$$('.modal.open').forEach(m=>closeModal(m.id))});
+  bindDrop(els.folhaDrop,els.folhaInput,importFolha);bindDrop(els.esocialDrop,els.esocialInput,importEsocial);
+  [els.tolerance,els.receiptAsError,els.decimalPlaces].forEach(x=>x.addEventListener('change',()=>{if(state.results.length||state.folha.files.length&&state.esocial.files.length)compare()}));
+  [els.searchInput,els.statusFilter,els.eventFilter,els.onlyErrors,els.pageSize].forEach(x=>x.addEventListener(x===els.searchInput?'input':'change',()=>{state.page=1;applyFilters()}));
+  $('#btnPrev').addEventListener('click',()=>{if(state.page>1){state.page--;renderRows()}});$('#btnNext').addEventListener('click',()=>{const max=Math.ceil(state.filtered.length/(Number(els.pageSize.value)||100));if(state.page<max){state.page++;renderRows()}});
+  $('#btnExportErrors').addEventListener('click',()=>exportRows(state.results.filter(r=>r.divergent),'divergencias_folha_esocial'));$('#btnExportFiltered').addEventListener('click',()=>exportRows(state.filtered,'comparacao_filtrada_folha_esocial'));
+  resetAll();
+})();
+</script>
+</body>
+</html>
