@@ -42,9 +42,9 @@
       <div class="card-body">
         <div class="form-group">
           <label for="fileInput"><strong>Carregar Arquivo(s) JSON:</strong></label>
-          <input type="file" id="fileInput" accept=".json" class="form-control-file" multiple />
+          <input type="file" id="fileInput" accept=".json,application/json" class="form-control-file" multiple />
           <div class="small-hint mt-2">
-            O(s) arquivo(s) deve(m) conter: <span class="mono">{"s1210PagtoRendTrabGroup":{"s1210PagtoRendTrab":[...]}}</span>. É possível selecionar 2 ou mais JSON de uma vez; a saída será um único arquivo com todos os eventos, sem consolidação.
+            São aceitos somente arquivos <span class="mono">.json</span> cujo nome comece com <span class="mono">S-1210_</span>. O conteúdo deve possuir <span class="mono">{"s1210PagtoRendTrabGroup":{"s1210PagtoRendTrab":[...]}}</span>. É possível selecionar 2 ou mais arquivos; a saída será um único JSON com todos os eventos, sem consolidação.
           </div>
           <div class="small-hint mt-2">
             <strong>Integridade:</strong> o salvamento aplica <em>patch</em> (atualiza apenas chaves editadas; não injeta chaves ausentes com arrays vazios) e preserva a ordem original das propriedades já existentes no JSON.
@@ -52,7 +52,7 @@
         </div>
         <div class="btn-group-custom">
           <button id="downloadBtn" class="btn btn-info"><i class="fas fa-download"></i> Baixar Edição</button>
-          <button id="cpfRemoveBtn" class="btn btn-danger" data-toggle="modal" data-target="#cpfRemoveModal"><i class="fas fa-user-times"></i> Excluir por lista de CPFs</button>
+          <button id="cpfRemoveBtn" class="btn btn-danger" data-toggle="modal" data-target="#cpfRemoveModal"><i class="fas fa-filter"></i> Filtrar Trabalhadores (CPF)</button>
           <button id="ircrSyncBtn" class="btn btn-warning" data-toggle="modal" data-target="#ircrSyncModal"><i class="fas fa-balance-scale"></i> Sincronizar IRCR Ded/Pensão</button>
           <button id="depSyncBtn" class="btn btn-primary" data-toggle="modal" data-target="#depSyncModal"><i class="fas fa-user-plus"></i> Sincronizar Dependentes</button>
           <button id="liqSyncBtn" class="btn btn-success" data-toggle="modal" data-target="#liqSyncModal"><i class="fas fa-coins"></i> Sincronizar Líquidos</button>
@@ -199,24 +199,31 @@
       </div>
     </div>
 
-    <!-- Modal: Excluir por lista de CPFs -->
+    <!-- Modal: Filtrar trabalhadores por lista de CPFs -->
     <div class="modal fade" id="cpfRemoveModal" tabindex="-1" aria-labelledby="cpfRemoveModalLabel" aria-hidden="true">
       <div class="modal-dialog modal-lg" style="max-width: 850px;">
         <div class="modal-content">
           <div class="modal-header">
-            <h5 class="modal-title" id="cpfRemoveModalLabel">Excluir eventos por lista de CPFs</h5>
+            <h5 class="modal-title" id="cpfRemoveModalLabel">Filtrar Trabalhadores (CPF)</h5>
             <button type="button" class="close" data-dismiss="modal" aria-label="Fechar"><span aria-hidden="true">&times;</span></button>
           </div>
           <div class="modal-body">
-            <div class="alert alert-warning">
-              Esta operação remove eventos cujo <strong>trabalhador.cpfTrab</strong> (Identificação do Evento) esteja na lista.
-              A remoção preserva os demais registros integralmente.
+            <div class="alert alert-info">
+              O filtro atua sobre <strong>trabalhador.cpfTrab</strong> e preserva integralmente os eventos que permanecerem no arquivo.
             </div>
 
-            <div class="small-hint mb-3">Cole abaixo os CPFs (1 por linha). O sistema normaliza para 11 dígitos (zeros à esquerda quando necessário) e remove eventos cujo <span class="mono">trabalhador.cpfTrab</span> corresponda.</div>
+            <div class="form-group">
+              <label for="cpfFilterMode"><strong>Modo de operação</strong></label>
+              <select id="cpfFilterMode" class="form-control">
+                <option value="keep">Manter somente os CPFs informados (remover todos os demais)</option>
+                <option value="exclude" selected>Excluir os CPFs informados (manter todos os demais)</option>
+              </select>
+            </div>
+
+            <div class="small-hint mb-3">Cole os CPFs, um por linha. O sistema normaliza cada CPF para 11 dígitos, completando zeros à esquerda quando necessário.</div>
 
             <div class="form-group">
-              <label><strong>Ou cole os CPFs (1 por linha):</strong></label>
+              <label><strong>Cole os CPFs (1 por linha):</strong></label>
               <textarea id="cpfTextarea" class="form-control mono" rows="6" placeholder="Ex:
 01234567890
 1234567890
@@ -231,7 +238,7 @@
           </div>
           <div class="modal-footer">
             <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
-            <button type="button" class="btn btn-danger" id="applyCpfRemovalBtn"><i class="fas fa-trash"></i> Excluir registros encontrados</button>
+            <button type="button" class="btn btn-danger" id="applyCpfRemovalBtn"><i class="fas fa-filter"></i> Aplicar filtro</button>
           </div>
         </div>
       </div>
@@ -277,13 +284,15 @@
             <div class="form-row">
               <div class="form-group col-md-6">
                 <label><strong>CSV - Dedução de Dependente IR</strong></label>
-                <input type="file" id="ircrDedFileInput" accept=".csv,.txt" class="form-control-file mb-2">
+                <input type="file" id="ircrDedFileInput" accept=".csv,text/csv" class="form-control-file mb-2">
+                <div class="small-hint mb-2">Nome obrigatório iniciado por <span class="mono">LISTA_GM ESO S1210 DEDDEP</span> ou <span class="mono">GM ESO S1210 DEDDEP</span>.</div>
                 <textarea id="ircrDedTextarea" class="form-control mono" rows="8" placeholder="matric;mes_referencia;cpftrab;cpf;vlrDedDep
 850.002-7;01/2025;77097122749;59069740753;189,59"></textarea>
               </div>
               <div class="form-group col-md-6">
                 <label><strong>CSV - Pensão Alimentícia IR</strong></label>
-                <input type="file" id="ircrPenFileInput" accept=".csv,.txt" class="form-control-file mb-2">
+                <input type="file" id="ircrPenFileInput" accept=".csv,text/csv" class="form-control-file mb-2">
+                <div class="small-hint mb-2">Nome obrigatório iniciado por <span class="mono">LISTA_GM ESO S1210 PENSAO</span> ou <span class="mono">GM ESO S1210 PENSAO</span>.</div>
                 <textarea id="ircrPenTextarea" class="form-control mono" rows="8" placeholder="matric;mes_referencia;complemento;valor;cpf_func;cpf_dep
 850.029-0;02/2025;1;3515,48;96431490720;11118852737"></textarea>
               </div>
@@ -346,8 +355,9 @@
             <div class="small-hint mb-3">Cole a base abaixo (uma linha por registro), separada por <span class="mono">;</span>. Formato principal com cabeçalho: <span class="mono">CPFTRAB;CPF;NUMDEP;DTNASCTO;NOMEDEP;TIPODEP;PARENTESCO</span>. A rotina usa <span class="mono">TIPODEP</span> como origem de <span class="mono">tpDep.codigo</span> e, quando <span class="mono">TIPODEP=99</span>, usa <span class="mono">PARENTESCO</span> como origem de <span class="mono">descrDep</span>. CPFs são normalizados para 11 dígitos.</div>
 
             <div class="form-group">
-              <label><strong>Escolher arquivo CSV/TXT da base de dependentes:</strong></label>
-              <input type="file" id="depFileInput" accept=".csv,.txt" class="form-control-file mb-2">
+              <label><strong>Escolher arquivo CSV da base de dependentes:</strong></label>
+              <input type="file" id="depFileInput" accept=".csv,text/csv" class="form-control-file mb-2">
+              <div class="small-hint mb-2">Nome obrigatório iniciado por <span class="mono">LISTA_GM ESO S1210 DEPEND</span> ou <span class="mono">GM ESO S1210 DEPEND</span>.</div>
               <label><strong>Ou cole a base (uma linha por registro):</strong></label>
               <textarea id="depTextarea" class="form-control mono" rows="7" placeholder="CPFTRAB;CPF;NUMDEP;DTNASCTO;NOMEDEP;TIPODEP;PARENTESCO"></textarea>
             </div>
@@ -417,8 +427,9 @@
             </div>
 
             <div class="form-group">
-              <label><strong>Escolher arquivo CSV/TXT da base de líquidos:</strong></label>
-              <input type="file" id="liqFileInput" accept=".csv,.txt" class="form-control-file mb-2">
+              <label><strong>Escolher arquivo CSV da base de líquidos:</strong></label>
+              <input type="file" id="liqFileInput" accept=".csv,text/csv" class="form-control-file mb-2">
+              <div class="small-hint mb-2">Nome obrigatório iniciado por <span class="mono">S1200_S1202_consolidado_vrLiq</span>.</div>
               <label><strong>Ou cole a base (uma linha por registro):</strong></label>
               <textarea id="liqTextarea" class="form-control mono" rows="7" placeholder="Ex:
 01234567890;4;2024-12-01;855.393-5-11-NORMAL-122024;3419.3400;2025-01-03"></textarea>
@@ -627,6 +638,60 @@
     // ============================================================================
     // Carregar arquivo
     // ============================================================================
+    const IMPORT_FILE_RULES = {
+      mainJson: {
+        extension: ".json",
+        prefixes: ["S-1210_"],
+        description: 'arquivo JSON iniciado por "S-1210_"'
+      },
+      dedDep: {
+        extension: ".csv",
+        prefixes: ["LISTA_GM ESO S1210 DEDDEP", "GM ESO S1210 DEDDEP"],
+        description: 'CSV iniciado por "LISTA_GM ESO S1210 DEDDEP" ou "GM ESO S1210 DEDDEP"'
+      },
+      depend: {
+        extension: ".csv",
+        prefixes: ["LISTA_GM ESO S1210 DEPEND", "GM ESO S1210 DEPEND"],
+        description: 'CSV iniciado por "LISTA_GM ESO S1210 DEPEND" ou "GM ESO S1210 DEPEND"'
+      },
+      dtPagto: {
+        extension: ".csv",
+        prefixes: ["LISTA_GM ESO S1210 DTPAGTO", "GM ESO S1210 DTPAGTO"],
+        description: 'CSV iniciado por "LISTA_GM ESO S1210 DTPAGTO" ou "GM ESO S1210 DTPAGTO"'
+      },
+      pensao: {
+        extension: ".csv",
+        prefixes: ["LISTA_GM ESO S1210 PENSAO", "GM ESO S1210 PENSAO"],
+        description: 'CSV iniciado por "LISTA_GM ESO S1210 PENSAO" ou "GM ESO S1210 PENSAO"'
+      },
+      liquidos: {
+        extension: ".csv",
+        prefixes: ["S1200_S1202_consolidado_vrLiq"],
+        description: 'CSV iniciado por "S1200_S1202_consolidado_vrLiq"'
+      }
+    };
+
+    function importFileMatchesRule(file, ruleKey) {
+      const rule = IMPORT_FILE_RULES[ruleKey];
+      if (!file || !rule) return false;
+      const name = String(file.name || "");
+      const lowerName = name.toLocaleLowerCase("pt-BR");
+      const extensionOk = lowerName.endsWith(rule.extension.toLocaleLowerCase("pt-BR"));
+      const prefixOk = rule.prefixes.some(prefix => lowerName.startsWith(prefix.toLocaleLowerCase("pt-BR")));
+      return extensionOk && prefixOk;
+    }
+
+    function rejectInvalidSelectedFiles(input, files, ruleKey) {
+      const rule = IMPORT_FILE_RULES[ruleKey];
+      const invalid = Array.from(files || []).filter(file => !importFileMatchesRule(file, ruleKey));
+      if (!invalid.length) return false;
+
+      const names = invalid.map(file => file.name).join("\n- ");
+      alert(`Arquivo(s) não aceito(s):\n- ${names}\n\nSelecione ${rule.description}.`);
+      if (input) input.value = "";
+      return true;
+    }
+
     function readJsonFileAsText(file) {
       return new Promise((resolve, reject) => {
         const reader = new FileReader();
@@ -651,8 +716,10 @@
     }
 
     document.getElementById("fileInput").addEventListener("change", async function () {
-      const files = Array.from(this.files || []).filter(f => f && f.name && f.name.toLowerCase().endsWith(".json"));
-      if (!files.length) return;
+      const selectedFiles = Array.from(this.files || []);
+      if (!selectedFiles.length) return;
+      if (rejectInvalidSelectedFiles(this, selectedFiles, "mainJson")) return;
+      const files = selectedFiles;
 
       try {
         const parsedFiles = [];
@@ -1678,50 +1745,77 @@ function isValidCNPJ(cnpj) {
       // não auto-mescla a cada tecla para evitar "travadas" em colagens grandes
     });
 
+    function updateCpfFilterUi() {
+      const mode = document.getElementById("cpfFilterMode")?.value || "exclude";
+      const button = document.getElementById("applyCpfRemovalBtn");
+      if (!button) return;
+
+      if (mode === "keep") {
+        button.className = "btn btn-primary";
+        button.innerHTML = '<i class="fas fa-filter"></i> Manter somente os informados';
+      } else {
+        button.className = "btn btn-danger";
+        button.innerHTML = '<i class="fas fa-user-times"></i> Excluir os informados';
+      }
+    }
+
+    document.getElementById("cpfFilterMode").addEventListener("change", updateCpfFilterUi);
+
     $('#cpfRemoveModal').on('shown.bs.modal', function () {
       cachedCpfSet = new Set();
-      
       document.getElementById("cpfTextarea").value = "";
+      document.getElementById("cpfFilterMode").value = "exclude";
       updateCpfPreview();
+      updateCpfFilterUi();
     });
 
     document.getElementById("applyCpfRemovalBtn").addEventListener("click", () => {
-      // incorpora textarea
       const pasted = document.getElementById("cpfTextarea").value || "";
       const pastedSet = extractCpfsFromText(pasted);
       cachedCpfSet = new Set([...cachedCpfSet, ...pastedSet]);
       updateCpfPreview();
 
       if (cachedCpfSet.size === 0) {
-        alert("Nenhum CPF válido foi identificado. Verifique o CSV/texto.");
+        alert("Nenhum CPF válido foi identificado. Verifique a lista informada.");
         return;
       }
 
+      const mode = document.getElementById("cpfFilterMode")?.value || "exclude";
       const eventos = getEventos();
       const before = eventos.length;
-
-      const removedCpfs = new Set();
       const kept = [];
+      const foundCpfs = new Set();
 
       for (const evt of eventos) {
         const cpfTrab = evt?.trabalhador?.cpfTrab;
         const norm = normalizeCpf(cpfTrab);
-        if (norm && cachedCpfSet.has(norm)) {
-          removedCpfs.add(norm);
-          continue; // remove evento
-        }
-        kept.push(evt);
+        const listed = !!(norm && cachedCpfSet.has(norm));
+        if (listed) foundCpfs.add(norm);
+
+        const shouldKeep = mode === "keep" ? listed : !listed;
+        if (shouldKeep) kept.push(evt);
       }
+
+      const removedCount = before - kept.length;
+      const confirmationText = mode === "keep"
+        ? `Serão mantidos ${kept.length} evento(s) e removidos ${removedCount}. Deseja continuar?`
+        : `Serão removidos ${removedCount} evento(s) e mantidos ${kept.length}. Deseja continuar?`;
+
+      if (!confirm(confirmationText)) return;
 
       window.esocialData.s1210PagtoRendTrabGroup.s1210PagtoRendTrab = kept;
       renderEventosTable();
       $("#cpfRemoveModal").modal("hide");
 
-      const removedCount = before - kept.length;
+      const modeDescription = mode === "keep"
+        ? "Mantidos somente os CPFs informados"
+        : "Excluídos os CPFs informados";
+
       setStatus(
         `<div class="alert alert-success mb-0">
-          Registros removidos: <strong>${removedCount}</strong> (CPFs distintos encontrados: ${removedCpfs.size}).<br/>
-          Critério: trabalhador.cpfTrab (normalizado para 11 dígitos).
+          <strong>${modeDescription}.</strong><br/>
+          Eventos mantidos: <strong>${kept.length}</strong> | Eventos removidos: <strong>${removedCount}</strong> | CPFs informados encontrados: <strong>${foundCpfs.size}</strong>.<br/>
+          Critério: trabalhador.cpfTrab normalizado para 11 dígitos.
         </div>`
       );
     });
@@ -2406,23 +2500,24 @@ function ircrApply() {
   </div>`);
 }
 
-function ircrAttachFileLoader(inputId, textareaId) {
+function ircrAttachFileLoader(inputId, textareaId, ruleKey) {
   const input = document.getElementById(inputId);
   if (!input) return;
   input.addEventListener("change", function () {
     const file = this.files && this.files[0];
     if (!file) return;
+    if (rejectInvalidSelectedFiles(this, [file], ruleKey)) return;
     const reader = new FileReader();
     reader.onload = function (e) {
       document.getElementById(textareaId).value = e.target.result || "";
       ircrReadInputs();
     };
-    reader.readAsText(file);
+    reader.readAsText(file, "UTF-8");
   });
 }
 
-ircrAttachFileLoader("ircrDedFileInput", "ircrDedTextarea");
-ircrAttachFileLoader("ircrPenFileInput", "ircrPenTextarea");
+ircrAttachFileLoader("ircrDedFileInput", "ircrDedTextarea", "dedDep");
+ircrAttachFileLoader("ircrPenFileInput", "ircrPenTextarea", "pensao");
 
 ["ircrDedTextarea", "ircrPenTextarea", "ircrTargetTpCrInput", "ircrTpRendInput"].forEach((id) => {
   const el = document.getElementById(id);
@@ -3965,7 +4060,7 @@ function liqGarantirTipoCompetencia(detPag, ideDmDev, dtPgto) {
   const atual = String(detPag?.tipoCompetencia ?? "").trim().toUpperCase();
 
   // Valores válidos vindos do JSON são preservados integralmente.
-  if (liqTipoCompetenciaValido(atual)) return false;
+  if (atual === "M" || atual === "A") return false;
 
   // Campo vazio, token de vazio ou valor inválido (por exemplo, "13") é corrigido.
   setIfChanged(detPag, "tipoCompetencia", liqInferTipoCompetencia(ideDmDev, dtPgto));
@@ -4637,13 +4732,14 @@ function liqApply(plan) {
   };
 }
 
-function attachCsvTextFileLoader(inputId, textareaId, afterLoad) {
+function attachCsvTextFileLoader(inputId, textareaId, ruleKey, afterLoad) {
   const input = document.getElementById(inputId);
   const textarea = document.getElementById(textareaId);
   if (!input || !textarea) return;
   input.addEventListener("change", function () {
     const file = this.files && this.files[0];
     if (!file) return;
+    if (rejectInvalidSelectedFiles(this, [file], ruleKey)) return;
     const reader = new FileReader();
     reader.onload = function (e) {
       textarea.value = e.target.result || "";
@@ -4653,13 +4749,13 @@ function attachCsvTextFileLoader(inputId, textareaId, afterLoad) {
   });
 }
 
-attachCsvTextFileLoader("depFileInput", "depTextarea", () => {
+attachCsvTextFileLoader("depFileInput", "depTextarea", "depend", () => {
   depBaseMap = new Map();
   depPlan = null;
   document.getElementById("depReport").textContent = "";
 });
 
-attachCsvTextFileLoader("liqFileInput", "liqTextarea", () => {
+attachCsvTextFileLoader("liqFileInput", "liqTextarea", "liquidos", () => {
   liqBaseRows = [];
   liqBaseIndex = new Map();
   liqBaseByCpf = new Map();
