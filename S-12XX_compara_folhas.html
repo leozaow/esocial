@@ -38,7 +38,7 @@
     .stat .label{color:var(--muted);font-size:.76rem;font-weight:800;text-transform:uppercase;letter-spacing:.045em}.stat .value{margin-top:5px;font-size:1.32rem;font-weight:880;color:#101828;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.stat .sub{margin-top:2px;color:var(--muted);font-size:.79rem}
     .controls{display:grid;grid-template-columns:180px 1fr 210px 210px;gap:11px;align-items:end}
     .field{display:grid;gap:6px;font-weight:760;color:#344054;font-size:.88rem}
-    input[type="text"],input[type="number"],select{width:100%;min-height:40px;border:1px solid var(--line);border-radius:10px;background:#fff;color:var(--text);padding:9px 10px;font:inherit}
+    input[type="text"],input[type="number"],select{width:100%;min-height:40px;border:1px solid var(--line);border-radius:10px;background:#fff;color:var(--text);padding:9px 10px;font:inherit} input:disabled,select:disabled{background:#f2f4f7;color:#475467;opacity:1;cursor:not-allowed}
     input[type="checkbox"]{width:18px;height:18px;accent-color:var(--brand);cursor:pointer}
     .check-field{display:flex;gap:8px;align-items:center;min-height:40px;padding:8px 10px;border:1px solid var(--line);border-radius:10px;background:#fff;font-size:.88rem;font-weight:700;color:#344054}
     .table-wrap{overflow:auto;border:1px solid var(--line);border-radius:15px;background:#fff;max-height:590px}
@@ -47,7 +47,7 @@
     th{position:sticky;top:0;background:#f8fafc;color:#344054;z-index:2;font-size:.73rem;text-transform:uppercase;letter-spacing:.05em}
     tr:last-child td{border-bottom:0} tr:hover td{background:#fbfdff}.num{text-align:right;font-variant-numeric:tabular-nums}
     .status{display:inline-flex;align-items:center;padding:4px 8px;border-radius:999px;font-size:.73rem;font-weight:850;letter-spacing:.015em}
-    .status.ok{background:#dcfae6;color:var(--ok)}.status.valor{background:#fee4e2;color:var(--danger)}.status.folha{background:#fef0c7;color:var(--warn)}.status.esocial{background:#eee7ff;color:var(--purple)}.status.recibo{background:#ffead5;color:#9a3412}.status.invalido{background:#f2f4f7;color:#344054}
+    .status.ok{background:#dcfae6;color:var(--ok)}.status.ajuste{background:#e0f2fe;color:#075985}.status.valor{background:#fee4e2;color:var(--danger)}.status.folha{background:#fef0c7;color:var(--warn)}.status.esocial{background:#eee7ff;color:var(--purple)}.status.recibo{background:#ffead5;color:#9a3412}.status.invalido{background:#f2f4f7;color:#344054}
     .receipt{font-size:.76rem;font-weight:800}.receipt.ok{color:var(--ok)}.receipt.warn{color:var(--warn)}.receipt.none{color:var(--danger)}
     .filter-grid{display:grid;grid-template-columns:1.5fr 240px 200px 210px;gap:11px;align-items:end;margin-bottom:13px}
     .results-head{display:flex;justify-content:space-between;gap:12px;align-items:center;margin:12px 0 10px}.results-count{color:var(--muted);font-size:.9rem}
@@ -67,7 +67,7 @@
   <header>
     <div>
       <h1>Comparador de Rubricas — Folha x eSocial</h1>
-      <p class="subtitle">Compare as rubricas do sistema de pagamento com os itens exportados dos eventos <strong>S-1202</strong> e <strong>S1200</strong>. A ferramenta normaliza datas, identifica o número da folha no <code>Id Edm Dev</code>, converte a rubrica da folha para <code>V</code>, <code>D</code> ou <code>A</code>, consolida valores e evidencia somente as divergências.</p>
+      <p class="subtitle">Compare as rubricas do sistema de pagamento com os itens exportados dos eventos <strong>S-1202</strong> e <strong>S1200</strong>. A ferramenta verifica se cada rubrica existe nos dois lados, normaliza datas, identifica o número da folha no <code>Id Edm Dev</code>, converte a rubrica da folha para <code>V</code>, <code>D</code> ou <code>A</code>, compara valores exatamente em centavos e evidencia as divergências.</p>
     </div>
     <span class="badge">CPF + competência + folha + direito + rubrica</span>
   </header>
@@ -105,11 +105,11 @@
       <div class="panel-body">
         <div class="controls">
           <label class="field">Tolerância de valor (R$)
-            <input type="number" id="tolerance" min="0" step="0.01" value="0.01" />
+            <input type="number" id="tolerance" value="0.00" disabled title="Comparação exata: qualquer diferença de R$ 0,01 é divergência" />
           </label>
           <label class="check-field"><input type="checkbox" id="receiptAsError" checked /> Considerar ausência de recibo como divergência</label>
-          <label class="field">Casas decimais na tela
-            <select id="decimalPlaces"><option value="2" selected>2 casas</option><option value="4">4 casas</option></select>
+          <label class="field">Casas decimais
+            <select id="decimalPlaces" disabled><option value="2" selected>2 casas — centavos</option></select>
           </label>
           <div class="field"><span>&nbsp;</span><button class="secondary" id="btnRules" type="button">Ver regras aplicadas</button></div>
         </div>
@@ -133,7 +133,7 @@
           </label>
           <label class="field">Status
             <select id="statusFilter">
-              <option value="">Todos</option><option value="OK">OK</option><option value="VALOR DIVERGENTE">Valor divergente</option><option value="APENAS NA FOLHA">Apenas na folha</option><option value="APENAS NO ESOCIAL">Apenas no eSocial</option><option value="SEM RECIBO">Sem recibo</option><option value="RECIBO PARCIAL">Recibo parcial</option><option value="DADO INVÁLIDO NA FOLHA">Dado inválido na folha</option><option value="DADO INVÁLIDO NO ESOCIAL">Dado inválido no eSocial</option>
+              <option value="">Todos</option><option value="OK">OK</option><option value="AJUSTE 998V VÁLIDO">Ajuste 998V válido</option><option value="VALOR DIVERGENTE">Valor divergente</option><option value="APENAS NA FOLHA">Apenas na folha</option><option value="APENAS NO ESOCIAL">Apenas no eSocial</option><option value="SEM RECIBO">Sem recibo</option><option value="RECIBO PARCIAL">Recibo parcial</option><option value="DADO INVÁLIDO NA FOLHA">Dado inválido na folha</option><option value="DADO INVÁLIDO NO ESOCIAL">Dado inválido no eSocial</option>
             </select>
           </label>
           <label class="field">Evento
@@ -161,7 +161,7 @@
   <div class="modal-card"><div class="modal-head"><div><h2>Importar CSV da folha</h2><p>Selecione um ou mais arquivos do sistema de pagamento.</p></div><button class="secondary close-x" data-close="folhaModal">✕</button></div><div class="modal-body">
     <label class="dropzone" id="folhaDrop" for="folhaInput"><div><strong>Clique para selecionar ou arraste aqui</strong><span>Somente arquivos CSV com prefixo LISTA_GM ESO S12XX FOLHAS serão processados.</span></div></label>
     <input id="folhaInput" type="file" accept=".csv,text/csv" multiple />
-    <div class="message info">A rubrica da folha será convertida conforme TIPORUBR e sinal do valor. O valor será sempre comparado em módulo.</div>
+    <div class="message info">A rubrica da folha será convertida conforme TIPORUBR e sinal do valor. Cada rubrica será comparada em módulo e com precisão exata de centavos.</div>
   </div></div>
 </div>
 
@@ -181,7 +181,10 @@
   <div class="modal-card"><div class="modal-head"><div><h2>Regras aplicadas</h2><p>Critérios técnicos utilizados na normalização e comparação.</p></div><button class="secondary close-x" data-close="rulesModal">✕</button></div><div class="modal-body">
     <div class="message"><strong>Chave de comparação:</strong> CPF + competência da folha + número da folha + período de direito + rubrica qualificada.</div>
     <div class="message"><strong>Rubrica da folha:</strong> AUXILIARES positivo = A; DESCONTOS/CONSIGNATARIAS positivo = D e negativo = V; VANTAGENS positivo = V e negativo = D.</div>
-    <div class="message"><strong>Valores:</strong> tanto a folha quanto o eSocial são comparados pelo valor absoluto. Linhas da mesma chave são somadas antes da comparação.</div>
+    <div class="message"><strong>Valores:</strong> folha e eSocial são comparados pelo valor absoluto, após arredondamento monetário para 2 casas. A tolerância é fixa em R$ 0,00: diferença de R$ 0,01 já é divergência.</div>
+    <div class="message"><strong>Objetivo principal:</strong> confirmar que todas as rubricas qualificadas existem na folha e no eSocial. Itens exclusivos de qualquer lado são divergências, salvo a exceção técnica validada da rubrica 998V.</div>
+    <div class="message"><strong>Rubricas auxiliares:</strong> são comparadas normalmente como itens <code>A</code>, mas não participam do cálculo do valor líquido do demonstrativo.</div>
+    <div class="message"><strong>Exceção 998V:</strong> a validação reúne todas as rubricas de vantagem e desconto do mesmo <code>Id Edm Dev</code>, independentemente de existirem várias <code>Per Ref</code>. AUX e a própria 998V ficam fora do líquido-base. A 998V é válida quando zera exatamente o resultado negativo do demonstrativo; o ano de direito é exibido como indício da separação RRA, mas não limita a análise, pois a separação também pode ocorrer dentro do mesmo ano.</div>
     <div class="message"><strong>Datas:</strong> formatos brasileiros, ISO e timestamps do S1200 são normalizados para o primeiro dia do mês no padrão AAAA-MM-01.</div>
     <div class="message"><strong>Id Edm Dev:</strong> o número da folha é o conteúdo entre o segundo e o terceiro hífen. Assim, 855.996-5-11-NORMAL-032025-2 resulta na folha 11.</div>
     <div class="message"><strong>Recibo:</strong> Recibo (S-1202) e retorno (S1200) são tratados como o mesmo campo. A ausência pode ser marcada como divergência.</div>
@@ -197,7 +200,7 @@
     matric:['MATRIC'], cpf:['CPF'], tipovinc:['TIPOVINC'], perApur:['MES_ANO_FOLHA'], numFolha:['NUM_FOLHA'], perRef:['MES_ANO_DIREITO'], rubrica:['RUBRICA'], tiporubr:['TIPORUBR'], valor:['SUM(FR.VALOR)','SUM FR VALOR']
   };
   const ESOCIAL_ALIASES = {
-    recibo:['Recibo','retorno'], cpf:['CPF Trabalhador','cpftrab'], categoria:['Categoria','categoria'], perApur:['Per. Apur','perapur'], ideDmDev:['Id Edm Dev','idedmdev'], perRef:['Per Ref','perref'], rubrica:['Cod Rubr','codrubr'], idetab:['Idetab Rubr','idetabrubr'], valor:['Vlr Rubr','vrrubr']
+    recibo:['Recibo','retorno'], cpf:['CPF Trabalhador','cpftrab'], categoria:['Categoria','categoria'], perApur:['Per. Apur','perapur'], ideDmDev:['Id Edm Dev','idedmdev'], indRRA:['Ind RRA','indrra'], perRef:['Per Ref','perref'], rubrica:['Cod Rubr','codrubr'], idetab:['Idetab Rubr','idetabrubr'], valor:['Vlr Rubr','vrrubr']
   };
   const REQUIRED_FOLHA = Object.keys(FOLHA_ALIASES);
   const REQUIRED_ESOCIAL = ['recibo','cpf','perApur','ideDmDev','perRef','rubrica','valor'];
@@ -222,8 +225,12 @@
   function clean(v){return String(v??'').trim().replace(/\s+/g,' ')}
   function showMessage(el,type,text){el.innerHTML=`<div class="message ${type}">${text}</div>`}
   function round(value,places=2){const p=10**places;return Math.round((value+Number.EPSILON)*p)/p}
-  function formatNumber(value){if(value===null||value===undefined||!Number.isFinite(value))return '';const p=Number(els.decimalPlaces.value||2);return round(value,p).toLocaleString('pt-BR',{minimumFractionDigits:p,maximumFractionDigits:p})}
+  function toCents(value){return Math.round((Number(value)+Number.EPSILON)*100)}
+  function fromCents(cents){return Number(cents||0)/100}
+  function formatNumber(value){if(value===null||value===undefined||!Number.isFinite(value))return '';return round(value,2).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}
   function formatCsvNumber(value){if(value===null||value===undefined||!Number.isFinite(value))return '';return round(value,2).toFixed(2).replace('.',',')}
+  function rubricaNature(rubrica){const m=String(rubrica||'').toUpperCase().match(/([VDA])$/);return m?m[1]:''}
+  function signedCents(rubrica,valueCents){const n=rubricaNature(rubrica);if(n==='V')return valueCents;if(n==='D')return -valueCents;return 0}
   function normalizeCpf(v){const d=String(v??'').replace(/\D/g,'');return d ? (d.length<=11?d.padStart(11,'0'):d) : ''}
   function normalizeCodeBase(v){let s=clean(v).toUpperCase().replace(/\s+/g,'');if(/^\d+\.0+$/.test(s))s=s.split('.')[0];if(/^0+\d+$/.test(s))s=String(Number(s));return s}
 
@@ -297,11 +304,11 @@
     for(const file of files){if(!isFolhaFile(file.name)){state.folha.warnings.push(`${htmlEscape(file.name)}: nome incompatível; arquivo ignorado.`);continue}
       try{const parsed=parseCsv(decode(await file.arrayBuffer()));const missing=missingFields(parsed.headers,FOLHA_ALIASES,REQUIRED_FOLHA);if(missing.length){state.folha.warnings.push(`${htmlEscape(file.name)}: colunas obrigatórias ausentes: ${missing.join(', ')}.`);continue}
         const idx=headerIndex(parsed.headers);state.folha.files.push({name:file.name,rows:parsed.records.length});
-        for(const r of parsed.records){state.folha.total++;const context=`${file.name}, linha ${r.__line}`;const rawValue=getAlias(r,idx,FOLHA_ALIASES.valor);const value=parseMoney(rawValue);const row={side:'FOLHA',file:file.name,line:r.__line,matric:clean(getAlias(r,idx,FOLHA_ALIASES.matric)),cpf:normalizeCpf(getAlias(r,idx,FOLHA_ALIASES.cpf)),tipovinc:clean(getAlias(r,idx,FOLHA_ALIASES.tipovinc)),perApur:normalizePeriod(getAlias(r,idx,FOLHA_ALIASES.perApur)),numFolha:clean(getAlias(r,idx,FOLHA_ALIASES.numFolha)).replace(/\.0+$/,''),perRef:normalizePeriod(getAlias(r,idx,FOLHA_ALIASES.perRef)),rubricaBase:normalizeCodeBase(getAlias(r,idx,FOLHA_ALIASES.rubrica)),tiporubr:clean(getAlias(r,idx,FOLHA_ALIASES.tiporubr)),rawValue,value:value===null?null:Math.abs(value),signedValue:value,issue:''};
+        for(const r of parsed.records){state.folha.total++;const context=`${file.name}, linha ${r.__line}`;const rawValue=getAlias(r,idx,FOLHA_ALIASES.valor);const value=parseMoney(rawValue);const valueCents=value===null?null:Math.abs(toCents(value));const row={side:'FOLHA',file:file.name,line:r.__line,matric:clean(getAlias(r,idx,FOLHA_ALIASES.matric)),cpf:normalizeCpf(getAlias(r,idx,FOLHA_ALIASES.cpf)),tipovinc:clean(getAlias(r,idx,FOLHA_ALIASES.tipovinc)),perApur:normalizePeriod(getAlias(r,idx,FOLHA_ALIASES.perApur)),numFolha:clean(getAlias(r,idx,FOLHA_ALIASES.numFolha)).replace(/\.0+$/,''),perRef:normalizePeriod(getAlias(r,idx,FOLHA_ALIASES.perRef)),rubricaBase:normalizeCodeBase(getAlias(r,idx,FOLHA_ALIASES.rubrica)),tiporubr:clean(getAlias(r,idx,FOLHA_ALIASES.tiporubr)),rawValue,value:valueCents===null?null:fromCents(valueCents),valueCents,signedValue:value,issue:''};
           row.rubrica= value===null?'':deriveFolhaRubrica(row.rubricaBase,row.tiporubr,value);
           const issues=[];if(!row.cpf)issues.push('CPF inválido');if(!row.perApur)issues.push('MES_ANO_FOLHA inválido');if(!/^\d+$/.test(row.numFolha))issues.push('NUM_FOLHA inválido');if(!row.perRef)issues.push('MES_ANO_DIREITO inválido');if(value===null)issues.push('valor inválido');if(!row.rubrica)issues.push('não foi possível qualificar a rubrica conforme TIPORUBR e sinal');
           if(issues.length){row.issue=issues.join('; ');state.folha.invalid.push(row);continue}
-          const dk=[row.matric,row.cpf,row.tipovinc,row.perApur,row.numFolha,row.perRef,row.rubrica,row.tiporubr,row.value.toFixed(4)].join('|||');if(dedupe.has(dk)){state.folha.duplicates++;continue}dedupe.add(dk);state.folha.rows.push(row);
+          const dk=[row.matric,row.cpf,row.tipovinc,row.perApur,row.numFolha,row.perRef,row.rubrica,row.tiporubr,row.valueCents].join('|||');if(dedupe.has(dk)){state.folha.duplicates++;continue}dedupe.add(dk);state.folha.rows.push(row);
         }
       }catch(err){state.folha.warnings.push(`${htmlEscape(file.name)}: falha na leitura — ${htmlEscape(err?.message||err)}.`)}
     }
@@ -315,12 +322,12 @@
       try{const parsed=parseCsv(decode(await file.arrayBuffer()));const missing=missingFields(parsed.headers,ESOCIAL_ALIASES,REQUIRED_ESOCIAL);if(missing.length){state.esocial.warnings.push(`${htmlEscape(file.name)}: colunas obrigatórias ausentes: ${missing.join(', ')}.`);continue}
         const idx=headerIndex(parsed.headers);state.esocial.files.push({name:file.name,rows:parsed.records.length,event});state.esocial.eventCounts[event]++;
         for(const r of parsed.records){state.esocial.total++;const context=`${file.name}, linha ${r.__line}`;const rawValue=getAlias(r,idx,ESOCIAL_ALIASES.valor);const parsedValue=parseMoney(rawValue);const ide=clean(getAlias(r,idx,ESOCIAL_ALIASES.ideDmDev));const ideInfo=extractIdeInfo(ide);const idetab=clean(getAlias(r,idx,ESOCIAL_ALIASES.idetab));
-          const row={side:'ESOCIAL',event,file:file.name,line:r.__line,recibo:clean(getAlias(r,idx,ESOCIAL_ALIASES.recibo)),cpf:normalizeCpf(getAlias(r,idx,ESOCIAL_ALIASES.cpf)),categoria:clean(getAlias(r,idx,ESOCIAL_ALIASES.categoria)),perApur:normalizePeriod(getAlias(r,idx,ESOCIAL_ALIASES.perApur)),ideDmDev:ide,numFolha:ideInfo.numero,idePeriod:ideInfo.period,ideSuffix:ideInfo.suffix,perRef:normalizePeriod(getAlias(r,idx,ESOCIAL_ALIASES.perRef)),idetab,rubrica:'',rawValue,value:parsedValue===null?null:Math.abs(parsedValue),issue:''};
+          const valueCents=parsedValue===null?null:Math.abs(toCents(parsedValue));const row={side:'ESOCIAL',event,file:file.name,line:r.__line,recibo:clean(getAlias(r,idx,ESOCIAL_ALIASES.recibo)),cpf:normalizeCpf(getAlias(r,idx,ESOCIAL_ALIASES.cpf)),categoria:clean(getAlias(r,idx,ESOCIAL_ALIASES.categoria)),perApur:normalizePeriod(getAlias(r,idx,ESOCIAL_ALIASES.perApur)),ideDmDev:ide,numFolha:ideInfo.numero,idePeriod:ideInfo.period,ideSuffix:ideInfo.suffix,indRRA:clean(getAlias(r,idx,ESOCIAL_ALIASES.indRRA)),perRef:normalizePeriod(getAlias(r,idx,ESOCIAL_ALIASES.perRef)),idetab,rubrica:'',rawValue,value:valueCents===null?null:fromCents(valueCents),valueCents,issue:''};
           row.rubrica=normalizeEsocialRubrica(getAlias(r,idx,ESOCIAL_ALIASES.rubrica),idetab,state.esocial.warnings,context);
           const issues=[];if(!row.cpf)issues.push('CPF inválido');if(!row.perApur)issues.push('Per. Apur/perapur inválido');if(!ideInfo.ok)issues.push('não foi possível extrair o número da folha do Id Edm Dev');if(!row.perRef)issues.push('Per Ref/perref inválido');if(!row.rubrica)issues.push('Cod Rubr/codrubr inválido');if(parsedValue===null)issues.push('Vlr Rubr/vrrubr inválido');
           if(row.idePeriod&&row.perApur&&row.idePeriod!==row.perApur)state.esocial.warnings.push(`${context}: competência do Id Edm Dev (${row.idePeriod}) difere de Per. Apur (${row.perApur}).`);
           if(issues.length){row.issue=issues.join('; ');state.esocial.invalid.push(row);continue}
-          const dk=[row.event,row.recibo,row.cpf,row.categoria,row.perApur,row.ideDmDev,row.perRef,row.rubrica,row.idetab,row.value.toFixed(4)].join('|||');if(dedupe.has(dk)){state.esocial.duplicates++;continue}dedupe.add(dk);state.esocial.rows.push(row);
+          const dk=[row.event,row.recibo,row.cpf,row.categoria,row.perApur,row.ideDmDev,row.indRRA,row.perRef,row.rubrica,row.idetab,row.valueCents].join('|||');if(dedupe.has(dk)){state.esocial.duplicates++;continue}dedupe.add(dk);state.esocial.rows.push(row);
         }
       }catch(err){state.esocial.warnings.push(`${htmlEscape(file.name)}: falha na leitura — ${htmlEscape(err?.message||err)}.`)}
     }
@@ -337,30 +344,207 @@
   }
 
   function comparisonKey(r){return [r.cpf,r.perApur,r.numFolha,r.perRef,r.rubrica].join('|||')}
-  function aggregate(rows,side){const map=new Map();for(const r of rows){const key=comparisonKey(r);if(!map.has(key))map.set(key,{key,cpf:r.cpf,perApur:r.perApur,numFolha:r.numFolha,perRef:r.perRef,rubrica:r.rubrica,value:0,rows:[],matriculas:new Set(),tiposVinculo:new Set(),recibos:new Set(),missingReceipt:0,eventos:new Set(),categorias:new Set(),idetabs:new Set(),ideDmDevs:new Set(),files:new Set()});const g=map.get(key);g.value+=r.value;g.rows.push(r);g.files.add(r.file);if(side==='folha'){if(r.matric)g.matriculas.add(r.matric);if(r.tipovinc)g.tiposVinculo.add(r.tipovinc)}else{if(r.recibo)g.recibos.add(r.recibo);else g.missingReceipt++;g.eventos.add(r.event);if(r.categoria)g.categorias.add(r.categoria);if(r.idetab)g.idetabs.add(r.idetab);if(r.ideDmDev)g.ideDmDevs.add(r.ideDmDev)}}for(const g of map.values())g.value=round(g.value,4);return map}
+  // Per Ref NÃO integra a chave do demonstrativo. Um único Id Edm Dev pode
+  // conter várias competências de direito, especialmente em RRA.
+  function demonstrativoKey(r){return [r.event||'',r.cpf,r.perApur,r.numFolha,r.ideDmDev||''].join('|||')}
+  function periodYear(period){const m=String(period||'').match(/^(\d{4})-/);return m?m[1]:''}
+  function classifyDemonstrativo(d){
+    const apurYear=periodYear(d.perApur);
+    const years=Array.from(d.yearsDireito).filter(Boolean).sort();
+    const hasSame=years.some(y=>y===apurYear);
+    const hasOther=years.some(y=>y!==apurYear);
+    if(d.indRRAValues.has('S'))return hasSame&&hasOther?'RRA indicado · anos mistos':'RRA indicado';
+    if(hasOther&&!hasSame)return 'Direitos de ano anterior — indício de RRA';
+    if(hasOther&&hasSame)return 'Anos mistos — possível separação RRA';
+    if(hasSame)return 'Direitos do mesmo ano da apuração';
+    return 'Classificação não determinada';
+  }
+
+  function aggregate(rows,side){
+    const map=new Map();
+    for(const r of rows){
+      const key=comparisonKey(r);
+      if(!map.has(key))map.set(key,{key,cpf:r.cpf,perApur:r.perApur,numFolha:r.numFolha,perRef:r.perRef,rubrica:r.rubrica,valueCents:0,value:0,rows:[],matriculas:new Set(),tiposVinculo:new Set(),recibos:new Set(),missingReceipt:0,eventos:new Set(),categorias:new Set(),idetabs:new Set(),ideDmDevs:new Set(),files:new Set()});
+      const g=map.get(key);g.valueCents+=r.valueCents;g.rows.push(r);g.files.add(r.file);
+      if(side==='folha'){if(r.matric)g.matriculas.add(r.matric);if(r.tipovinc)g.tiposVinculo.add(r.tipovinc)}
+      else{if(r.recibo)g.recibos.add(r.recibo);else g.missingReceipt++;g.eventos.add(r.event);if(r.categoria)g.categorias.add(r.categoria);if(r.idetab)g.idetabs.add(r.idetab);if(r.ideDmDev)g.ideDmDevs.add(r.ideDmDev)}
+    }
+    for(const g of map.values())g.value=fromCents(g.valueCents);
+    return map;
+  }
+
+  function buildDemonstrativoAnalysis(rows,folhaMap){
+    const map=new Map();
+    for(const r of rows){
+      const key=demonstrativoKey(r);
+      if(!map.has(key))map.set(key,{
+        key,event:r.event,cpf:r.cpf,perApur:r.perApur,numFolha:r.numFolha,ideDmDev:r.ideDmDev,
+        netBefore998Cents:0,adjustment998Cents:0,rows:[],baseComparisonKeys:new Set(),
+        perRefs:new Set(),yearsDireito:new Set(),indRRAValues:new Set(),
+        folhaBaseNetCents:0,folhaBaseMatchedKeys:0,folhaBaseMissingKeys:0
+      });
+      const d=map.get(key);
+      d.rows.push(r);
+      if(r.perRef){
+        d.perRefs.add(r.perRef);
+        const y=periodYear(r.perRef);if(y)d.yearsDireito.add(y);
+      }
+      if(String(r.indRRA||'').trim())d.indRRAValues.add(String(r.indRRA).trim().toUpperCase());
+      if(r.rubrica==='998V'){
+        d.adjustment998Cents+=r.valueCents;
+      }else{
+        // AUX retorna zero em signedCents e continua sendo comparada item a item.
+        d.netBefore998Cents+=signedCents(r.rubrica,r.valueCents);
+        if(rubricaNature(r.rubrica)==='V'||rubricaNature(r.rubrica)==='D'){
+          d.baseComparisonKeys.add(comparisonKey(r));
+        }
+      }
+    }
+
+    // Reconstrói, na folha, a parcela que o eSocial colocou em cada demonstrativo.
+    // Isso não é usado para "inventar" a 998V; serve como conferência e explicação.
+    for(const d of map.values()){
+      for(const key of d.baseComparisonKeys){
+        const f=folhaMap.get(key);
+        if(f){
+          d.folhaBaseNetCents+=signedCents(f.rubrica,f.valueCents);
+          d.folhaBaseMatchedKeys++;
+        }else{
+          d.folhaBaseMissingKeys++;
+        }
+      }
+      d.classificacao=classifyDemonstrativo(d);
+      d.finalNetCents=d.netBefore998Cents+d.adjustment998Cents;
+    }
+    return map;
+  }
+
+  function analyze998Adjustment(esocialGroup,demoAnalysis){
+    if(!esocialGroup||esocialGroup.rubrica!=='998V')return {
+      checked:false,valid:false,details:[],netBefore998Cents:null,expectedCents:null,
+      finalNetCents:null,folhaBaseNetCents:null,classificacoes:[],anosDireito:[],perRefs:[]
+    };
+
+    const demoKeys=new Set(esocialGroup.rows.map(demonstrativoKey));
+    const details=[];
+    for(const key of demoKeys){
+      const d=demoAnalysis.get(key);if(!d)continue;
+      const expected=d.netBefore998Cents<0?-d.netBefore998Cents:0;
+      details.push({
+        ...d,
+        expectedCents:expected,
+        valid:d.netBefore998Cents<0&&d.adjustment998Cents===expected&&d.finalNetCents===0
+      });
+    }
+
+    const totalAdjustment=details.reduce((a,d)=>a+d.adjustment998Cents,0);
+    const totalExpected=details.reduce((a,d)=>a+d.expectedCents,0);
+    const totalBefore=details.reduce((a,d)=>a+d.netBefore998Cents,0);
+    const totalFinal=details.reduce((a,d)=>a+d.finalNetCents,0);
+    const totalFolhaBase=details.reduce((a,d)=>a+d.folhaBaseNetCents,0);
+    const valid=details.length>0&&details.every(d=>d.valid)&&totalAdjustment===esocialGroup.valueCents;
+
+    return {
+      checked:true,valid,details,
+      netBefore998Cents:totalBefore,
+      expectedCents:totalExpected,
+      finalNetCents:totalFinal,
+      folhaBaseNetCents:totalFolhaBase,
+      classificacoes:Array.from(new Set(details.map(d=>d.classificacao))),
+      anosDireito:Array.from(new Set(details.flatMap(d=>Array.from(d.yearsDireito)))).sort(),
+      perRefs:Array.from(new Set(details.flatMap(d=>Array.from(d.perRefs)))).sort()
+    };
+  }
 
   function compare(){
-    if(!state.folha.files.length||!state.esocial.files.length)return;const tolerance=Math.max(0,Number(els.tolerance.value)||0);const receiptError=els.receiptAsError.checked;const fm=aggregate(state.folha.rows,'folha'),em=aggregate(state.esocial.rows,'esocial');const keys=new Set([...fm.keys(),...em.keys()]);const out=[];
-    for(const key of keys){const f=fm.get(key),e=em.get(key);const base=f||e;let status='OK',obs=[];const fv=f?.value??null,ev=e?.value??null,diff=f&&e?round(ev-fv,4):null;let receiptStatus='—';
+    if(!state.folha.files.length||!state.esocial.files.length)return;
+    const receiptError=els.receiptAsError.checked;
+    const fm=aggregate(state.folha.rows,'folha'),em=aggregate(state.esocial.rows,'esocial');
+    const demoAnalysis=buildDemonstrativoAnalysis(state.esocial.rows,fm);
+    const keys=new Set([...fm.keys(),...em.keys()]);const out=[];
+    for(const key of keys){
+      const f=fm.get(key),e=em.get(key);const base=f||e;let status='OK',obs=[];
+      const fv=f?.value??null,ev=e?.value??null;
+      const diffCents=f&&e?e.valueCents-f.valueCents:null;
+      const diff=diffCents===null?null:fromCents(diffCents);
+      let receiptStatus='—';
       if(e){if(e.recibos.size===0)receiptStatus='SEM RECIBO';else if(e.missingReceipt>0)receiptStatus='RECIBO PARCIAL';else receiptStatus='COM RECIBO'}
-      if(!e){status='APENAS NA FOLHA';obs.push('A chave consolidada não foi localizada nas exportações do eSocial.')}else if(!f){status='APENAS NO ESOCIAL';obs.push('A chave consolidada não foi localizada no arquivo da folha.')}else if(Math.abs(diff)>tolerance){status='VALOR DIVERGENTE';obs.push(`Diferença superior à tolerância de R$ ${formatNumber(tolerance)}.`)}else if(receiptError&&receiptStatus==='SEM RECIBO'){status='SEM RECIBO';obs.push('Os valores conferem, mas nenhuma linha do eSocial possui recibo/retorno.')}else if(receiptError&&receiptStatus==='RECIBO PARCIAL'){status='RECIBO PARCIAL';obs.push('Os valores conferem, mas parte das linhas do eSocial não possui recibo/retorno.')}
-      if(e&&receiptStatus==='SEM RECIBO'&&status!=='SEM RECIBO')obs.push('Item do eSocial sem recibo/retorno.');if(e&&receiptStatus==='RECIBO PARCIAL'&&status!=='RECIBO PARCIAL')obs.push('Parte das linhas do eSocial está sem recibo/retorno.');
+
+      let adjustment998={checked:false,valid:false,details:[],netBefore998Cents:null,expectedCents:null,finalNetCents:null,folhaBaseNetCents:null,classificacoes:[],anosDireito:[],perRefs:[]};
+      if(!e){
+        status='APENAS NA FOLHA';obs.push('A rubrica consolidada existe na folha, mas não foi localizada nas exportações do eSocial.');
+      }else if(!f){
+        if(base.rubrica==='998V'){
+          adjustment998=analyze998Adjustment(e,demoAnalysis);
+          if(adjustment998.valid){
+            status='AJUSTE 998V VÁLIDO';
+            const demos=adjustment998.details.map(d=>{
+              const refs=Array.from(d.perRefs).join(', ')||'sem Per Ref';
+              const years=Array.from(d.yearsDireito).join(', ')||'não identificado';
+              const folhaInfo=d.folhaBaseMissingKeys===0
+                ? `base correspondente na folha ${formatNumber(fromCents(d.folhaBaseNetCents))}`
+                : `base parcial na folha ${formatNumber(fromCents(d.folhaBaseNetCents))}, com ${d.folhaBaseMissingKeys} item(ns) sem correspondência`;
+              return `${d.ideDmDev}: ${d.classificacao}; Per Ref ${refs}; ano(s) ${years}; líquido antes da 998V ${formatNumber(fromCents(d.netBefore998Cents))}; 998V ${formatNumber(fromCents(d.adjustment998Cents))}; líquido final ${formatNumber(fromCents(d.finalNetCents))}; ${folhaInfo}`;
+            }).join(' | ');
+            obs.push(`A 998V existe apenas no eSocial, mas é um ajuste técnico válido: foram reunidas todas as Per Ref do mesmo Id Edm Dev e o valor zerou exatamente o demonstrativo. ${demos}`);
+          }else{
+            status='APENAS NO ESOCIAL';
+            if(adjustment998.details.length){
+              const demos=adjustment998.details.map(d=>{
+                const refs=Array.from(d.perRefs).join(', ')||'sem Per Ref';
+                return `${d.ideDmDev}: ${d.classificacao}; Per Ref ${refs}; líquido anterior ${formatNumber(fromCents(d.netBefore998Cents))}; esperado ${formatNumber(fromCents(d.expectedCents))}; informado ${formatNumber(fromCents(d.adjustment998Cents))}; líquido final ${formatNumber(fromCents(d.finalNetCents))}`;
+              }).join(' | ');
+              obs.push(`A 998V existe apenas no eSocial, porém não zerou exatamente o demonstrativo após reunir todas as Per Ref do mesmo Id Edm Dev. ${demos}`);
+            }else obs.push('A 998V existe apenas no eSocial, mas não foi possível validar o demonstrativo de origem.');
+          }
+        }else{
+          status='APENAS NO ESOCIAL';obs.push('A rubrica consolidada existe no eSocial, mas não foi localizada no arquivo da folha.');
+        }
+      }else if(diffCents!==0){
+        status='VALOR DIVERGENTE';obs.push(`Os dois lados possuem a rubrica, mas os valores diferem em ${formatNumber(Math.abs(diff))}. A tolerância é R$ 0,00.`);
+      }
+
+      if((status==='OK'||status==='AJUSTE 998V VÁLIDO')&&receiptError&&receiptStatus==='SEM RECIBO'){status='SEM RECIBO';obs.push('A rubrica está conciliada, mas nenhuma linha do eSocial possui recibo/retorno.')}
+      else if((status==='OK'||status==='AJUSTE 998V VÁLIDO')&&receiptError&&receiptStatus==='RECIBO PARCIAL'){status='RECIBO PARCIAL';obs.push('A rubrica está conciliada, mas parte das linhas do eSocial não possui recibo/retorno.')}
+      if(e&&receiptStatus==='SEM RECIBO'&&status!=='SEM RECIBO')obs.push('Item do eSocial sem recibo/retorno.');
+      if(e&&receiptStatus==='RECIBO PARCIAL'&&status!=='RECIBO PARCIAL')obs.push('Parte das linhas do eSocial está sem recibo/retorno.');
+
       const eventLabel=e?(e.eventos.size>1?'MISTO':Array.from(e.eventos)[0]):'';
-      out.push({id:'R'+out.length,status,divergent:status!=='OK',cpf:base.cpf,perApur:base.perApur,numFolha:base.numFolha,perRef:base.perRef,rubrica:base.rubrica,valorFolha:fv,valorEsocial:ev,diferenca:diff,receiptStatus,recibos:e?Array.from(e.recibos):[],event:eventLabel,matriculas:f?Array.from(f.matriculas):[],tiposVinculo:f?Array.from(f.tiposVinculo):[],categorias:e?Array.from(e.categorias):[],idetabs:e?Array.from(e.idetabs):[],ideDmDevs:e?Array.from(e.ideDmDevs):[],filesFolha:f?Array.from(f.files):[],filesEsocial:e?Array.from(e.files):[],qtdFolha:f?.rows.length||0,qtdEsocial:e?.rows.length||0,observation:obs.join(' '),sourceFolha:f,sourceEsocial:e});
+      const nonError=status==='OK'||status==='AJUSTE 998V VÁLIDO';
+      out.push({id:'R'+out.length,status,divergent:!nonError,cpf:base.cpf,perApur:base.perApur,numFolha:base.numFolha,perRef:base.perRef,rubrica:base.rubrica,valorFolha:fv,valorEsocial:ev,diferenca:diff,receiptStatus,recibos:e?Array.from(e.recibos):[],event:eventLabel,matriculas:f?Array.from(f.matriculas):[],tiposVinculo:f?Array.from(f.tiposVinculo):[],categorias:e?Array.from(e.categorias):[],idetabs:e?Array.from(e.idetabs):[],ideDmDevs:e?Array.from(e.ideDmDevs):[],filesFolha:f?Array.from(f.files):[],filesEsocial:e?Array.from(e.files):[],qtdFolha:f?.rows.length||0,qtdEsocial:e?.rows.length||0,observation:obs.join(' '),sourceFolha:f,sourceEsocial:e,ajuste998:adjustment998.checked?(adjustment998.valid?'VÁLIDO':'NÃO VALIDADO'):'',liquidoAntes998:adjustment998.netBefore998Cents===null?null:fromCents(adjustment998.netBefore998Cents),valor998Esperado:adjustment998.expectedCents===null?null:fromCents(adjustment998.expectedCents),liquidoApos998:adjustment998.finalNetCents===null?null:fromCents(adjustment998.finalNetCents),liquidoFolhaBase998:adjustment998.folhaBaseNetCents===null?null:fromCents(adjustment998.folhaBaseNetCents),criterio998:adjustment998.classificacoes.join(' | '),anosDireito998:adjustment998.anosDireito.join(' | '),perRefs998:adjustment998.perRefs.join(' | ')});
     }
-    for(const r of state.folha.invalid){out.push({id:'IF'+out.length,status:'DADO INVÁLIDO NA FOLHA',divergent:true,cpf:r.cpf||'',perApur:r.perApur||'',numFolha:r.numFolha||'',perRef:r.perRef||'',rubrica:r.rubrica||r.rubricaBase||'',valorFolha:r.value,valorEsocial:null,diferenca:null,receiptStatus:'—',recibos:[],event:'',matriculas:r.matric?[r.matric]:[],tiposVinculo:r.tipovinc?[r.tipovinc]:[],categorias:[],idetabs:[],ideDmDevs:[],filesFolha:[r.file],filesEsocial:[],qtdFolha:1,qtdEsocial:0,observation:r.issue,sourceFolha:{rows:[r]},sourceEsocial:null})}
-    for(const r of state.esocial.invalid){out.push({id:'IE'+out.length,status:'DADO INVÁLIDO NO ESOCIAL',divergent:true,cpf:r.cpf||'',perApur:r.perApur||'',numFolha:r.numFolha||'',perRef:r.perRef||'',rubrica:r.rubrica||'',valorFolha:null,valorEsocial:r.value,diferenca:null,receiptStatus:r.recibo?'COM RECIBO':'SEM RECIBO',recibos:r.recibo?[r.recibo]:[],event:r.event||'',matriculas:[],tiposVinculo:[],categorias:r.categoria?[r.categoria]:[],idetabs:r.idetab?[r.idetab]:[],ideDmDevs:r.ideDmDev?[r.ideDmDev]:[],filesFolha:[],filesEsocial:[r.file],qtdFolha:0,qtdEsocial:1,observation:r.issue,sourceFolha:null,sourceEsocial:{rows:[r]}})}
-    const rank={'DADO INVÁLIDO NA FOLHA':0,'DADO INVÁLIDO NO ESOCIAL':0,'VALOR DIVERGENTE':1,'APENAS NA FOLHA':2,'APENAS NO ESOCIAL':3,'SEM RECIBO':4,'RECIBO PARCIAL':5,'OK':9};
+    for(const r of state.folha.invalid){out.push({id:'IF'+out.length,status:'DADO INVÁLIDO NA FOLHA',divergent:true,cpf:r.cpf||'',perApur:r.perApur||'',numFolha:r.numFolha||'',perRef:r.perRef||'',rubrica:r.rubrica||r.rubricaBase||'',valorFolha:r.value,valorEsocial:null,diferenca:null,receiptStatus:'—',recibos:[],event:'',matriculas:r.matric?[r.matric]:[],tiposVinculo:r.tipovinc?[r.tipovinc]:[],categorias:[],idetabs:[],ideDmDevs:[],filesFolha:[r.file],filesEsocial:[],qtdFolha:1,qtdEsocial:0,observation:r.issue,sourceFolha:{rows:[r]},sourceEsocial:null,ajuste998:'',liquidoAntes998:null,valor998Esperado:null,liquidoApos998:null,liquidoFolhaBase998:null,criterio998:'',anosDireito998:'',perRefs998:''})}
+    for(const r of state.esocial.invalid){out.push({id:'IE'+out.length,status:'DADO INVÁLIDO NO ESOCIAL',divergent:true,cpf:r.cpf||'',perApur:r.perApur||'',numFolha:r.numFolha||'',perRef:r.perRef||'',rubrica:r.rubrica||'',valorFolha:null,valorEsocial:r.value,diferenca:null,receiptStatus:r.recibo?'COM RECIBO':'SEM RECIBO',recibos:r.recibo?[r.recibo]:[],event:r.event||'',matriculas:[],tiposVinculo:[],categorias:r.categoria?[r.categoria]:[],idetabs:r.idetab?[r.idetab]:[],ideDmDevs:r.ideDmDev?[r.ideDmDev]:[],filesFolha:[],filesEsocial:[r.file],qtdFolha:0,qtdEsocial:1,observation:r.issue,sourceFolha:null,sourceEsocial:{rows:[r]},ajuste998:'',liquidoAntes998:null,valor998Esperado:null,liquidoApos998:null,liquidoFolhaBase998:null,criterio998:'',anosDireito998:'',perRefs998:''})}
+    const rank={'DADO INVÁLIDO NA FOLHA':0,'DADO INVÁLIDO NO ESOCIAL':0,'VALOR DIVERGENTE':1,'APENAS NA FOLHA':2,'APENAS NO ESOCIAL':3,'SEM RECIBO':4,'RECIBO PARCIAL':5,'AJUSTE 998V VÁLIDO':8,'OK':9};
     out.sort((a,b)=>(rank[a.status]??8)-(rank[b.status]??8)||`${a.cpf}|${a.perApur}|${a.numFolha}|${a.rubrica}`.localeCompare(`${b.cpf}|${b.perApur}|${b.numFolha}|${b.rubrica}`));state.results=out;state.page=1;renderComparison();applyFilters();
   }
 
   function autoCompare(){if(state.folha.files.length&&state.esocial.files.length)compare()}
-  function statusClass(s){if(s==='OK')return'ok';if(s==='VALOR DIVERGENTE')return'valor';if(s==='APENAS NA FOLHA')return'folha';if(s==='APENAS NO ESOCIAL')return'esocial';if(s==='SEM RECIBO'||s==='RECIBO PARCIAL')return'recibo';return'invalido'}
+  function statusClass(s){if(s==='OK')return'ok';if(s==='AJUSTE 998V VÁLIDO')return'ajuste';if(s==='VALOR DIVERGENTE')return'valor';if(s==='APENAS NA FOLHA')return'folha';if(s==='APENAS NO ESOCIAL')return'esocial';if(s==='SEM RECIBO'||s==='RECIBO PARCIAL')return'recibo';return'invalido'}
   function renderComparison(){
-    els.resultsPanel.style.display='block';const rows=state.results;const count=s=>rows.filter(r=>r.status===s).length;const divergent=rows.filter(r=>r.divergent).length;const validRows=rows.filter(r=>!r.status.startsWith('DADO INVÁLIDO'));const sumF=validRows.reduce((a,r)=>a+(r.valorFolha||0),0),sumE=validRows.reduce((a,r)=>a+(r.valorEsocial||0),0);const receiptIssues=validRows.filter(r=>r.receiptStatus==='SEM RECIBO'||r.receiptStatus==='RECIBO PARCIAL').length;
-    const stats=[['Chaves comparadas',validRows.length,'após consolidação'],['Itens OK',count('OK'),'valores e recibos'],['Divergências',divergent,'exibidas por padrão'],['Valor divergente',count('VALOR DIVERGENTE'),'acima da tolerância'],['Apenas na folha',count('APENAS NA FOLHA'),'ausentes no eSocial'],['Apenas no eSocial',count('APENAS NO ESOCIAL'),'ausentes na folha'],['Sem/recibo parcial',receiptIssues,'em qualquer situação'],['Diferença global',formatNumber(sumE-sumF),'eSocial − folha']];
+    els.resultsPanel.style.display='block';
+    const rows=state.results;const count=s=>rows.filter(r=>r.status===s).length;
+    const divergent=rows.filter(r=>r.divergent).length;
+    const validRows=rows.filter(r=>!r.status.startsWith('DADO INVÁLIDO'));
+    const liquidFolhaCents=validRows.reduce((a,r)=>a+(r.valorFolha===null?0:signedCents(r.rubrica,toCents(r.valorFolha))),0);
+    const liquidEsocialCents=validRows.reduce((a,r)=>a+(r.valorEsocial===null?0:signedCents(r.rubrica,toCents(r.valorEsocial))),0);
+    const receiptIssues=validRows.filter(r=>r.receiptStatus==='SEM RECIBO'||r.receiptStatus==='RECIBO PARCIAL').length;
+    const stats=[
+      ['Rubricas comparadas',validRows.length,'chaves após consolidação'],
+      ['Itens OK',count('OK'),'existência e valor exatos'],
+      ['Ajustes 998V válidos',count('AJUSTE 998V VÁLIDO'),'não tratados como erro'],
+      ['Divergências',divergent,'exibidas por padrão'],
+      ['Valor divergente',count('VALOR DIVERGENTE'),'qualquer centavo'],
+      ['Apenas na folha',count('APENAS NA FOLHA'),'ausentes no eSocial'],
+      ['Apenas no eSocial',count('APENAS NO ESOCIAL'),'ausentes na folha'],
+      ['Sem/recibo parcial',receiptIssues,'em qualquer situação'],
+      ['Líquido folha',formatNumber(fromCents(liquidFolhaCents)),'V − D; AUX excluído'],
+      ['Líquido eSocial',formatNumber(fromCents(liquidEsocialCents)),'V − D; AUX excluído'],
+      ['Diferença líquida',formatNumber(fromCents(liquidEsocialCents-liquidFolhaCents)),'eSocial − folha']
+    ];
     els.summaryStats.innerHTML=stats.map(([l,v,s])=>`<div class="stat"><div class="label">${l}</div><div class="value">${v}</div><div class="sub">${s}</div></div>`).join('');
-    if(divergent===0)showMessage(els.comparisonMessage,'ok',`Comparação concluída: todas as ${count('OK').toLocaleString('pt-BR')} chaves conferem dentro da tolerância definida.`);else showMessage(els.comparisonMessage,'warn',`Comparação concluída: foram encontradas <strong>${divergent.toLocaleString('pt-BR')}</strong> divergência(s) em ${rows.length.toLocaleString('pt-BR')} resultado(s).`);
+    if(divergent===0)showMessage(els.comparisonMessage,'ok',`Comparação concluída: todas as rubricas existem nos dois lados e os valores conferem exatamente em centavos. Ajustes 998V tecnicamente válidos não são tratados como erro.`);
+    else showMessage(els.comparisonMessage,'warn',`Comparação concluída: foram encontradas <strong>${divergent.toLocaleString('pt-BR')}</strong> divergência(s). Qualquer diferença de R$ 0,01 é considerada erro.`);
     renderWarnings();
   }
 
@@ -380,10 +564,10 @@
   function renderWarnings(){const warnings=[...state.folha.warnings,...state.esocial.warnings];if(!warnings.length){els.warningsBox.innerHTML='<div class="message ok">Nenhum aviso estrutural foi identificado nos arquivos importados.</div>';return}els.warningsBox.innerHTML=`<details><summary>Avisos de importação (${warnings.length})</summary><div class="details-body"><ul>${warnings.slice(0,150).map(w=>`<li>${w}</li>`).join('')}</ul>${warnings.length>150?'<p class="hint">Exibindo os primeiros 150 avisos.</p>':''}</div></details>`}
 
   function openDetails(id){const r=state.results.find(x=>x.id===id);if(!r)return;$('#detailsSubtitle').textContent=`${r.cpf||'Sem CPF'} · folha ${r.numFolha||'—'} · rubrica ${r.rubrica||'—'}`;const item=(k,v)=>`<div class="k">${k}</div><div class="v">${htmlEscape(v||'—')}</div>`;
-    $('#detailsBody').innerHTML=`<div class="detail-grid">${item('Status',r.status)}${item('Observação',r.observation)}${item('CPF',r.cpf)}${item('Competência',r.perApur)}${item('Número da folha',r.numFolha)}${item('Período de direito',r.perRef)}${item('Rubrica qualificada',r.rubrica)}${item('Valor folha',r.valorFolha===null?'—':formatNumber(r.valorFolha))}${item('Valor eSocial',r.valorEsocial===null?'—':formatNumber(r.valorEsocial))}${item('Diferença',r.diferenca===null?'—':formatNumber(r.diferenca))}${item('Situação do recibo',r.receiptStatus)}${item('Recibos/retornos',r.recibos.join(' | '))}${item('Evento(s)',r.event)}${item('Matrícula(s) da folha',r.matriculas.join(' | '))}${item('Tipo(s) de vínculo',r.tiposVinculo.join(' | '))}${item('Categoria(s) eSocial',r.categorias.join(' | '))}${item('Idetab Rubr',r.idetabs.join(' | '))}${item('Id Edm Dev',r.ideDmDevs.join(' | '))}${item('Arquivos da folha',r.filesFolha.join(' | '))}${item('Arquivos do eSocial',r.filesEsocial.join(' | '))}${item('Linhas consolidadas',`Folha: ${r.qtdFolha} · eSocial: ${r.qtdEsocial}`)}</div>`;openModal('detailsModal')}
+    $('#detailsBody').innerHTML=`<div class="detail-grid">${item('Status',r.status)}${item('Observação',r.observation)}${item('CPF',r.cpf)}${item('Competência',r.perApur)}${item('Número da folha',r.numFolha)}${item('Período de direito',r.perRef)}${item('Rubrica qualificada',r.rubrica)}${item('Valor folha',r.valorFolha===null?'—':formatNumber(r.valorFolha))}${item('Valor eSocial',r.valorEsocial===null?'—':formatNumber(r.valorEsocial))}${item('Diferença',r.diferenca===null?'—':formatNumber(r.diferenca))}${item('Situação do recibo',r.receiptStatus)}${item('Recibos/retornos',r.recibos.join(' | '))}${item('Evento(s)',r.event)}${item('Matrícula(s) da folha',r.matriculas.join(' | '))}${item('Tipo(s) de vínculo',r.tiposVinculo.join(' | '))}${item('Categoria(s) eSocial',r.categorias.join(' | '))}${item('Idetab Rubr',r.idetabs.join(' | '))}${item('Id Edm Dev',r.ideDmDevs.join(' | '))}${item('Arquivos da folha',r.filesFolha.join(' | '))}${item('Arquivos do eSocial',r.filesEsocial.join(' | '))}${item('Análise da 998V',r.ajuste998)}${item('Líquido anterior à 998V',r.liquidoAntes998===null?'—':formatNumber(r.liquidoAntes998))}${item('Valor 998V esperado',r.valor998Esperado===null?'—':formatNumber(r.valor998Esperado))}${item('Líquido após 998V',r.liquidoApos998===null?'—':formatNumber(r.liquidoApos998))}${item('Líquido da base correspondente na folha',r.liquidoFolhaBase998===null?'—':formatNumber(r.liquidoFolhaBase998))}${item('Critério/separação 998V',r.criterio998||'—')}${item('Anos de direito na análise 998V',r.anosDireito998||'—')}${item('Per Ref reunidas na análise 998V',r.perRefs998||'—')}${item('Linhas consolidadas',`Folha: ${r.qtdFolha} · eSocial: ${r.qtdEsocial}`)}</div>`;openModal('detailsModal')}
 
   function escapeCsv(v){const s=String(v??'');return /[;"\r\n]/.test(s)?`"${s.replaceAll('"','""')}"`:s}
-  function exportRows(rows,prefix){if(!rows.length){showMessage(els.comparisonMessage,'danger','Não há dados para exportar com o critério selecionado.');return}const headers=['status','cpf','mesAnoFolha','numFolha','mesAnoDireito','rubrica','valorFolha','valorEsocial','diferenca','situacaoRecibo','recibos','eventos','matriculasFolha','tiposVinculo','categoriasEsocial','idetabRubr','ideDmDev','arquivosFolha','arquivosEsocial','qtdLinhasFolha','qtdLinhasEsocial','observacao'];const lines=[headers.join(';')];for(const r of rows){const o=[r.status,r.cpf,r.perApur,r.numFolha,r.perRef,r.rubrica,formatCsvNumber(r.valorFolha),formatCsvNumber(r.valorEsocial),formatCsvNumber(r.diferenca),r.receiptStatus,r.recibos.join(' | '),r.event,r.matriculas.join(' | '),r.tiposVinculo.join(' | '),r.categorias.join(' | '),r.idetabs.join(' | '),r.ideDmDevs.join(' | '),r.filesFolha.join(' | '),r.filesEsocial.join(' | '),r.qtdFolha,r.qtdEsocial,r.observation];lines.push(o.map(escapeCsv).join(';'))}const blob=new Blob(['\uFEFF'+lines.join('\r\n')+'\r\n'],{type:'text/csv;charset=utf-8'});const a=document.createElement('a'),d=new Date(),stamp=`${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}_${String(d.getHours()).padStart(2,'0')}${String(d.getMinutes()).padStart(2,'0')}`;a.href=URL.createObjectURL(blob);a.download=`${prefix}_${stamp}.csv`;document.body.appendChild(a);a.click();URL.revokeObjectURL(a.href);a.remove()}
+  function exportRows(rows,prefix){if(!rows.length){showMessage(els.comparisonMessage,'danger','Não há dados para exportar com o critério selecionado.');return}const headers=['status','cpf','mesAnoFolha','numFolha','mesAnoDireito','rubrica','valorFolha','valorEsocial','diferenca','situacaoRecibo','recibos','eventos','matriculasFolha','tiposVinculo','categoriasEsocial','idetabRubr','ideDmDev','analise998V','liquidoAntes998V','valor998VEsperado','liquidoApos998V','liquidoFolhaBase998V','criterio998V','anosDireito998V','perRefs998V','arquivosFolha','arquivosEsocial','qtdLinhasFolha','qtdLinhasEsocial','observacao'];const lines=[headers.join(';')];for(const r of rows){const o=[r.status,r.cpf,r.perApur,r.numFolha,r.perRef,r.rubrica,formatCsvNumber(r.valorFolha),formatCsvNumber(r.valorEsocial),formatCsvNumber(r.diferenca),r.receiptStatus,r.recibos.join(' | '),r.event,r.matriculas.join(' | '),r.tiposVinculo.join(' | '),r.categorias.join(' | '),r.idetabs.join(' | '),r.ideDmDevs.join(' | '),r.ajuste998,formatCsvNumber(r.liquidoAntes998),formatCsvNumber(r.valor998Esperado),formatCsvNumber(r.liquidoApos998),formatCsvNumber(r.liquidoFolhaBase998),r.criterio998,r.anosDireito998,r.perRefs998,r.filesFolha.join(' | '),r.filesEsocial.join(' | '),r.qtdFolha,r.qtdEsocial,r.observation];lines.push(o.map(escapeCsv).join(';'))}const blob=new Blob(['\uFEFF'+lines.join('\r\n')+'\r\n'],{type:'text/csv;charset=utf-8'});const a=document.createElement('a'),d=new Date(),stamp=`${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}_${String(d.getHours()).padStart(2,'0')}${String(d.getMinutes()).padStart(2,'0')}`;a.href=URL.createObjectURL(blob);a.download=`${prefix}_${stamp}.csv`;document.body.appendChild(a);a.click();URL.revokeObjectURL(a.href);a.remove()}
 
   function openModal(id){document.getElementById(id)?.classList.add('open')}function closeModal(id){document.getElementById(id)?.classList.remove('open')}
   function bindDrop(drop,input,handler){drop.addEventListener('dragover',e=>{e.preventDefault();drop.classList.add('dragover')});drop.addEventListener('dragleave',()=>drop.classList.remove('dragover'));drop.addEventListener('drop',e=>{e.preventDefault();drop.classList.remove('dragover');handler(e.dataTransfer.files)});input.addEventListener('change',e=>handler(e.target.files))}
@@ -391,7 +575,7 @@
   $('#btnOpenFolha').addEventListener('click',()=>openModal('folhaModal'));$('#btnOpenEsocial').addEventListener('click',()=>openModal('esocialModal'));$('#btnClear').addEventListener('click',resetAll);$('#btnCompare').addEventListener('click',compare);$('#btnRules').addEventListener('click',()=>openModal('rulesModal'));
   $$('[data-close]').forEach(b=>b.addEventListener('click',()=>closeModal(b.dataset.close)));$$('.modal').forEach(m=>m.addEventListener('click',e=>{if(e.target===m)closeModal(m.id)}));document.addEventListener('keydown',e=>{if(e.key==='Escape')$$('.modal.open').forEach(m=>closeModal(m.id))});
   bindDrop(els.folhaDrop,els.folhaInput,importFolha);bindDrop(els.esocialDrop,els.esocialInput,importEsocial);
-  [els.tolerance,els.receiptAsError,els.decimalPlaces].forEach(x=>x.addEventListener('change',()=>{if(state.results.length||state.folha.files.length&&state.esocial.files.length)compare()}));
+  [els.receiptAsError].forEach(x=>x.addEventListener('change',()=>{if(state.results.length||state.folha.files.length&&state.esocial.files.length)compare()}));
   [els.searchInput,els.statusFilter,els.eventFilter,els.onlyErrors,els.pageSize].forEach(x=>x.addEventListener(x===els.searchInput?'input':'change',()=>{state.page=1;applyFilters()}));
   $('#btnPrev').addEventListener('click',()=>{if(state.page>1){state.page--;renderRows()}});$('#btnNext').addEventListener('click',()=>{const max=Math.ceil(state.filtered.length/(Number(els.pageSize.value)||100));if(state.page<max){state.page++;renderRows()}});
   $('#btnExportErrors').addEventListener('click',()=>exportRows(state.results.filter(r=>r.divergent),'divergencias_folha_esocial'));$('#btnExportFiltered').addEventListener('click',()=>exportRows(state.filtered,'comparacao_filtrada_folha_esocial'));
