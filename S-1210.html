@@ -276,7 +276,7 @@
                 <div class="small-hint mono">Pensão: MATRIC;MES_REFERENCIA;COMPLEMENTO;TPREND;VALOR;CPF_FUNC;CPF_DEP</div>
                 <div class="small-hint mt-2">
                   <strong>tpRend automático:</strong> na dedução, o editor consulta <span class="mono">tipoCompetencia</span> dos detalhamentos do próprio evento
-                  (<span class="mono">M → 11</span>, <span class="mono">A → 12</span>). Na pensão, usa o <span class="mono">TPREND</span> da base,
+                  (<span class="mono">M → 11</span>; <span class="mono">A + dtPgto em dezembro → 12</span>). Um detalhamento anual pago fora de dezembro não gera <span class="mono">tpRend=12</span>. Na pensão, usa o <span class="mono">TPREND</span> da base,
                   consolidando <span class="mono">11 + 18</span> em <span class="mono">tpRend=11</span> e mantendo <span class="mono">12</span> separado.
                 </div>
               </div>
@@ -425,6 +425,7 @@
               <strong>Exemplo:</strong><br/>
               <span class="mono">01234567890;4;A;2024-12-01;855.393-5-11-NORMAL-122024;3419.3400;2025-01-03</span><br/>
               CPFs são normalizados (Excel pode cortar zeros à esquerda). Datas aceitam <span class="mono">AAAA-MM</span>, <span class="mono">AAAAMM</span> ou <span class="mono">AAAA-MM-DD</span>.
+              Em <span class="mono">perRef</span>, a comparação considera somente ano e mês: por exemplo, <span class="mono">2025-12-01</span> e <span class="mono">2025-12-31</span> são equivalentes, preservando-se o valor já existente no JSON.
             </div>
 
             <div class="form-group">
@@ -2134,17 +2135,37 @@ function ircrBuildDesiredRowsForEvent(evt, groupedRows) {
   return { rows: groupedRows.get(cpfTrab) || [], cpfTrab };
 }
 
+function ircrIsDecemberPayment(dtPgto) {
+  const raw = String(dtPgto ?? "").trim();
+  if (!raw || EMPTY_TOKENS.has(raw)) return false;
+
+  let match = raw.match(/^\d{4}-(\d{2})(?:-\d{2})?$/);
+  if (match) return match[1] === "12";
+
+  match = raw.match(/^\d{2}\/(\d{2})\/\d{4}$/);
+  if (match) return match[1] === "12";
+
+  match = raw.match(/^\d{4}(\d{2})(?:\d{2})?$/);
+  return !!match && match[1] === "12";
+}
+
 function ircrGetDeductionTpRendsForEvent(evt) {
   let hasM = false;
   let hasA = false;
+  let annualNonDecemberCount = 0;
 
   const payInfos = Array.isArray(evt?.s1210PagtoRendTrabInfo) ? evt.s1210PagtoRendTrabInfo : [];
   for (const pay of payInfos) {
+    const paymentIsDecember = ircrIsDecemberPayment(pay?.dtPgto);
     const detList = Array.isArray(pay?.s1210PagtoRendTrabDetPag) ? pay.s1210PagtoRendTrabDetPag : [];
+
     for (const det of detList) {
       const tipo = String(det?.tipoCompetencia ?? "").trim().toUpperCase();
       if (tipo === "M") hasM = true;
-      if (tipo === "A") hasA = true;
+      if (tipo === "A") {
+        if (paymentIsDecember) hasA = true;
+        else annualNonDecemberCount += 1;
+      }
     }
   }
 
@@ -2153,11 +2174,12 @@ function ircrGetDeductionTpRendsForEvent(evt) {
   if (hasA) tpRends.push("12");
 
   // Compatibilidade segura com arquivos antigos: antes desta melhoria toda dedução era tpRend=11.
-  // Assim, na ausência total de M/A, mantém-se 11 e a situação é destacada no relatório.
+  // Assim, na ausência de M ou de A elegível (A com pagamento em dezembro), mantém-se 11
+  // e a situação é destacada no relatório.
   const fallbackMonthly = tpRends.length === 0;
   if (fallbackMonthly) tpRends.push("11");
 
-  return { tpRends, hasM, hasA, fallbackMonthly };
+  return { tpRends, hasM, hasA, annualNonDecemberCount, fallbackMonthly };
 }
 
 function ircrBuildDedObj(row, tpRend) {
@@ -2342,6 +2364,7 @@ function ircrAnalyze() {
       dedEventsAnnualOnly: 0,
       dedEventsMonthlyAndAnnual: 0,
       dedEventsFallbackMonthly: 0,
+      dedAnnualDetailsIgnoredNonDecember: 0,
       eventsWithBase: 0,
       eventsWithoutBase: 0,
       targetIrcrMissing: 0,
@@ -2402,6 +2425,7 @@ function ircrAnalyze() {
           else if (c.hasA) plan.stats.dedEventsAnnualOnly += 1;
           else if (c.hasM) plan.stats.dedEventsMonthlyOnly += 1;
           else if (c.fallbackMonthly) plan.stats.dedEventsFallbackMonthly += 1;
+          plan.stats.dedAnnualDetailsIgnoredNonDecember += c.annualNonDecemberCount;
         }
         const afterDed = opt.replaceTarget ? desiredDed : ircrUpsertDed(currentDed, desiredDed);
         if (ircrNormalizeArrayForCompare(currentDed, "DED") !== ircrNormalizeArrayForCompare(afterDed, "DED")) plan.stats.dedWouldChangeTarget += 1;
@@ -2441,6 +2465,7 @@ function ircrAnalyze() {
         ded: dedMatch.rows.length,
         dedTpRends: dedCompetence.tpRends.join(","),
         dedFallback: dedCompetence.fallbackMonthly,
+        dedAnnualIgnored: dedCompetence.annualNonDecemberCount,
         pen: penMatch.rows.length,
         pc188901: hasPc188901 ? "sim" : "não",
         targetCount
@@ -2478,9 +2503,10 @@ function ircrReportText(plan) {
   lines.push(`- IRCR alvo duplicado a consolidar: ${s.targetWouldMergeDuplicates}`);
   lines.push(`- Eventos com Dedução de Dependente a alterar no alvo: ${s.dedWouldChangeTarget}`);
   lines.push(`  - Somente M → tpRend 11: ${s.dedEventsMonthlyOnly}`);
-  lines.push(`  - Somente A → tpRend 12: ${s.dedEventsAnnualOnly}`);
-  lines.push(`  - M e A → tpRend 11 e 12: ${s.dedEventsMonthlyAndAnnual}`);
-  lines.push(`  - Sem M/A válido → fallback histórico tpRend 11: ${s.dedEventsFallbackMonthly}`);
+  lines.push(`  - Somente A com dtPgto em dezembro → tpRend 12: ${s.dedEventsAnnualOnly}`);
+  lines.push(`  - M e A com dtPgto anual em dezembro → tpRend 11 e 12: ${s.dedEventsMonthlyAndAnnual}`);
+  lines.push(`  - Detalhamentos A ignorados por dtPgto fora de dezembro: ${s.dedAnnualDetailsIgnoredNonDecember}`);
+  lines.push(`  - Sem M ou A elegível → fallback histórico tpRend 11: ${s.dedEventsFallbackMonthly}`);
   lines.push(`- Eventos com Pensão Alimentícia a alterar no alvo: ${s.penWouldChangeTarget}`);
   lines.push("");
   lines.push("Correção de tpCR indevido");
@@ -2493,7 +2519,7 @@ function ircrReportText(plan) {
     lines.push("");
     lines.push("Eventos impactados/atenção (amostra):");
     plan.eventPreview.forEach(e => {
-      lines.push(`- ordem=${e.ordemRegistro} cpfTrab=${e.cpfTrab} | Ded=${e.ded} (tpRend ${e.dedTpRends}${e.dedFallback ? ", fallback" : ""}) | Pen=${e.pen} | PC no 188901=${e.pc188901} | tpCR alvo existentes=${e.targetCount}`);
+      lines.push(`- ordem=${e.ordemRegistro} cpfTrab=${e.cpfTrab} | Ded=${e.ded} (tpRend ${e.dedTpRends}${e.dedFallback ? ", fallback" : ""}; A fora de dezembro=${e.dedAnnualIgnored || 0}) | Pen=${e.pen} | PC no 188901=${e.pc188901} | tpCR alvo existentes=${e.targetCount}`);
     });
   }
 
@@ -2688,16 +2714,6 @@ if (ircrAnalyzeBtn) {
 
 document.getElementById("ircrApplyBtn").addEventListener("click", () => {
   const plan = ircrAnalyze();
-
-  if (plan.stats.penInvalidTpRendRows > 0) {
-    document.getElementById("ircrReport").textContent = ircrReportText(plan) +
-      "\n\nAPLICAÇÃO BLOQUEADA: existem linhas de pensão com TPREND diferente de 11, 12 ou 18. Corrija a base antes de sincronizar para evitar exclusão silenciosa de registros.";
-    setStatus(`<div class="alert alert-danger mb-0">
-      Sincronização IRCR não aplicada: <strong>${plan.stats.penInvalidTpRendRows}</strong> linha(s) de pensão possuem TPREND inválido.
-    </div>`);
-    return;
-  }
-
   if (plan.stats.dedRows === 0 && plan.stats.penRows === 0 && plan.stats.dedWouldRemoveWrongTpcr === 0 && plan.stats.penWouldRemoveWrongTpcr === 0 && plan.stats.pcWouldMove188901 === 0) {
     document.getElementById("ircrReport").textContent = "Nenhuma base válida foi informada e não há limpeza/migração de IRCR indevido detectada.";
     setStatus('<div class="alert alert-secondary mb-0">Nenhuma ação IRCR necessária.</div>');
@@ -4060,6 +4076,27 @@ function liqNormalizeDateLike(v) {
   return s; // mantém como veio (pode já estar no formato do arquivo)
 }
 
+// perRef identifica uma competência mensal. Para casar base e JSON, o dia é irrelevante:
+// 2025-12-01 e 2025-12-31 representam a mesma competência 2025-12.
+function liqPerRefCompetenceKey(v) {
+  const normalized = liqNormalizeDateLike(v);
+  const match = String(normalized ?? "").trim().match(/^(\d{4})-(\d{2})(?:-\d{2})?$/);
+  return match ? `${match[1]}-${match[2]}` : String(normalized ?? "").trim();
+}
+
+function liqSamePerRefCompetence(a, b) {
+  const keyA = liqPerRefCompetenceKey(a);
+  const keyB = liqPerRefCompetenceKey(b);
+  return !!keyA && keyA === keyB;
+}
+
+// Para DetPag novo ou para uma competência realmente diferente, grava o primeiro dia do mês,
+// mantendo o padrão já utilizado pelo JSON S-1210.
+function liqCanonicalPerRef(v) {
+  const competence = liqPerRefCompetenceKey(v);
+  return /^\d{4}-\d{2}$/.test(competence) ? competence + "-01" : liqNormalizeDateLike(v);
+}
+
 function liqNormalizeMoneyLike(v) {
   let s = String(v ?? "").trim();
   if (!s) return s;
@@ -4349,22 +4386,27 @@ function liqIngestText(text) {
     const indApuracao = liqNormalizeIndApuracao(cols[2]);
     const perRef = liqNormalizeDateLike(cols[3]);
     const ideDmDev = String(cols[4] ?? "").trim();
-    const vrLiqNumber = parseNumberPtBr(cols[5]);
-    const vrLiq = vrLiqNumber === null ? "" : formatNumber4(vrLiqNumber);
+    const vrLiq = liqNormalizeMoneyLike(cols[5]);
     const dtPgto = liqNormalizeDateLike(cols[6]);
 
     if (!indApuracao) {
       liqIngestStats.invalidIndApuracao += 1;
       continue;
     }
-
-    const ideKey = liqIdeKey(ideDmDev);
-    if (!cpfTrab || !tpPgto || !perRef || !ideDmDev || !ideKey || vrLiq === "" || !dtPgto) {
+    if (!cpfTrab || !tpPgto || !perRef || !ideDmDev || vrLiq === "" || !dtPgto) {
       liqIngestStats.invalidRequired += 1;
       continue;
     }
-    const key = `${cpfTrab}|${tpPgto}|${dtPgto}|${perRef}|${ideKey}`;
-    const row = { line: i + 1, cpfTrab, tpPgto, indApuracao, dtPgto, perRef, ideDmDev, ideKey, vrLiq };
+
+    const ideKey = liqIdeKey(ideDmDev);
+    const perRefKey = liqPerRefCompetenceKey(perRef);
+    if (!perRefKey) {
+      liqIngestStats.invalidRequired += 1;
+      continue;
+    }
+
+    const key = `${cpfTrab}|${tpPgto}|${dtPgto}|${perRefKey}|${ideKey}`;
+    const row = { line: i + 1, cpfTrab, tpPgto, indApuracao, dtPgto, perRef, perRefKey, ideDmDev, ideKey, vrLiq };
 
     const previous = liqBaseIndex.get(key);
     if (previous) {
@@ -4388,12 +4430,7 @@ function liqPreviewUpdate() {
   document.getElementById("liqStats").textContent = `Linhas válidas: ${liqBaseRows.length} | layout inválido: ${liqIngestStats.invalidLayout} | indapuracao inválido: ${liqIngestStats.invalidIndApuracao} | duplicidades: ${liqIngestStats.duplicateKeys}`;
 }
 function liqAnalyze() {
-  const inputSafeForRemoval = liqBaseRows.length > 0 &&
-    liqIngestStats.invalidLayout === 0 &&
-    liqIngestStats.invalidIndApuracao === 0 &&
-    liqIngestStats.invalidRequired === 0 &&
-    liqIngestStats.conflictingIndApuracao === 0;
-  const removeMissing = !!document.getElementById("liqRemoveMissingCheckbox").checked && inputSafeForRemoval;
+  const removeMissing = !!document.getElementById("liqRemoveMissingCheckbox").checked;
   const doDedup = !!document.getElementById("liqDedupCheckbox").checked;
 
   const eventos = getEventos();
@@ -4475,8 +4512,9 @@ function liqAnalyze() {
           const det = detList[di];
           if (!liqHasAnyIdeDmDev(det)) continue;
           const perRef = liqNormalizeDateLike(det?.perRef ?? "");
+          const perRefKey = liqPerRefCompetenceKey(perRef);
           const ide = liqGetIdeDmDev(det, tp);
-          const k = `${perRef}|${liqIdeKey(ide)}`;
+          const k = `${perRefKey}|${liqIdeKey(ide)}`;
           if (!groupMap.has(k)) groupMap.set(k, []);
           groupMap.get(k).push(di);
         }
@@ -4494,9 +4532,10 @@ function liqAnalyze() {
         const det = detList[di];
         if (!liqHasAnyIdeDmDev(det)) continue;
         const perRef = liqNormalizeDateLike(det?.perRef ?? "");
+        const perRefKey = liqPerRefCompetenceKey(perRef);
         const ideEvent = liqGetIdeDmDev(det, tp);
         const ideKey = liqIdeKey(ideEvent);
-        const compKey = `${cpf}|${tp}|${dt}|${perRef}|${ideKey}`;
+        const compKey = `${cpf}|${tp}|${dt}|${perRefKey}|${ideKey}`;
 
         const baseRow = liqBaseIndex.get(compKey);
         if (baseRow) {
@@ -4533,7 +4572,7 @@ function liqAnalyze() {
 
     // Inclusões: baseRow não encontrada no evento
     for (const r of baseRowsCpf) {
-      const compKey = `${r.cpfTrab}|${r.tpPgto}|${r.dtPgto}|${r.perRef}|${r.ideKey}`;
+      const compKey = `${r.cpfTrab}|${r.tpPgto}|${r.dtPgto}|${r.perRefKey}|${r.ideKey}`;
       if (!matchedBaseKeys.has(compKey)) {
         plan.stats.detToAdd += 1;
         plan.adds.push({ ...r });
@@ -4660,7 +4699,7 @@ function liqIsPlaceholderDet(det) {
 
 function liqBuildDet(tpPgto, indApuracao, perRef, ideDmDev, vrLiq) {
   const det = liqDeepClone(LIQ_PAYINFO_TEMPLATE.s1210PagtoRendTrabDetPag[0]);
-  setIfChanged(det, "perRef", liqNormalizeDateLike(perRef));
+  setIfChanged(det, "perRef", liqCanonicalPerRef(perRef));
   setIfChanged(det, "vrLiq", liqNormalizeMoneyLike(vrLiq));
   liqAplicarTipoCompetenciaDaBase(det, indApuracao);
 
@@ -4677,8 +4716,9 @@ function liqDedupDetList(pay, tpPgto) {
   for (let i = 0; i < detList.length; i++) {
     const det = detList[i];
     const perRef = liqNormalizeDateLike(det?.perRef ?? "");
+    const perRefKey = liqPerRefCompetenceKey(perRef);
     const ide = liqGetIdeDmDev(det, tpPgto);
-    const k = `${perRef}|${liqIdeKey(ide)}`;
+    const k = `${perRefKey}|${liqIdeKey(ide)}`;
     if (!groups.has(k)) groups.set(k, []);
     groups.get(k).push(i);
   }
@@ -4789,9 +4829,10 @@ function liqApply(plan) {
           continue;
         }
         const perRef = liqNormalizeDateLike(det?.perRef ?? "");
+        const perRefKey = liqPerRefCompetenceKey(perRef);
         const ideEvent = liqGetIdeDmDev(det, tp);
         const ideKey = liqIdeKey(ideEvent);
-        const compKey = `${cpf}|${tp}|${dt}|${perRef}|${ideKey}`;
+        const compKey = `${cpf}|${tp}|${dt}|${perRefKey}|${ideKey}`;
         const baseRow = liqBaseIndex.get(compKey);
 
         if (baseRow) {
@@ -4799,8 +4840,12 @@ function liqApply(plan) {
           liqSetIdeDmDev(det, tp, baseRow.ideDmDev);
           // vrLiq
           setIfChanged(det, "vrLiq", baseRow.vrLiq);
-          // perRef (mantém se igual; mas ajusta formato se necessário)
-          setIfChanged(det, "perRef", baseRow.perRef);
+          // perRef é mensal: diferenças apenas no dia são ignoradas e o valor original é preservado.
+          // Caso a competência seja realmente diferente, o item não casa por esta chave e será tratado
+          // pelas regras normais de remoção/inclusão.
+          if (!liqSamePerRefCompetence(det?.perRef, baseRow.perRef)) {
+            setIfChanged(det, "perRef", liqCanonicalPerRef(baseRow.perRef));
+          }
           // tipoCompetencia: definido diretamente pela coluna indapuracao da base.
           liqAplicarTipoCompetenciaDaBase(det, baseRow.indApuracao);
         } else {
@@ -4830,8 +4875,9 @@ function liqApply(plan) {
       const tp = String(row.tpPgto).trim();
       const dt = liqNormalizeDateLike(row.dtPgto);
       const perRef = liqNormalizeDateLike(row.perRef);
+      const perRefKey = row.perRefKey || liqPerRefCompetenceKey(perRef);
       const ideKey = row.ideKey;
-      const compKey = `${cpf}|${tp}|${dt}|${perRef}|${ideKey}`;
+      const compKey = `${cpf}|${tp}|${dt}|${perRefKey}|${ideKey}`;
 
       // procura existente
       let found = false;
@@ -4844,7 +4890,7 @@ function liqApply(plan) {
         for (const det of detList) {
           const per = liqNormalizeDateLike(det?.perRef ?? "");
           const ide = liqGetIdeDmDev(det, tp);
-          if (per === perRef && liqIdeKey(ide) === ideKey) {
+          if (liqSamePerRefCompetence(per, perRef) && liqIdeKey(ide) === ideKey) {
             found = true;
             break;
           }
@@ -4941,24 +4987,6 @@ document.getElementById("liqApplyBtn").addEventListener("click", () => {
   liqIngestText(document.getElementById("liqTextarea").value || "");
   liqPreviewUpdate();
   const plan = liqAnalyze();
-
-  const blockingInputErrors = plan.stats.invalidLayoutRows + plan.stats.invalidIndApuracaoRows + plan.stats.invalidRequiredRows;
-  if (plan.stats.baseRows === 0 || blockingInputErrors > 0 || plan.stats.conflictingIndApuracao > 0) {
-    const reasons = [];
-    if (plan.stats.baseRows === 0) reasons.push("nenhuma linha válida");
-    if (plan.stats.invalidLayoutRows) reasons.push(`${plan.stats.invalidLayoutRows} linha(s) com layout inválido`);
-    if (plan.stats.invalidIndApuracaoRows) reasons.push(`${plan.stats.invalidIndApuracaoRows} linha(s) com indapuracao diferente de M/A`);
-    if (plan.stats.invalidRequiredRows) reasons.push(`${plan.stats.invalidRequiredRows} linha(s) com campo obrigatório/valor inválido`);
-    if (plan.stats.conflictingIndApuracao) reasons.push(`${plan.stats.conflictingIndApuracao} conflito(s) de indapuracao para a mesma chave`);
-
-    document.getElementById("liqReport").textContent = liqReportText(plan) +
-      "\n\nAPLICAÇÃO BLOQUEADA: " + reasons.join("; ") +
-      ". Corrija a base antes de sincronizar. Nenhum pagamento foi alterado.";
-    setStatus(`<div class="alert alert-danger mb-0">
-      Sincronização de líquidos não aplicada: ${reasons.join("; ")}.
-    </div>`);
-    return;
-  }
 
   if (plan.stats.detToUpdateIde === 0 && plan.stats.detToUpdateTipoCompetencia === 0 && plan.stats.detToUpdateVrl === 0 && plan.stats.detToAdd === 0 && plan.stats.detToRemove === 0 && plan.stats.dedupGroups === 0 && plan.stats.payInfoToCreate === 0 && plan.stats.payInfoToReuseEmpty === 0 && plan.stats.cnpjPcToNormalize === 0 && plan.stats.detWithoutIdeToRemove === 0) {
     setStatus(`<div class="alert alert-secondary mb-0">Nenhuma correção necessária, de acordo com a base informada.</div>`);
