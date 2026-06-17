@@ -441,7 +441,7 @@
     <header>
       <div>
         <h1>Consolidador de CSV S-1202/S1200 — Líquidos eSocial</h1>
-        <p class="subtitle">Importe CSVs com <strong>Id Edm Dev</strong> dos eventos <strong>S-1202</strong> e/ou <strong>S1200</strong>, selecione as folhas detectadas por <strong>número da folha + mês/ano</strong>, informe ou importe a <strong>dtPgto</strong> e exporte um único CSV consolidado com <code>cpfTrab;tpPgto;perRef;ideDmDev;vrLiq;dtPgto</code>.</p>
+        <p class="subtitle">Importe CSVs com <strong>Id Edm Dev</strong> dos eventos <strong>S-1202</strong> e/ou <strong>S1200</strong>, selecione as folhas detectadas por <strong>número da folha + mês/ano</strong>, informe ou importe a <strong>dtPgto</strong> e exporte um único CSV consolidado com <code>cpfTrab;tpPgto;indapuracao;perRef;ideDmDev;vrLiq;dtPgto</code>.</p>
       </div>
       <span class="badge">S-1202: tpPgto 4 · S1200: tpPgto 1</span>
     </header>
@@ -458,7 +458,7 @@
           <div class="import-grid">
             <div class="import-card">
               <h3>CSV principal — S-1202 ou S1200</h3>
-              <p class="hint">Use aqui os CSVs principais com as rubricas. Arquivos iniciados por <strong>S-1202</strong> ou <strong>S1202</strong> geram <code>tpPgto = 4</code>; arquivos iniciados por <strong>S1200</strong>, inclusive nomes como <code>S1200RemuTrabRGPS.csv</code>, geram <code>tpPgto = 1</code>.</p>
+              <p class="hint">Use aqui os CSVs principais com as rubricas. Arquivos iniciados por <strong>S-1202</strong> ou <strong>S1202</strong> geram <code>tpPgto = 4</code>; arquivos iniciados por <strong>S1200</strong>, inclusive nomes como <code>S1200RemuTrabRGPS.csv</code>, geram <code>tpPgto = 1</code>. A apuração será lida de <code>Ind. Apuracao</code> no S-1202 ou de <code>indapuracao</code> no S1200 e exportada como <code>M</code> ou <code>A</code>.</p>
               <div class="card-actions">
                 <button id="btnOpenMainModal" type="button">Importar CSV(s)</button>
               </div>
@@ -575,6 +575,7 @@
                     <tr>
                       <th>cpfTrab</th>
                       <th>tpPgto</th>
+                      <th>indapuracao</th>
                       <th>perRef</th>
                       <th>ideDmDev</th>
                       <th class="num">vrLiq</th>
@@ -593,7 +594,8 @@
                 <div style="margin-top:8px"><span class="tag warn">AUX</span> é ignorado/desprezado.</div>
                 <div style="margin-top:8px"><strong>Seleção da folha:</strong> agrupada por <code>Nº folha + mês/ano do Id Edm Dev</code>, sem separar por tipo.</div>
                 <div style="margin-top:8px"><strong>Sufixo do Id Edm Dev:</strong> valores finais como <code>-2</code> são aceitos, sem alterar a identificação da folha nem remover o sufixo da saída.</div>
-                <div style="margin-top:8px"><strong>Consolidação:</strong> soma por <code>tpPgto + cpfTrab + perRef + ideDmDev</code>, considerando apenas as folhas selecionadas.</div>
+                <div style="margin-top:8px"><strong>Apuração:</strong> <code>1 - Mensal</code> é exportado como <code>M</code>; <code>2 - Anual (13° salário)</code> é exportado como <code>A</code>.</div>
+                <div style="margin-top:8px"><strong>Consolidação:</strong> soma por <code>tpPgto + indapuracao + cpfTrab + perRef + ideDmDev</code>, considerando apenas as folhas selecionadas.</div>
                 <div style="margin-top:8px"><strong>Saída:</strong> <code>tpPgto</code> será <code>4</code> para arquivos S-1202 e <code>1</code> para arquivos S1200.</div><div style="margin-top:8px"><strong>Deduplicação:</strong> antes da soma, linhas repetidas são eliminadas pela combinação evento + CPF + categoria + apuração + ideDmDev + perRef + rubrica + natureza + valor.</div>
               </div>
               <div id="warningsBox"></div>
@@ -953,6 +955,22 @@
       return String(value ?? '').trim().replace(/\s+/g, ' ');
     }
 
+    function normalizeIndApuracao(value) {
+      const raw = cleanToken(value);
+      if (!raw) return '';
+
+      const folded = foldText(raw);
+
+      // Valores esperados nos arquivos de origem:
+      // S1200:  indapuracao = "1 - Mensal" ou "2 - Anual (13° salário)"
+      // S-1202: Ind. Apuracao = "1 - Mensal" ou "2 - Anual (13° salário)"
+      // Também aceita as formas reduzidas 1/2 e M/A para tolerar variações do exportador.
+      if (folded === '1' || folded === 'm' || folded === 'mensal' || folded.startsWith('1mensal')) return 'M';
+      if (folded === '2' || folded === 'a' || folded === 'anual' || folded.startsWith('2anual')) return 'A';
+
+      return '';
+    }
+
     function parseMoney(value) {
       let s = String(value ?? '').trim();
       if (!s) return null;
@@ -1215,12 +1233,14 @@
     function readCanonical(record, headerIndex, config) {
       const rawVrRubr = getCanonicalValue(record, headerIndex, 'vrRubr');
       const parsedValue = parseMoney(rawVrRubr);
+      const rawIndApuracao = getCanonicalValue(record, headerIndex, 'indApuracao');
       return {
         eventLabel: config.label,
         tpPgto: config.tpPgto,
         cpfTrab: cleanCpf(getCanonicalValue(record, headerIndex, 'cpfTrab')),
         categoria: cleanToken(getCanonicalValue(record, headerIndex, 'categoria')),
-        indApuracao: cleanToken(getCanonicalValue(record, headerIndex, 'indApuracao')),
+        indApuracaoRaw: cleanToken(rawIndApuracao),
+        indApuracao: normalizeIndApuracao(rawIndApuracao),
         perApur: normalizePeriodoParaSaida(getCanonicalValue(record, headerIndex, 'perApur')),
         ideDmDev: cleanToken(getCanonicalValue(record, headerIndex, 'ideDmDev')),
         perRefRubrica: normalizePeriodoParaSaida(getCanonicalValue(record, headerIndex, 'perRefRubrica')),
@@ -1275,6 +1295,12 @@
         return;
       }
 
+      if (!c.indApuracao) {
+        state.ignoredInvalid++;
+        addWarning(`${lineInfo}: Ind. Apuracao/indapuracao inválido: "${htmlEscape(c.indApuracaoRaw || '(vazio)')}". Use "1 - Mensal" ou "2 - Anual (13° salário)". Linha ignorada.`);
+        return;
+      }
+
       if (!c.perApur) {
         state.ignoredInvalid++;
         addWarning(`${lineInfo}: Per. Apur/perapur vazio. Linha ignorada.`);
@@ -1306,11 +1332,12 @@
       folhaObj.usefulRows++;
       folhaObj.net = round2(folhaObj.net + signedValue);
 
-      const groupKey = `${c.tpPgto}|||${c.cpfTrab}|||${c.perApur}|||${ideDmDev}`;
+      const groupKey = `${c.tpPgto}|||${c.indApuracao}|||${c.cpfTrab}|||${c.perApur}|||${ideDmDev}`;
       if (!state.groups.has(groupKey)) {
         state.groups.set(groupKey, {
           cpfTrab: c.cpfTrab,
           tpPgto: c.tpPgto,
+          indApuracao: c.indApuracao,
           perRef: c.perApur,
           ideDmDev,
           folhaKey: folha.key,
@@ -1633,8 +1660,8 @@
       const sortedGroups = Array.from(state.groups.values()).sort((a, b) => {
         const af = state.folhas.get(a.folhaKey);
         const bf = state.folhas.get(b.folhaKey);
-        return `${af?.mesAno || ''}|${af?.numero || ''}|${a.tpPgto}|${a.cpfTrab}|${a.ideDmDev}`
-          .localeCompare(`${bf?.mesAno || ''}|${bf?.numero || ''}|${b.tpPgto}|${b.cpfTrab}|${b.ideDmDev}`);
+        return `${af?.mesAno || ''}|${af?.numero || ''}|${a.tpPgto}|${a.indApuracao}|${a.cpfTrab}|${a.ideDmDev}`
+          .localeCompare(`${bf?.mesAno || ''}|${bf?.numero || ''}|${b.tpPgto}|${b.indApuracao}|${b.cpfTrab}|${b.ideDmDev}`);
       });
 
       for (const group of sortedGroups) {
@@ -1646,6 +1673,7 @@
         rows.push({
           cpfTrab: group.cpfTrab,
           tpPgto: group.tpPgto,
+          indapuracao: group.indApuracao,
           perRef: group.perRef,
           ideDmDev: group.ideDmDev,
           vrLiq: formatMoney(rounded, numberMode),
@@ -1684,13 +1712,14 @@
       renderValidation();
       const rows = buildOutputRows().slice(0, 80);
       if (!rows.length) {
-        els.previewTableBody.innerHTML = `<tr><td colspan="6" class="empty">A prévia aparecerá após selecionar ao menos uma folha e informar a dtPgto.</td></tr>`;
+        els.previewTableBody.innerHTML = `<tr><td colspan="7" class="empty">A prévia aparecerá após selecionar ao menos uma folha e informar a dtPgto.</td></tr>`;
         return;
       }
       els.previewTableBody.innerHTML = rows.map(row => `
         <tr>
           <td class="mono">${htmlEscape(row.cpfTrab)}</td>
           <td class="mono">${htmlEscape(row.tpPgto)}</td>
+          <td class="mono">${htmlEscape(row.indapuracao)}</td>
           <td class="mono">${htmlEscape(row.perRef)}</td>
           <td class="mono">${htmlEscape(row.ideDmDev)}</td>
           <td class="num mono">${htmlEscape(row.vrLiq)}</td>
@@ -1762,7 +1791,7 @@
       }
 
       const delimiter = els.outDelimiter.value;
-      const header = ['cpfTrab', 'tpPgto', 'perRef', 'ideDmDev', 'vrLiq', 'dtPgto'];
+      const header = ['cpfTrab', 'tpPgto', 'indapuracao', 'perRef', 'ideDmDev', 'vrLiq', 'dtPgto'];
       const lines = [header.join(delimiter)];
       for (const row of rows) lines.push(header.map(col => escapeCsv(row[col], delimiter)).join(delimiter));
       const bom = els.bomOption.value === 'bom' ? '\uFEFF' : '';
@@ -1777,7 +1806,7 @@
       a.click();
       URL.revokeObjectURL(a.href);
       a.remove();
-      showMessage(els.validationBox, 'ok', `CSV exportado com ${rows.length.toLocaleString('pt-BR')} linha(s), ${selected.length.toLocaleString('pt-BR')} folha(s) selecionada(s) e tpPgto definido conforme o prefixo do arquivo de origem.`);
+      showMessage(els.validationBox, 'ok', `CSV exportado com ${rows.length.toLocaleString('pt-BR')} linha(s), ${selected.length.toLocaleString('pt-BR')} folha(s) selecionada(s), tpPgto definido conforme o prefixo do arquivo e indapuracao convertido para M/A.`);
     }
 
     function openModal(id) {
