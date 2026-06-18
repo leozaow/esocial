@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Editor de Eventos S-2299</title>
+  <style>
+    :root{
+      --primary:#0f5ea8; --primary-dark:#0a4277; --secondary:#586474; --success:#167746;
+      --danger:#b4232e; --warning:#a86100; --bg:#f3f6f9; --card:#fff; --line:#d8e0e8;
+      --muted:#687586; --soft:#eef4fa; --empty:#f8fafc; --shadow:0 7px 24px rgba(26,45,67,.10);
+    }
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--bg);color:#17212b;font-family:Segoe UI,Roboto,Arial,sans-serif;font-size:14px}
+    button,input,select,textarea{font:inherit}
+    .topbar{background:linear-gradient(135deg,#17212b,#24374a);color:#fff;padding:14px 22px;box-shadow:0 2px 8px rgba(0,0,0,.22)}
+    .topbar-inner{max-width:1500px;margin:auto;display:flex;align-items:center;justify-content:space-between;gap:16px}
+    .brand{font-weight:700;font-size:19px}.brand small{display:block;font-weight:400;color:#c7d3df;font-size:12px;margin-top:2px}
+    .container{max-width:1500px;margin:22px auto;padding:0 18px 36px}
+    .grid{display:grid;grid-template-columns:repeat(12,1fr);gap:16px}.col-12{grid-column:span 12}.col-8{grid-column:span 8}.col-4{grid-column:span 4}
+    .card{background:var(--card);border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow);overflow:hidden}
+    .card-header{padding:13px 16px;background:#f9fbfd;border-bottom:1px solid var(--line);font-weight:700;display:flex;align-items:center;justify-content:space-between;gap:10px}
+    .card-body{padding:16px}.hint{font-size:12px;color:var(--muted);line-height:1.45}.mono{font-family:Consolas,"Courier New",monospace}
+    .toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center}.btn{border:1px solid transparent;border-radius:7px;padding:8px 12px;cursor:pointer;font-weight:600;transition:.15s;display:inline-flex;gap:7px;align-items:center;justify-content:center}
+    .btn:hover{filter:brightness(.96);transform:translateY(-1px)}.btn:disabled{opacity:.5;cursor:not-allowed;transform:none}
+    .btn-primary{background:var(--primary);color:#fff}.btn-secondary{background:var(--secondary);color:#fff}.btn-success{background:var(--success);color:#fff}.btn-danger{background:var(--danger);color:#fff}.btn-warning{background:#f0a22e;color:#2f220b}
+    .btn-outline{background:#fff;border-color:#aebac7;color:#253445}.btn-outline-danger{background:#fff;border-color:#dc8f96;color:var(--danger)}.btn-sm{padding:5px 8px;font-size:12px}
+    .file-box{border:1px dashed #9db0c3;background:#f8fbff;border-radius:8px;padding:12px}.file-box input{width:100%}
+    .status{margin-top:12px;padding:10px 12px;border-radius:7px;background:#edf4fb;border:1px solid #c8daec;white-space:pre-wrap}.status.success{background:#eaf7f0;border-color:#add8c2}.status.error{background:#fff0f1;border-color:#e5b4b8}.status:empty{display:none}
+    .summary-grid{display:grid;grid-template-columns:repeat(4,minmax(130px,1fr));gap:10px}.summary{background:#f7fafc;border:1px solid var(--line);border-radius:8px;padding:11px}.summary strong{display:block;font-size:23px;color:var(--primary)}.summary span{font-size:12px;color:var(--muted)}
+    .search-row{display:flex;gap:10px;align-items:end;flex-wrap:wrap}.field{display:flex;flex-direction:column;gap:5px;min-width:150px;flex:1}.field label{font-weight:600;font-size:12px;color:#384858}
+    input[type=text],input[type=search],input[type=number],select,textarea{width:100%;border:1px solid #bcc7d2;border-radius:7px;padding:8px 9px;background:#fff;color:#17212b}
+    input:focus,select:focus,textarea:focus{outline:2px solid rgba(15,94,168,.17);border-color:var(--primary)}textarea{resize:vertical;min-height:70px}
+    .table-wrap{overflow:auto;max-height:62vh}.events-table{width:100%;border-collapse:collapse;min-width:960px}.events-table th,.events-table td{padding:9px 10px;border-bottom:1px solid #e3e8ed;text-align:left;vertical-align:middle}.events-table th{position:sticky;top:0;background:#eef3f8;z-index:2;font-size:12px;color:#314253}.events-table tr:hover td{background:#f7fbff}.events-table .selected-row td{background:#fff8e8}.center{text-align:center!important}
+    .badge{display:inline-block;border-radius:20px;padding:3px 7px;font-size:11px;font-weight:700;background:#e7edf3;color:#405163}.badge.good{background:#dff3e9;color:#16633d}.badge.empty{background:#f0f1f2;color:#737d86}.badge.warn{background:#fff0d7;color:#8c5400}
+    .modal{position:fixed;inset:0;background:rgba(14,24,35,.65);display:none;align-items:center;justify-content:center;padding:18px;z-index:1000}.modal.show{display:flex}.modal-dialog{background:#fff;width:min(1500px,97vw);max-height:96vh;border-radius:11px;box-shadow:0 24px 70px rgba(0,0,0,.34);display:flex;flex-direction:column;overflow:hidden}.modal-dialog.medium{width:min(860px,96vw)}
+    .modal-header,.modal-footer{padding:12px 16px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:10px;background:#f9fbfd}.modal-footer{border-bottom:0;border-top:1px solid var(--line);justify-content:flex-end}.modal-title{font-size:17px;font-weight:700}.modal-body{padding:15px;overflow:auto}.close-x{background:transparent;border:0;font-size:25px;color:#526171;cursor:pointer}
+    .editor-toolbar{position:sticky;top:-15px;z-index:20;background:#fff;border-bottom:1px solid var(--line);padding:0 0 10px;margin-bottom:12px}
+    .editor-root{display:flex;flex-direction:column;gap:10px}.node{border:1px solid var(--line);border-radius:9px;background:#fff;overflow:hidden}.node.empty-node{background:var(--empty);opacity:.92}.node>summary{list-style:none;cursor:pointer;padding:10px 12px;background:#f3f7fb;display:flex;align-items:center;justify-content:space-between;gap:10px}.node>summary::-webkit-details-marker{display:none}.node>summary:before{content:"▸";font-size:14px;color:#5f7182}.node[open]>summary:before{content:"▾"}.node.empty-node>summary{background:#f7f8fa}
+    .summary-left{display:flex;align-items:center;gap:8px;min-width:0}.node-title{font-weight:700}.tech-name{font:11px Consolas,monospace;color:#728092;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.summary-actions{display:flex;align-items:center;gap:6px}.node-body{padding:11px}
+    .scalar-grid{display:grid;grid-template-columns:repeat(4,minmax(190px,1fr));gap:10px}.scalar-field{border:1px solid #dce3e9;border-radius:7px;padding:8px;background:#fff;min-width:0}.scalar-field.is-empty{background:#fafbfc}.scalar-label{display:flex;justify-content:space-between;gap:7px;align-items:flex-start;margin-bottom:5px}.scalar-label strong{font-size:12px}.path-label{display:block;font:10px Consolas,monospace;color:#7a8793;margin-top:2px;overflow-wrap:anywhere}.scalar-controls{display:flex;gap:5px;align-items:start}.scalar-controls input,.scalar-controls textarea,.scalar-controls select{min-width:0}.remove-property{border:0;background:transparent;color:#a32731;cursor:pointer;padding:6px}
+    .empty-scalars{margin-top:10px;border:1px dashed #cbd4dc;border-radius:7px;background:#fafbfc}.empty-scalars>summary{cursor:pointer;padding:8px 10px;font-weight:600;color:#687586}.empty-scalars .scalar-grid{padding:10px}
+    .children{display:flex;flex-direction:column;gap:9px;margin-top:10px}.array-items{display:flex;flex-direction:column;gap:9px}.array-item{border:1px solid #ced8e1;border-radius:8px;background:#fff}.array-item>summary{background:#f8fafc}.item-toolbar{display:flex;gap:5px;flex-wrap:wrap}.object-addbar{display:flex;gap:7px;flex-wrap:wrap;align-items:center;margin-top:10px;padding-top:10px;border-top:1px dashed #d5dde5}.object-addbar select{max-width:380px}.empty-message{padding:12px;border:1px dashed #c9d3dc;border-radius:7px;color:#748190;background:#fafbfc;text-align:center}
+    .raw-box{margin-top:12px;border:1px solid var(--line);border-radius:8px;background:#f8fafc}.raw-box>summary{cursor:pointer;padding:10px 12px;font-weight:700}.raw-inner{padding:11px}.raw-inner textarea{min-height:320px;font-family:Consolas,monospace;font-size:12px}
+    .filter-stats{padding:10px;background:#f4f7fa;border:1px solid var(--line);border-radius:7px;white-space:pre-wrap}.muted{color:var(--muted)}
+    @media(max-width:1050px){.col-8,.col-4{grid-column:span 12}.scalar-grid{grid-template-columns:repeat(2,minmax(180px,1fr))}.summary-grid{grid-template-columns:repeat(2,1fr)}}
+    @media(max-width:650px){.container{padding:0 9px}.scalar-grid{grid-template-columns:1fr}.summary-grid{grid-template-columns:1fr 1fr}.modal{padding:4px}.modal-dialog{max-height:99vh}.topbar{padding:11px}.toolbar .btn{flex:1}.object-addbar select{max-width:none;flex-basis:100%}}
+  </style>
+</head>
+<body>
+<header class="topbar"><div class="topbar-inner"><div class="brand">Editor de Eventos S-2299<small>Desligamento — edição hierárquica com preservação estrutural do JSON</small></div><span class="badge good">HTML + JavaScript local</span></div></header>
+<main class="container">
+  <div class="grid">
+    <section class="card col-8">
+      <div class="card-header"><span>Carregar e salvar arquivo</span><span class="badge">S-2299</span></div>
+      <div class="card-body">
+        <div class="file-box">
+          <label for="fileInput"><strong>Importar arquivo(s) JSON</strong></label>
+          <input id="fileInput" type="file" accept=".json,application/json" multiple>
+          <div class="hint" style="margin-top:8px">São aceitos arquivos <span class="mono">.json</span> cujo nome comece com <span class="mono">S-2299_</span>. Em importação múltipla, os eventos são reunidos sem consolidação.</div>
+        </div>
+        <div class="toolbar" style="margin-top:12px">
+          <button class="btn btn-primary" id="downloadBtn">⬇ Baixar edição</button>
+          <button class="btn btn-warning" id="filterBtn">⧉ Filtrar eventos</button>
+          <button class="btn btn-success" id="matriculasCsvBtn">⇄ Alterar matrículas CSV</button>
+          <button class="btn btn-secondary" id="addDiaDesligMotivo10Btn">+1 dia deslig. motivo 10</button>
+          <button class="btn btn-outline" id="selectAllBtn">☑ Selecionar visíveis</button>
+          <button class="btn btn-outline" id="deselectAllBtn">☐ Desmarcar visíveis</button>
+          <button class="btn btn-outline-danger" id="removeSelectedBtn">🗑 Remover selecionados</button>
+        </div>
+        <div id="statusArea" class="status"></div>
+      </div>
+    </section>
+    <section class="card col-4">
+      <div class="card-header">Resumo do arquivo</div>
+      <div class="card-body"><div class="summary-grid">
+        <div class="summary"><strong id="sumEvents">0</strong><span>eventos</span></div>
+        <div class="summary"><strong id="sumVisible">0</strong><span>visíveis</span></div>
+        <div class="summary"><strong id="sumSelected">0</strong><span>selecionados</span></div>
+        <div class="summary"><strong id="sumRra">0</strong><span>com RRA</span></div>
+      </div></div>
+    </section>
+    <section class="card col-12">
+      <div class="card-header">Pesquisa e eventos</div>
+      <div class="card-body">
+        <div class="search-row">
+          <div class="field"><label for="searchInput">Buscar em qualquer campo do evento</label><input id="searchInput" type="search" placeholder="CPF, matrícula, data, motivo, ideDmDev, rubrica..."></div>
+          <div class="field" style="max-width:230px"><label for="quickFilter">Filtro rápido</label><select id="quickFilter"><option value="all">Todos</option><option value="rra">Somente com indRRA = S</option><option value="meaningfulDmDev">Com demonstrativo preenchido</option><option value="selected">Somente selecionados</option></select></div>
+        </div>
+      </div>
+      <div class="table-wrap"><table class="events-table"><thead><tr><th class="center" style="width:48px">Sel.</th><th>Ordem</th><th>CPF</th><th>Matrícula</th><th>Desligamento</th><th>Motivo</th><th>RRA</th><th style="width:175px">Ações</th></tr></thead><tbody id="eventsTbody"></tbody></table></div>
+    </section>
+  </div>
+</main>
+
+<div class="modal" id="editorModal" aria-hidden="true"><div class="modal-dialog">
+  <div class="modal-header"><div><div class="modal-title" id="editorTitle">Editar evento S-2299</div><div class="hint" id="editorSubtitle"></div></div><button class="close-x" data-close="editorModal">×</button></div>
+  <div class="modal-body">
+    <div class="editor-toolbar"><div class="toolbar">
+      <button class="btn btn-sm btn-outline" id="expandDataBtn">Expandir com dados</button><button class="btn btn-sm btn-outline" id="collapseEmptyBtn">Recolher vazios</button><button class="btn btn-sm btn-outline" id="expandAllBtn">Expandir tudo</button><button class="btn btn-sm btn-outline" id="collapseAllBtn">Recolher tudo</button><button class="btn btn-sm btn-warning" id="restoreEventBtn">Restaurar evento</button>
+    </div><div class="hint" style="margin-top:7px">Campos com <span class="mono">*vazio*</span>, <span class="mono">*datavazia*</span> ou <span class="mono">*numerovazio*</span> são tratados como sem conteúdo e ficam retraídos. Eles só são alterados quando houver edição explícita.</div></div>
+    <div id="editorTree" class="editor-root"></div>
+    <details class="raw-box" id="rawDetails"><summary>JSON bruto do evento — recurso avançado</summary><div class="raw-inner"><div class="toolbar" style="margin-bottom:8px"><button class="btn btn-sm btn-outline" id="refreshRawBtn">Atualizar texto pelo formulário</button><button class="btn btn-sm btn-primary" id="applyRawBtn">Aplicar JSON bruto</button></div><textarea id="rawTextarea" spellcheck="false"></textarea><div class="hint">O conteúdo deve representar um único objeto de evento S-2299.</div></div></details>
+  </div>
+  <div class="modal-footer"><button class="btn btn-secondary" data-close="editorModal">Cancelar</button><button class="btn btn-primary" id="saveEventBtn">💾 Salvar alterações do evento</button></div>
+</div></div>
+
+<div class="modal" id="filterModal" aria-hidden="true"><div class="modal-dialog medium">
+  <div class="modal-header"><div class="modal-title">Filtrar eventos por lista</div><button class="close-x" data-close="filterModal">×</button></div>
+  <div class="modal-body">
+    <div class="grid">
+      <div class="field" style="grid-column:span 6"><label>Critério</label><select id="filterCriterion"><option value="cpf">CPF do trabalhador</option><option value="matric">Matrícula</option><option value="both">CPF ou matrícula</option></select></div>
+      <div class="field" style="grid-column:span 6"><label>Operação</label><select id="filterMode"><option value="exclude">Excluir os informados</option><option value="keep">Manter somente os informados</option></select></div>
+    </div>
+    <div class="field" style="margin-top:12px"><label>Valores — um por linha</label><textarea id="filterTextarea" rows="9" placeholder="Exemplo:\n10036127760\n857.605-0"></textarea></div>
+    <div class="hint" style="margin:8px 0">CPF é normalizado para 11 dígitos, completando zero à esquerda quando necessário. Matrícula é comparada sem pontuação.</div>
+    <div id="filterStats" class="filter-stats">Informe a lista e clique em “Analisar”.</div>
+  </div>
+  <div class="modal-footer"><button class="btn btn-secondary" data-close="filterModal">Cancelar</button><button class="btn btn-outline" id="analyzeFilterBtn">Analisar</button><button class="btn btn-danger" id="applyFilterBtn">Aplicar filtro</button></div>
+</div></div>
+
+
+<div class="modal" id="matriculaCsvModal" aria-hidden="true"><div class="modal-dialog medium">
+  <div class="modal-header"><div><div class="modal-title">Carregar Arquivo CSV</div><div class="hint">Alteração conservadora das matrículas dos contratos do S-2299.</div></div><button class="close-x" data-close="matriculaCsvModal">×</button></div>
+  <div class="modal-body">
+    <div class="file-box">
+      <label for="matriculaCsvFileInput"><strong>Arquivo CSV (cpfTrab;matricula;matricula_atual):</strong></label>
+      <input type="file" id="matriculaCsvFileInput" accept=".csv,text/csv">
+      <div class="hint" style="margin-top:8px">Separador recomendado: <span class="mono">;</span>. CPF pode vir com máscara, com 11 dígitos, ou sem zeros à esquerda (será normalizado).</div>
+    </div>
+    <label style="display:flex;gap:9px;align-items:flex-start;margin-top:14px;cursor:pointer">
+      <input type="checkbox" id="matriculaCsvHeuristicSuffix" style="width:auto;margin-top:3px">
+      <span><strong>Tentar correção automática quando a matrícula terminar em <span class="mono">/N</span> ou <span class="mono">/NN</span></strong> (ex.: <span class="mono">12345/1</span> ou <span class="mono">12345/01</span> → <span class="mono">12345</span>) caso o CPF não exista no CSV.</span>
+    </label>
+    <div class="hint" style="margin:6px 0 12px 25px">Opcional e conservador: só remove sufixo final <span class="mono">/</span> + 1-2 dígitos, e apenas quando não houver mapeamento por CPF.</div>
+    <div id="matriculaCsvStatus" class="filter-stats">Nenhum CSV carregado ainda.</div>
+  </div>
+  <div class="modal-footer"><button class="btn btn-secondary" data-close="matriculaCsvModal">Fechar</button><button class="btn btn-primary" id="applyMatriculaCsvBtn">Analisar Matrículas</button></div>
+</div></div>
+
+<script id="fieldCatalogData" type="application/json">["contrato.matricula", "contrato.dtAdm", "contrato.codCateg.categoria", "contrato.trabalhador.cpfTrab", "trabalhador.cpfTrab", "empregador.iniValid", "empregador.nrInsc", "empregador.tpInsc.tipo", "dtDeslig", "dtAvPrv", "mtvDeslig.motivo", "indPagtoAPI", "dtProjFimAPI", "pensAlim", "percAliment", "vrAlim", "nrCertObito", "nrProcTrab", "indCumprParc", "qtdDiasInterm", "observacao", "tpInscSuc.tipo", "cnpjSucessora", "cpfSubstituto", "dtNascto", "novoCPF", "dtFimQuar", "indMV", "nrProcJud.iniValid", "nrProcJud.nrProc", "nrProcJud.empregador.iniValid", "nrProcJud.empregador.nrInsc", "nrProcJud.empregador.tpInsc.tipo", "nrProcJud.tpProc", "indRemun", "dtFimRemun", "indPDV", "s2299RescisaoRoe.nrInscRoe", "s2299RescisaoRoe.vlrRemunOE", "s2299RescisaoRoe.tpInscRoe.tipo", "s2299RescisaoRoe.codCategRoe.categoria", "s2299RescisaoConv.dia", "s2299RescisaoConv.hrsTrab", "s2299RescisaoProcesso.tpTrib", "s2299RescisaoProcesso.contrato.matricula", "s2299RescisaoProcesso.contrato.dtAdm", "s2299RescisaoProcesso.contrato.codCateg.categoria", "s2299RescisaoProcesso.contrato.trabalhador.cpfTrab", "s2299RescisaoProcesso.nrProcJud.iniValid", "s2299RescisaoProcesso.nrProcJud.nrProc", "s2299RescisaoProcesso.nrProcJud.empregador.iniValid", "s2299RescisaoProcesso.nrProcJud.empregador.nrInsc", "s2299RescisaoProcesso.nrProcJud.empregador.tpInsc.tipo", "s2299RescisaoProcesso.nrProcJud.tpProc", "s2299RescisaoProcesso.codSusp.codSusp", "s2299RescisaoProcesso.codSusp.processo.iniValid", "s2299RescisaoProcesso.codSusp.processo.nrProc", "s2299RescisaoProcesso.codSusp.processo.empregador.iniValid", "s2299RescisaoProcesso.codSusp.processo.empregador.nrInsc", "s2299RescisaoProcesso.codSusp.processo.empregador.tpInsc.tipo", "s2299RescisaoProcesso.codSusp.processo.tpProc", "s2299RescisaoDmDev.ideDmDev", "s2299RescisaoDmDev.s2299RescisaoADC.dtAcConv", "s2299RescisaoDmDev.s2299RescisaoADC.tpAcConv", "s2299RescisaoDmDev.s2299RescisaoADC.dtEfAcConv", "s2299RescisaoDmDev.s2299RescisaoADC.dsc", "s2299RescisaoDmDev.s2299RescisaoADC.tpRegistro", "s2299RescisaoDmDev.s2299RescisaoADC.s2299RescisaoPer.perRef", "s2299RescisaoDmDev.s2299RescisaoADC.s2299RescisaoPer.tpRegistro", "s2299RescisaoDmDev.s2299RescisaoADC.s2299RescisaoPer.s2299RescisaoEstab.indSimples", "s2299RescisaoDmDev.s2299RescisaoADC.s2299RescisaoPer.s2299RescisaoEstab.nrInscDom", "s2299RescisaoDmDev.s2299RescisaoADC.s2299RescisaoPer.s2299RescisaoEstab.nrInscEstab.iniValid", "s2299RescisaoDmDev.s2299RescisaoADC.s2299RescisaoPer.s2299RescisaoEstab.nrInscEstab.nrInsc", "s2299RescisaoDmDev.s2299RescisaoADC.s2299RescisaoPer.s2299RescisaoEstab.nrInscEstab.empregador.iniValid", "s2299RescisaoDmDev.s2299RescisaoADC.s2299RescisaoPer.s2299RescisaoEstab.nrInscEstab.empregador.nrInsc", "s2299RescisaoDmDev.s2299RescisaoADC.s2299RescisaoPer.s2299RescisaoEstab.nrInscEstab.empregador.tpInsc.tipo", "s2299RescisaoDmDev.s2299RescisaoADC.s2299RescisaoPer.s2299RescisaoEstab.nrInscEstab.tpInsc.tipo", "s2299RescisaoDmDev.s2299RescisaoADC.s2299RescisaoPer.s2299RescisaoEstab.tpinscestabtsv", "s2299RescisaoDmDev.s2299RescisaoADC.s2299RescisaoPer.s2299RescisaoEstab.grauExp.grau", "s2299RescisaoDmDev.s2299RescisaoADC.s2299RescisaoPer.s2299RescisaoEstab.codLotacao.codLotacao", "s2299RescisaoDmDev.s2299RescisaoADC.s2299RescisaoPer.s2299RescisaoEstab.codLotacao.iniValid", "s2299RescisaoDmDev.s2299RescisaoADC.s2299RescisaoPer.s2299RescisaoEstab.codLotacao.empregador.iniValid", "s2299RescisaoDmDev.s2299RescisaoADC.s2299RescisaoPer.s2299RescisaoEstab.codLotacao.empregador.nrInsc", "s2299RescisaoDmDev.s2299RescisaoADC.s2299RescisaoPer.s2299RescisaoEstab.codLotacao.empregador.tpInsc.tipo", "s2299RescisaoDmDev.s2299RescisaoADC.s2299RescisaoPer.s2299RescisaoEstab.s2299RescisaoRubrica.ideTabRubr", "s2299RescisaoDmDev.s2299RescisaoADC.s2299RescisaoPer.s2299RescisaoEstab.s2299RescisaoRubrica.qtdRubr", "s2299RescisaoDmDev.s2299RescisaoADC.s2299RescisaoPer.s2299RescisaoEstab.s2299RescisaoRubrica.qtdRubrSimp", "s2299RescisaoDmDev.s2299RescisaoADC.s2299RescisaoPer.s2299RescisaoEstab.s2299RescisaoRubrica.indApurIR", "s2299RescisaoDmDev.s2299RescisaoADC.s2299RescisaoPer.s2299RescisaoEstab.s2299RescisaoRubrica.codRubr.empregador.iniValid", "s2299RescisaoDmDev.s2299RescisaoADC.s2299RescisaoPer.s2299RescisaoEstab.s2299RescisaoRubrica.codRubr.empregador.nrInsc", "s2299RescisaoDmDev.s2299RescisaoADC.s2299RescisaoPer.s2299RescisaoEstab.s2299RescisaoRubrica.codRubr.empregador.tpInsc.tipo", "s2299RescisaoDmDev.s2299RescisaoADC.s2299RescisaoPer.s2299RescisaoEstab.s2299RescisaoRubrica.codRubr.codRubr", "s2299RescisaoDmDev.s2299RescisaoADC.s2299RescisaoPer.s2299RescisaoEstab.s2299RescisaoRubrica.codRubr.ideTabRubr", "s2299RescisaoDmDev.s2299RescisaoADC.s2299RescisaoPer.s2299RescisaoEstab.s2299RescisaoRubrica.codRubr.iniValid", "s2299RescisaoDmDev.s2299RescisaoADC.s2299RescisaoPer.s2299RescisaoEstab.s2299RescisaoRubrica.s2299RescisaoDescFolha.tpDesc", "s2299RescisaoDmDev.s2299RescisaoADC.s2299RescisaoPer.s2299RescisaoEstab.s2299RescisaoRubrica.s2299RescisaoDescFolha.instFinanc", "s2299RescisaoDmDev.s2299RescisaoADC.s2299RescisaoPer.s2299RescisaoEstab.s2299RescisaoRubrica.s2299RescisaoDescFolha.nrDoc", "s2299RescisaoDmDev.s2299RescisaoADC.s2299RescisaoPer.s2299RescisaoEstab.s2299RescisaoRubrica.s2299RescisaoDescFolha.observacao", "s2299RescisaoDmDev.s2299RescisaoADC.s2299RescisaoPer.s2299RescisaoEstab.s2299RescisaoRubrica.vrRubr", "s2299RescisaoDmDev.s2299RescisaoADC.s2299RescisaoPer.s2299RescisaoEstab.s2299RescisaoRubrica.vrUnit", "s2299RescisaoDmDev.s2299RescisaoADC.s2299RescisaoPer.s2299RescisaoEstab.s2299RescisaoRubrica.fatorRubr", "s2299RescisaoDmDev.s2299RescisaoADC.s2299RescisaoPer.s2299RescisaoEstab.s2299RescisaoOper.cnpjOper", "s2299RescisaoDmDev.s2299RescisaoADC.s2299RescisaoPer.s2299RescisaoEstab.s2299RescisaoOper.regANS", "s2299RescisaoDmDev.s2299RescisaoADC.s2299RescisaoPer.s2299RescisaoEstab.s2299RescisaoOper.vrPgTit", "s2299RescisaoDmDev.s2299RescisaoADC.s2299RescisaoPer.s2299RescisaoEstab.s2299RescisaoOper.s2299RescisaoDep.nmDep", "s2299RescisaoDmDev.s2299RescisaoADC.s2299RescisaoPer.s2299RescisaoEstab.s2299RescisaoOper.s2299RescisaoDep.dtNascto", "s2299RescisaoDmDev.s2299RescisaoADC.s2299RescisaoPer.s2299RescisaoEstab.s2299RescisaoOper.s2299RescisaoDep.tpDep.codigo", "s2299RescisaoDmDev.s2299RescisaoADC.s2299RescisaoPer.s2299RescisaoEstab.s2299RescisaoOper.s2299RescisaoDep.cpfDep", "s2299RescisaoDmDev.s2299RescisaoADC.s2299RescisaoPer.s2299RescisaoEstab.s2299RescisaoOper.s2299RescisaoDep.vlrPgDep", "s2299RescisaoDmDev.s2299RescisaoADC.compAcConv", "s2299RescisaoDmDev.s2299RescisaoTrabInterm.codConv.trabalhador.cpfTrab", "s2299RescisaoDmDev.s2299RescisaoTrabInterm.codConv.codConv", "s2299RescisaoDmDev.s2299RescisaoTrabInterm.codConv.contrato.matricula", "s2299RescisaoDmDev.s2299RescisaoTrabInterm.codConv.contrato.dtAdm", "s2299RescisaoDmDev.s2299RescisaoTrabInterm.codConv.contrato.codCateg.categoria", "s2299RescisaoDmDev.s2299RescisaoTrabInterm.codConv.contrato.trabalhador.cpfTrab", "s2299RescisaoDmDev.s2299RescisaoIdeAdv.tpInsc.tipo", "s2299RescisaoDmDev.s2299RescisaoIdeAdv.nrInsc", "s2299RescisaoDmDev.s2299RescisaoIdeAdv.vlrAdv", "s2299RescisaoDmDev.indRRA", "s2299RescisaoDmDev.tpProcRRA", "s2299RescisaoDmDev.nrProcRRA", "s2299RescisaoDmDev.descRRA", "s2299RescisaoDmDev.qtdMesesRRA", "s2299RescisaoDmDev.vlrDespCustas", "s2299RescisaoDmDev.vlrDespAdvogados", "s2299ConsigFGTS.contrato.matricula", "s2299ConsigFGTS.contrato.dtAdm", "s2299ConsigFGTS.contrato.codCateg.categoria", "s2299ConsigFGTS.contrato.trabalhador.cpfTrab", "s2299ConsigFGTS.insConsig", "s2299ConsigFGTS.nrContr", "ordemRegistro", "chaveIntegracao", "s2299RescisaoDmDev.s2299RescisaoADC.s2299RescisaoPer.anoRef", "s2299RescisaoObs.ordemRegistro", "s2299RescisaoObs.chaveIntegracao", "s2299RescisaoObs.observacao", "s2299RescisaoTrabInterm.dia", "s2299RescisaoTrabInterm.hrsTrab"]</script>
+<script>
+'use strict';
+const FIELD_CATALOG = JSON.parse(document.getElementById('fieldCatalogData').textContent);
+const ARRAY_KEYS = new Set([
+  's2299Rescisao','s2299RescisaoRoe','s2299RescisaoConv','s2299RescisaoProcesso','s2299RescisaoDmDev',
+  's2299RescisaoADC','s2299RescisaoPer','s2299RescisaoEstab','s2299RescisaoRubrica','s2299RescisaoDescFolha',
+  's2299RescisaoOper','s2299RescisaoDep','s2299RescisaoTrabInterm','s2299RescisaoIdeAdv','s2299ConsigFGTS','s2299RescisaoObs'
+]);
+const EMPTY_TOKENS = new Set(['','*vazio*','*datavazia*','*numerovazio*','null','undefined']);
+const TITLE_MAP = {
+  contrato:'Contrato', trabalhador:'Trabalhador', empregador:'Empregador', tpInsc:'Tipo de inscrição', mtvDeslig:'Motivo do desligamento', nrProcJud:'Processo judicial', tpInscSuc:'Inscrição da sucessora', codCateg:'Categoria', codCategRoe:'Categoria no outro empregador', tpInscRoe:'Tipo de inscrição — outro empregador', codSusp:'Código de suspensão', processo:'Processo',
+  s2299ConsigFGTS:'Consignações FGTS', s2299RescisaoDmDev:'Demonstrativos de valores', s2299RescisaoADC:'Acordo, dissídio ou convenção', s2299RescisaoPer:'Períodos de referência', s2299RescisaoEstab:'Estabelecimentos e lotações', s2299RescisaoRubrica:'Rubricas', s2299RescisaoDescFolha:'Descontos em folha', s2299RescisaoIdeAdv:'Advogados', s2299RescisaoObs:'Observações', s2299RescisaoProcesso:'Processos', s2299RescisaoRoe:'Remuneração em outros empregadores', s2299RescisaoTrabInterm:'Trabalho intermitente', s2299RescisaoConv:'Convocações', s2299RescisaoOper:'Operadoras de plano de saúde', s2299RescisaoDep:'Dependentes do plano',
+  codLotacao:'Lotação tributária', grauExp:'Grau de exposição', nrInscEstab:'Estabelecimento', codRubr:'Rubrica', codConv:'Convocação', tpDep:'Tipo de dependente'
+};
+const LABEL_MAP = {
+  ordemRegistro:'Ordem do registro', chaveIntegracao:'Chave de integração', cpfTrab:'CPF do trabalhador', matricula:'Matrícula', dtAdm:'Data de admissão', dtDeslig:'Data de desligamento', dtAvPrv:'Data do aviso-prévio', dtProjFimAPI:'Fim projetado do aviso indenizado', dtFimRemun:'Fim da remuneração', dtNascto:'Data de nascimento', motivo:'Motivo', indPagtoAPI:'Pagamento de aviso indenizado', indRRA:'Indicador de RRA', ideDmDev:'Identificador do demonstrativo', perRef:'Período de referência', anoRef:'Ano de referência', codLotacao:'Código da lotação', codRubr:'Código da rubrica', ideTabRubr:'Tabela de rubricas', vrRubr:'Valor da rubrica', qtdRubr:'Quantidade da rubrica', fatorRubr:'Fator da rubrica', observacao:'Observação', nrProc:'Número do processo', tpProc:'Tipo de processo', iniValid:'Início de validade', nrInsc:'Número de inscrição', tipo:'Tipo', categoria:'Categoria', grau:'Grau', dsc:'Descrição', descRRA:'Descrição do RRA', qtdMesesRRA:'Quantidade de meses do RRA', vlrDespCustas:'Despesas com custas', vlrDespAdvogados:'Despesas com advogados', tpAcConv:'Tipo do acordo/convenção', dtAcConv:'Data do acordo/convenção', dtEfAcConv:'Data de efeito', tpRegistro:'Tipo de registro', indSimples:'Indicador do Simples', nrInscDom:'Inscrição do empregador doméstico', indApurIR:'Indicador de apuração de IR', tpDesc:'Tipo de desconto', instFinanc:'Instituição financeira', nrDoc:'Número do documento', cnpjOper:'CNPJ da operadora', regANS:'Registro ANS', vrPgTit:'Valor pago pelo titular', nmDep:'Nome do dependente', cpfDep:'CPF do dependente', vlrPgDep:'Valor pago pelo dependente', vlrAdv:'Valor do advogado', insConsig:'Instituição consignatária', nrContr:'Número do contrato'
+};
+
+let esocialData = {s2299RescisaoGroup:{s2299Rescisao:[]}};
+let loadedFileName = null, loadedFileNames = [];
+let currentEditingIndex = null, currentOriginalRef = null, workingEvent = null;
+const selectedEvents = new Set();
+const originalJsonKeyOrder = new WeakMap();
+const schemaRoot = buildSchema(FIELD_CATALOG);
+
+function buildSchema(paths){
+  const root={children:new Map(),leaf:false};
+  for(const path of paths){
+    let node=root;
+    for(const part of path.split('.')){
+      if(!node.children.has(part)) node.children.set(part,{children:new Map(),leaf:false});
+      node=node.children.get(part);
+    }
+    node.leaf=true;
+  }
+  return root;
+}
+function getSchemaNode(pathParts){let n=schemaRoot;for(const p of pathParts){n=n?.children?.get(p);if(!n)return null;}return n;}
+function captureOriginalJsonKeyOrder(value,visited=new WeakSet()){
+  if(!value||typeof value!=='object'||visited.has(value))return;visited.add(value);
+  if(!Array.isArray(value)) originalJsonKeyOrder.set(value,Object.keys(value));
+  for(const key of Object.keys(value)) captureOriginalJsonKeyOrder(value[key],visited);
+}
+function cloneWithMetadata(value,seen=new WeakMap()){
+  if(value===null||typeof value!=='object')return value;if(seen.has(value))return seen.get(value);
+  if(Array.isArray(value)){const arr=[];seen.set(value,arr);value.forEach(v=>arr.push(cloneWithMetadata(v,seen)));return arr;}
+  const out={};seen.set(value,out);originalJsonKeyOrder.set(out,[...(originalJsonKeyOrder.get(value)||Object.keys(value))]);
+  for(const k of Object.keys(value))out[k]=cloneWithMetadata(value[k],seen);return out;
+}
+function buildDownloadValuePreservingOrder(value,seen=new WeakMap()){
+  if(value===null||typeof value!=='object')return value;if(seen.has(value))return seen.get(value);
+  if(Array.isArray(value)){const arr=[];seen.set(value,arr);value.forEach(v=>arr.push(buildDownloadValuePreservingOrder(v,seen)));return arr;}
+  const out={};seen.set(value,out);const current=Object.keys(value);const set=new Set(current);const original=originalJsonKeyOrder.get(value)||[];const originalSet=new Set(original);
+  for(const k of original)if(set.has(k))out[k]=buildDownloadValuePreservingOrder(value[k],seen);
+  for(const k of current)if(!originalSet.has(k))out[k]=buildDownloadValuePreservingOrder(value[k],seen);
+  return out;
+}
+function ensureRoot(data){
+  if(!data||typeof data!=='object')data={};
+  if(!data.s2299RescisaoGroup||typeof data.s2299RescisaoGroup!=='object')data.s2299RescisaoGroup={};
+  if(!Array.isArray(data.s2299RescisaoGroup.s2299Rescisao))data.s2299RescisaoGroup.s2299Rescisao=[];
+  return data;
+}
+function getEvents(){esocialData=ensureRoot(esocialData);return esocialData.s2299RescisaoGroup.s2299Rescisao;}
+function isMeaningful(v){
+  if(v===null||v===undefined)return false;if(typeof v==='string')return !EMPTY_TOKENS.has(v.trim().toLowerCase());
+  if(typeof v==='number'||typeof v==='boolean')return true;if(Array.isArray(v))return v.some(isMeaningful);if(typeof v==='object')return Object.values(v).some(isMeaningful);return true;
+}
+function meaningfulLeafCount(v){
+  if(v===null||v===undefined)return 0;if(typeof v!=='object')return isMeaningful(v)?1:0;if(Array.isArray(v))return v.reduce((n,x)=>n+meaningfulLeafCount(x),0);return Object.values(v).reduce((n,x)=>n+meaningfulLeafCount(x),0);
+}
+function normalizeCpf(v){let d=String(v??'').replace(/\D+/g,'');if(!d)return'';if(d.length<=11)d=d.padStart(11,'0');if(d.length>11)d=d.slice(-11);return d;}
+function normalizeMatric(v){return String(v??'').toUpperCase().replace(/[^A-Z0-9]+/g,'');}
+function escapeHtml(v){return String(v??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+function humanize(key){
+  if(TITLE_MAP[key])return TITLE_MAP[key];if(LABEL_MAP[key])return LABEL_MAP[key];
+  return String(key).replace(/^s2299/,'S-2299 ').replace(/([a-z0-9])([A-Z])/g,'$1 $2').replace(/_/g,' ').replace(/^./,c=>c.toUpperCase());
+}
+function defaultScalar(key){const k=String(key).toLowerCase();if(k.startsWith('dt')||k.includes('data')||k==='perref'||k==='inivalid')return '*datavazia*';if(/^(vr|vlr|qtd|perc|fator)/.test(k)||k==='grau'||k==='tpdesc'||k==='tpproc')return '*numerovazio*';return '*vazio*';}
+function makeTemplateForNode(node,pathParts,depth=0){
+  const obj={};originalJsonKeyOrder.set(obj,[]);if(!node)return obj;
+  for(const [key,child] of node.children){
+    if(ARRAY_KEYS.has(key))continue;
+    if(child.children.size===0){obj[key]=defaultScalar(key);continue;}
+    if(depth<1){obj[key]=makeTemplateForNode(child,[...pathParts,key],depth+1);}
+  }
+  return obj;
+}
+function setStatus(text,type=''){const el=document.getElementById('statusArea');el.className='status'+(type?' '+type:'');el.textContent=text||'';}
+function openModal(id){const el=document.getElementById(id);el.classList.add('show');el.setAttribute('aria-hidden','false');}
+function closeModal(id){const el=document.getElementById(id);el.classList.remove('show');el.setAttribute('aria-hidden','true');}
+document.querySelectorAll('[data-close]').forEach(b=>b.addEventListener('click',()=>closeModal(b.dataset.close)));
+document.querySelectorAll('.modal').forEach(m=>m.addEventListener('mousedown',e=>{if(e.target===m)closeModal(m.id);}));
+
+function eventHasRra(evt){return (evt?.s2299RescisaoDmDev||[]).some(x=>String(x?.indRRA??'').trim().toUpperCase()==='S');}
+function eventHasMeaningfulDmDev(evt){return (evt?.s2299RescisaoDmDev||[]).some(x=>isMeaningful(x?.ideDmDev)||isMeaningful(x?.s2299RescisaoADC)||isMeaningful(x?.s2299RescisaoIdeAdv));}
+function eventMatchesSearch(evt){const q=document.getElementById('searchInput').value.trim().toLowerCase();if(q){try{if(!JSON.stringify(evt).toLowerCase().includes(q))return false;}catch{}}
+  const f=document.getElementById('quickFilter').value;if(f==='rra'&&!eventHasRra(evt))return false;if(f==='meaningfulDmDev'&&!eventHasMeaningfulDmDev(evt))return false;if(f==='selected'&&!selectedEvents.has(evt))return false;return true;
+}
+function updateSummary(visible){const events=getEvents();document.getElementById('sumEvents').textContent=events.length;document.getElementById('sumVisible').textContent=visible;document.getElementById('sumSelected').textContent=events.filter(e=>selectedEvents.has(e)).length;document.getElementById('sumRra').textContent=events.filter(eventHasRra).length;}
+function renderTable(){
+  const tbody=document.getElementById('eventsTbody');tbody.innerHTML='';let visible=0;
+  getEvents().forEach((evt,index)=>{if(!eventMatchesSearch(evt))return;visible++;const tr=document.createElement('tr');if(selectedEvents.has(evt))tr.classList.add('selected-row');
+    const cpf=evt?.trabalhador?.cpfTrab??evt?.contrato?.trabalhador?.cpfTrab??'';const matric=evt?.contrato?.matricula??'';const motivo=evt?.mtvDeslig?.motivo??'';
+    tr.innerHTML=`<td class="center"><input type="checkbox" ${selectedEvents.has(evt)?'checked':''}></td><td>${escapeHtml(evt?.ordemRegistro??'')}</td><td class="mono">${escapeHtml(cpf)}</td><td class="mono">${escapeHtml(matric)}</td><td>${escapeHtml(evt?.dtDeslig??'')}</td><td>${escapeHtml(motivo)}</td><td>${eventHasRra(evt)?'<span class="badge warn">SIM</span>':'<span class="badge empty">não</span>'}</td><td><div class="toolbar"><button class="btn btn-sm btn-warning edit-btn">✎ Editar</button><button class="btn btn-sm btn-outline-danger remove-btn">Remover</button></div></td>`;
+    const cb=tr.querySelector('input[type=checkbox]');cb.addEventListener('change',()=>{cb.checked?selectedEvents.add(evt):selectedEvents.delete(evt);renderTable();});
+    tr.querySelector('.edit-btn').addEventListener('click',()=>openEventEditor(index));tr.querySelector('.remove-btn').addEventListener('click',()=>{if(confirm('Remover este evento do arquivo?')){selectedEvents.delete(evt);getEvents().splice(index,1);renderTable();}});tbody.appendChild(tr);
+  });
+  if(!visible){const tr=document.createElement('tr');tr.innerHTML='<td colspan="8" class="center muted" style="padding:24px">Nenhum evento corresponde ao filtro atual.</td>';tbody.appendChild(tr);}updateSummary(visible);
+}
+document.getElementById('searchInput').addEventListener('input',renderTable);document.getElementById('quickFilter').addEventListener('change',renderTable);
+document.getElementById('selectAllBtn').addEventListener('click',()=>{getEvents().forEach(e=>{if(eventMatchesSearch(e))selectedEvents.add(e)});renderTable();});
+document.getElementById('deselectAllBtn').addEventListener('click',()=>{getEvents().forEach(e=>{if(eventMatchesSearch(e))selectedEvents.delete(e)});renderTable();});
+document.getElementById('removeSelectedBtn').addEventListener('click',()=>{const n=getEvents().filter(e=>selectedEvents.has(e)).length;if(!n)return alert('Nenhum evento selecionado.');if(!confirm(`Remover ${n} evento(s) selecionado(s)?`))return;esocialData.s2299RescisaoGroup.s2299Rescisao=getEvents().filter(e=>!selectedEvents.has(e));selectedEvents.clear();renderTable();setStatus(`${n} evento(s) removido(s).`,'success');});
+
+function readFileText(file){return new Promise((resolve,reject)=>{const r=new FileReader();r.onload=e=>resolve(String(e.target.result||''));r.onerror=()=>reject(r.error||new Error('Falha na leitura'));r.readAsText(file,'UTF-8');});}
+document.getElementById('fileInput').addEventListener('change',async function(){
+  const files=Array.from(this.files||[]);if(!files.length)return;const invalid=files.filter(f=>!/^S-2299_/i.test(f.name)||!f.name.toLowerCase().endsWith('.json'));
+  if(invalid.length){alert('Arquivo(s) não aceito(s):\n- '+invalid.map(f=>f.name).join('\n- ')+'\n\nUse arquivos .json iniciados por S-2299_.');this.value='';return;}
+  try{
+    const parsed=[];for(const f of files){const data=JSON.parse(await readFileText(f));if(!Array.isArray(data?.s2299RescisaoGroup?.s2299Rescisao))throw new Error(`${f.name}: estrutura s2299RescisaoGroup.s2299Rescisao não encontrada.`);captureOriginalJsonKeyOrder(data);parsed.push({name:f.name,data});}
+    if(parsed.length===1){esocialData=parsed[0].data;}else{esocialData={s2299RescisaoGroup:{s2299Rescisao:[]}};captureOriginalJsonKeyOrder(esocialData);for(const p of parsed)esocialData.s2299RescisaoGroup.s2299Rescisao.push(...p.data.s2299RescisaoGroup.s2299Rescisao);}
+    loadedFileNames=files.map(f=>f.name);loadedFileName=files.length===1?files[0].name:null;selectedEvents.clear();renderTable();
+    setStatus(`Arquivo(s) carregado(s): ${files.length}\nEventos: ${getEvents().length}\n${parsed.map(p=>p.name+': '+p.data.s2299RescisaoGroup.s2299Rescisao.length).join(' | ')}`,'success');
+  }catch(err){console.error(err);setStatus('Erro ao carregar JSON: '+err.message,'error');alert('Erro ao carregar JSON: '+err.message);}
+});
+function serializeSpecial(value,path=[]){
+  if(value===null||typeof value!=='object')return JSON.stringify(value);if(Array.isArray(value)){
+    const parts=value.map(v=>serializeSpecial(v,path));if(path.join('.')==='s2299RescisaoGroup.s2299Rescisao')return '[\n'+parts.map((p,i)=>(i?',':'')+p).join('\n')+'\n]';return '['+parts.join(',')+']';
+  }
+  return '{'+Object.keys(value).map(k=>JSON.stringify(k)+':'+serializeSpecial(value[k],[...path,k])).join(',')+'}';
+}
+function timestamp(){const d=new Date(),p=n=>String(n).padStart(2,'0');return `${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}`;}
+function downloadName(){const t=timestamp();if(loadedFileNames.length>1)return `S-2299_unificado_editado_${t}.json`;if(loadedFileName)return loadedFileName.replace(/\.json$/i,'')+`_editado_${t}.json`;return `S-2299_editado_${t}.json`;}
+document.getElementById('downloadBtn').addEventListener('click',()=>{try{const ordered=buildDownloadValuePreservingOrder(esocialData);const text=serializeSpecial(ordered);const blob=new Blob([text],{type:'application/json;charset=utf-8'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=downloadName();document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),500);setStatus(`Arquivo preparado: ${a.download}\nEventos salvos: ${getEvents().length}`,'success');}catch(err){alert('Erro ao gerar arquivo: '+err.message);}});
+
+function makeScalarEditor(obj,key,pathParts){
+  const value=obj[key];const wrap=document.createElement('div');wrap.className='scalar-field'+(!isMeaningful(value)?' is-empty':'');const label=LABEL_MAP[key]||humanize(key);const valueType=value===null?'null':typeof value;
+  wrap.innerHTML=`<div class="scalar-label"><div><strong>${escapeHtml(label)}</strong><span class="path-label">${escapeHtml([...pathParts,key].join('.'))}</span></div><button class="remove-property" title="Remover campo">✕</button></div><div class="scalar-controls"></div>`;
+  const controls=wrap.querySelector('.scalar-controls');let input;
+  if(valueType==='boolean'){input=document.createElement('select');input.innerHTML='<option value="true">true</option><option value="false">false</option>';input.value=String(value);}else if(valueType==='number'){input=document.createElement('input');input.type='number';input.step='any';input.value=String(value);}else{
+    const longKey=/observacao|descr|dsc|chaveIntegracao/i.test(key)||String(value??'').length>100;input=document.createElement(longKey?'textarea':'input');if(!longKey)input.type='text';input.value=value===null?'':String(value??'');
+  }
+  input.addEventListener('input',()=>{if(valueType==='boolean')obj[key]=input.value==='true';else if(valueType==='number')obj[key]=input.value===''?0:Number(input.value);else obj[key]=input.value;wrap.classList.toggle('is-empty',!isMeaningful(obj[key]));});controls.appendChild(input);
+  wrap.querySelector('.remove-property').addEventListener('click',()=>{if(confirm(`Remover o campo ${[...pathParts,key].join('.')}?`)){delete obj[key];renderEditorTree();}});return wrap;
+}
+function renderObject(obj,pathParts,container,title='Objeto',isRoot=false){
+  if(!obj||typeof obj!=='object'||Array.isArray(obj)){container.appendChild(document.createTextNode('Estrutura inválida.'));return;}
+  const holder=isRoot?container:document.createElement('details');if(!isRoot){holder.className='node object-node'+(!isMeaningful(obj)?' empty-node':'');holder.open=isMeaningful(obj);const summary=document.createElement('summary');summary.innerHTML=`<span class="summary-left"><span class="node-title">${escapeHtml(title)}</span><span class="tech-name">${escapeHtml(pathParts.join('.'))}</span></span><span class="summary-actions"><span class="badge ${isMeaningful(obj)?'good':'empty'}">${meaningfulLeafCount(obj)} com dados</span></span>`;holder.appendChild(summary);container.appendChild(holder);}
+  const body=document.createElement('div');body.className=isRoot?'':'node-body';holder.appendChild(body);
+  const scalarKeys=Object.keys(obj).filter(k=>obj[k]===null||typeof obj[k]!=='object');const meaningful=scalarKeys.filter(k=>isMeaningful(obj[k]));const empty=scalarKeys.filter(k=>!isMeaningful(obj[k]));
+  if(meaningful.length){const grid=document.createElement('div');grid.className='scalar-grid';meaningful.forEach(k=>grid.appendChild(makeScalarEditor(obj,k,pathParts)));body.appendChild(grid);}
+  if(empty.length){const det=document.createElement('details');det.className='empty-scalars';det.innerHTML=`<summary>Campos sem dados (${empty.length})</summary>`;const grid=document.createElement('div');grid.className='scalar-grid';empty.forEach(k=>grid.appendChild(makeScalarEditor(obj,k,pathParts)));det.appendChild(grid);body.appendChild(det);}
+  const nestedKeys=Object.keys(obj).filter(k=>obj[k]!==null&&typeof obj[k]==='object');if(nestedKeys.length){const children=document.createElement('div');children.className='children';for(const k of nestedKeys){const v=obj[k];if(Array.isArray(v))renderArray(v,[...pathParts,k],children,humanize(k),obj,k);else renderObject(v,[...pathParts,k],children,humanize(k));}body.appendChild(children);}
+  if(!Object.keys(obj).length){const msg=document.createElement('div');msg.className='empty-message';msg.textContent='Objeto sem propriedades.';body.appendChild(msg);}
+  body.appendChild(makeAddBar(obj,pathParts));
+}
+function makeAddBar(obj,pathParts){
+  const bar=document.createElement('div');bar.className='object-addbar';const node=getSchemaNode(pathParts);const missing=[];if(node)for(const [k] of node.children)if(!(k in obj))missing.push(k);
+  const select=document.createElement('select');select.innerHTML='<option value="">Adicionar campo do catálogo...</option>'+missing.map(k=>`<option value="${escapeHtml(k)}">${escapeHtml(humanize(k))} — ${escapeHtml(k)}</option>`).join('');
+  const add=document.createElement('button');add.className='btn btn-sm btn-outline';add.textContent='Adicionar';add.disabled=!missing.length;add.addEventListener('click',()=>{const key=select.value;if(!key)return;const child=node.children.get(key);if(ARRAY_KEYS.has(key))obj[key]=[];else if(child.children.size)obj[key]=makeTemplateForNode(child,[...pathParts,key]);else obj[key]=defaultScalar(key);renderEditorTree();});
+  const free=document.createElement('button');free.className='btn btn-sm btn-outline';free.textContent='Campo livre';free.addEventListener('click',()=>{const key=prompt('Nome exato do novo campo:');if(!key)return;if(key in obj)return alert('Esse campo já existe.');obj[key]='*vazio*';renderEditorTree();});
+  bar.append(select,add,free);return bar;
+}
+function renderArray(arr,pathParts,container,title,parentObj,parentKey){
+  const det=document.createElement('details');det.className='node array-node'+(!isMeaningful(arr)?' empty-node':'');det.open=isMeaningful(arr);const good=arr.filter(isMeaningful).length;
+  const summary=document.createElement('summary');summary.innerHTML=`<span class="summary-left"><span class="node-title">${escapeHtml(title)}</span><span class="tech-name">${escapeHtml(pathParts.join('.'))}</span></span><span class="summary-actions"><span class="badge">${arr.length} item(ns)</span><span class="badge ${good?'good':'empty'}">${good} com dados</span></span>`;det.appendChild(summary);
+  const body=document.createElement('div');body.className='node-body';const items=document.createElement('div');items.className='array-items';
+  arr.forEach((item,index)=>{const itemDet=document.createElement('details');itemDet.className='node array-item'+(!isMeaningful(item)?' empty-node':'');itemDet.open=isMeaningful(item);const itemSummary=document.createElement('summary');itemSummary.innerHTML=`<span class="summary-left"><span class="node-title">Item ${index+1}</span><span class="tech-name">${escapeHtml(pathParts.join('.'))}[${index}]</span></span><span class="item-toolbar"><button class="btn btn-sm btn-outline move-up" title="Mover para cima">↑</button><button class="btn btn-sm btn-outline move-down" title="Mover para baixo">↓</button><button class="btn btn-sm btn-outline-danger remove-item">Remover</button></span>`;
+    itemSummary.querySelectorAll('button').forEach(b=>b.addEventListener('click',e=>e.preventDefault()));itemSummary.querySelector('.move-up').addEventListener('click',e=>{e.stopPropagation();if(index>0){[arr[index-1],arr[index]]=[arr[index],arr[index-1]];renderEditorTree();}});itemSummary.querySelector('.move-down').addEventListener('click',e=>{e.stopPropagation();if(index<arr.length-1){[arr[index+1],arr[index]]=[arr[index],arr[index+1]];renderEditorTree();}});itemSummary.querySelector('.remove-item').addEventListener('click',e=>{e.stopPropagation();if(confirm(`Remover o item ${index+1}?`)){arr.splice(index,1);renderEditorTree();}});itemDet.appendChild(itemSummary);
+    const itemBody=document.createElement('div');itemBody.className='node-body';if(item&&typeof item==='object'&&!Array.isArray(item))renderObject(item,pathParts,itemBody,`Item ${index+1}`,true);else{const temp={valor:item};itemBody.appendChild(makeScalarEditor(temp,'valor',pathParts));}itemDet.appendChild(itemBody);items.appendChild(itemDet);
+  });
+  if(!arr.length){const msg=document.createElement('div');msg.className='empty-message';msg.textContent='Lista vazia.';items.appendChild(msg);}body.appendChild(items);
+  const toolbar=document.createElement('div');toolbar.className='object-addbar';const add=document.createElement('button');add.className='btn btn-sm btn-primary';add.textContent='＋ Adicionar item';add.addEventListener('click',()=>{const node=getSchemaNode(pathParts);arr.push(makeTemplateForNode(node,pathParts));renderEditorTree();});const removeArray=document.createElement('button');removeArray.className='btn btn-sm btn-outline-danger';removeArray.textContent='Remover lista inteira';removeArray.addEventListener('click',()=>{if(confirm(`Remover a propriedade ${pathParts.join('.')}?`)){delete parentObj[parentKey];renderEditorTree();}});toolbar.append(add,removeArray);body.appendChild(toolbar);det.appendChild(body);container.appendChild(det);
+}
+function renderEditorTree(){const root=document.getElementById('editorTree');root.innerHTML='';if(!workingEvent)return;renderObject(workingEvent,[],root,'Evento',true);}
+function openEventEditor(index){currentEditingIndex=index;currentOriginalRef=getEvents()[index];workingEvent=cloneWithMetadata(currentOriginalRef);const cpf=workingEvent?.trabalhador?.cpfTrab??'';const mat=workingEvent?.contrato?.matricula??'';document.getElementById('editorTitle').textContent='Editar evento S-2299';document.getElementById('editorSubtitle').textContent=`Ordem ${workingEvent?.ordemRegistro??''} | CPF ${cpf} | Matrícula ${mat}`;renderEditorTree();document.getElementById('rawTextarea').value=JSON.stringify(workingEvent,null,2);document.getElementById('rawDetails').open=false;openModal('editorModal');}
+document.getElementById('restoreEventBtn').addEventListener('click',()=>{if(confirm('Descartar as alterações feitas neste modal e restaurar o evento carregado?')){workingEvent=cloneWithMetadata(currentOriginalRef);renderEditorTree();document.getElementById('rawTextarea').value=JSON.stringify(workingEvent,null,2);}});
+document.getElementById('saveEventBtn').addEventListener('click',()=>{if(currentEditingIndex===null||!workingEvent)return;const events=getEvents(),wasSelected=selectedEvents.has(events[currentEditingIndex]);if(wasSelected)selectedEvents.delete(events[currentEditingIndex]);events[currentEditingIndex]=workingEvent;if(wasSelected)selectedEvents.add(workingEvent);closeModal('editorModal');renderTable();setStatus('Alterações do evento salvas no navegador. Use “Baixar edição” para gerar o JSON.','success');});
+document.getElementById('refreshRawBtn').addEventListener('click',()=>document.getElementById('rawTextarea').value=JSON.stringify(workingEvent,null,2));
+document.getElementById('applyRawBtn').addEventListener('click',()=>{try{const parsed=JSON.parse(document.getElementById('rawTextarea').value);if(!parsed||typeof parsed!=='object'||Array.isArray(parsed))throw new Error('O JSON precisa ser um objeto de evento.');captureOriginalJsonKeyOrder(parsed);workingEvent=parsed;renderEditorTree();setStatus('JSON bruto aplicado ao evento em edição.','success');}catch(err){alert('JSON inválido: '+err.message);}});
+function allEditorDetails(){return Array.from(document.querySelectorAll('#editorTree details.node'));}
+document.getElementById('expandDataBtn').addEventListener('click',()=>allEditorDetails().forEach(d=>d.open=!d.classList.contains('empty-node')));
+document.getElementById('collapseEmptyBtn').addEventListener('click',()=>document.querySelectorAll('#editorTree details.empty-node,#editorTree details.empty-scalars').forEach(d=>d.open=false));
+document.getElementById('expandAllBtn').addEventListener('click',()=>document.querySelectorAll('#editorTree details').forEach(d=>d.open=true));
+document.getElementById('collapseAllBtn').addEventListener('click',()=>document.querySelectorAll('#editorTree details').forEach(d=>d.open=false));
+
+
+// ======================================================================
+// CSV DE MATRÍCULAS — adaptado do editor S-1202 para a árvore do S-2299
+// Arquivo esperado: cpfTrab;matricula;matricula_atual
+// ======================================================================
+let matriculaCsvMapping=Object.create(null);
+let matriculaCsvStats={totalLinhas:0,validas:0,ignoradas:0,conflitos:0,delimiter:';'};
+let matriculaCsvFileName='';
+
+function stripUtf8BomCsv(text){const s=String(text??'');return s.charCodeAt(0)===0xFEFF?s.slice(1):s;}
+function detectCsvDelimiter(line){const s=String(line??'');const semi=(s.match(/;/g)||[]).length;const comma=(s.match(/,/g)||[]).length;return semi>=comma?';':',';}
+function normalizeCsvHeader(v){return String(v??'').trim().toLowerCase().replace(/[\s._-]+/g,'');}
+function parseMatriculaCsv(csvText){
+  const lines=stripUtf8BomCsv(csvText).split(/\r?\n/).map(l=>l.trim()).filter(Boolean);
+  const stats={totalLinhas:lines.length,validas:0,ignoradas:0,conflitos:0,delimiter:';'};
+  const mapping=Object.create(null);
+  if(!lines.length)return{mapping,stats};
+  const delimiter=detectCsvDelimiter(lines[0]);stats.delimiter=delimiter;
+  let cpfIndex=0,matriculaIndex=1,matriculaAtualIndex=2,start=0;
+  const firstCols=lines[0].split(delimiter).map(c=>String(c??'').trim());
+  const headers=firstCols.map(normalizeCsvHeader);
+  const headerCpf=headers.findIndex(h=>h==='cpf'||h==='cpftrab');
+  const headerMat=headers.findIndex(h=>h==='matricula');
+  const headerAtual=headers.findIndex(h=>h==='matriculaatual');
+  if(headerCpf>=0&&headerMat>=0&&headerAtual>=0){cpfIndex=headerCpf;matriculaIndex=headerMat;matriculaAtualIndex=headerAtual;start=1;stats.ignoradas++;}
+  const maxIndex=Math.max(cpfIndex,matriculaIndex,matriculaAtualIndex);
+  for(let i=start;i<lines.length;i++){
+    const cols=lines[i].split(delimiter).map(c=>String(c??'').trim());
+    if(cols.length<=maxIndex){stats.ignoradas++;continue;}
+    const cpf=normalizeCpf(cols[cpfIndex]);
+    const matriculaAntiga=cols[matriculaIndex]||'';
+    const matriculaAtual=cols[matriculaAtualIndex]||'';
+    if(!cpf||!matriculaAntiga||!matriculaAtual){stats.ignoradas++;continue;}
+    if(mapping[cpf]){
+      const prev=mapping[cpf];
+      if(prev.matricula_antiga!==matriculaAntiga||prev.matricula_atual!==matriculaAtual)stats.conflitos++;
+      continue;
+    }
+    mapping[cpf]={matricula_antiga:matriculaAntiga,matricula_atual:matriculaAtual};stats.validas++;
+  }
+  return{mapping,stats};
+}
+function updateMatriculaCsvStatus(extra=''){
+  const el=document.getElementById('matriculaCsvStatus');if(!el)return;
+  const total=Object.keys(matriculaCsvMapping).length;const parts=[];
+  if(matriculaCsvFileName)parts.push(`Arquivo: ${matriculaCsvFileName}`);
+  if(total)parts.push(`CPFs carregados: ${total}`);
+  if(matriculaCsvStats.totalLinhas)parts.push(`Linhas: ${matriculaCsvStats.totalLinhas}`);
+  if(matriculaCsvStats.validas)parts.push(`Válidas: ${matriculaCsvStats.validas}`);
+  if(matriculaCsvStats.ignoradas)parts.push(`Ignoradas: ${matriculaCsvStats.ignoradas}`);
+  if(matriculaCsvStats.conflitos)parts.push(`Conflitos: ${matriculaCsvStats.conflitos}`);
+  if(matriculaCsvStats.delimiter)parts.push(`Delim: '${matriculaCsvStats.delimiter}'`);
+  el.textContent=(parts.length?parts.join(' | '):'Nenhum CSV carregado ainda.')+(extra?`\n${extra}`:'');
+}
+function tryHeuristicOldMatricula(matriculaAtual){const s=String(matriculaAtual??'').trim();const m=s.match(/^(.*)\/\d{1,2}$/);if(!m)return null;const base=String(m[1]??'').trim();return base||null;}
+
+// Localiza todos os objetos "contrato" que realmente possuam o campo "matricula".
+// Isso abrange o contrato principal e contratos existentes em Processo, ConsigFGTS e Trabalho Intermitente.
+function forEachS2299Contrato(evt,fn){
+  const visited=new WeakSet(),visitedContracts=new WeakSet();
+  const eventCpf=normalizeCpf(evt?.trabalhador?.cpfTrab??evt?.contrato?.trabalhador?.cpfTrab??'');
+  function walk(node,path=[]){
+    if(!node||typeof node!=='object'||visited.has(node))return;visited.add(node);
+    if(Array.isArray(node)){node.forEach((item,index)=>walk(item,[...path,String(index)]));return;}
+    const contrato=node.contrato;
+    if(contrato&&typeof contrato==='object'&&!Array.isArray(contrato)&&Object.prototype.hasOwnProperty.call(contrato,'matricula')&&!visitedContracts.has(contrato)){
+      visitedContracts.add(contrato);
+      const cpf=normalizeCpf(contrato?.trabalhador?.cpfTrab??'')||eventCpf;
+      fn(contrato,{cpf,path:[...path,'contrato'].join('.')});
+    }
+    Object.entries(node).forEach(([key,value])=>walk(value,[...path,key]));
+  }
+  walk(evt,[]);
+}
+
+
+function addOneDayIsoDate(dateText){
+  const s=String(dateText??'').trim();
+  const m=s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if(!m)return null;
+  const y=Number(m[1]),mo=Number(m[2]),d=Number(m[3]);
+  const dt=new Date(Date.UTC(y,mo-1,d));
+  if(dt.getUTCFullYear()!==y||dt.getUTCMonth()!==mo-1||dt.getUTCDate()!==d)return null;
+  dt.setUTCDate(dt.getUTCDate()+1);
+  const pad=n=>String(n).padStart(2,'0');
+  return `${dt.getUTCFullYear()}-${pad(dt.getUTCMonth()+1)}-${pad(dt.getUTCDate())}`;
+}
+function aplicarMaisUmDiaDesligamentoMotivo10(){
+  const eventos=getEvents();
+  let analisados=0,alterados=0,semMotivo10=0,semData=0,dataInvalida=0,semMudanca=0;
+  const exemplos=[];
+  eventos.forEach((evt,index)=>{
+    analisados++;
+    const motivo=String(evt?.mtvDeslig?.motivo??'').trim();
+    if(motivo!=='10'){semMotivo10++;return;}
+    const atual=String(evt?.dtDeslig??'').trim();
+    if(!atual||!isMeaningful(atual)){semData++;return;}
+    const nova=addOneDayIsoDate(atual);
+    if(!nova){dataInvalida++;return;}
+    if(nova===atual){semMudanca++;return;}
+    evt.dtDeslig=nova;
+    alterados++;
+    if(exemplos.length<8){
+      const cpf=evt?.trabalhador?.cpfTrab??evt?.contrato?.trabalhador?.cpfTrab??'';
+      const mat=evt?.contrato?.matricula??'';
+      exemplos.push(`#${index+1} CPF ${cpf||'-'} Mat ${mat||'-'}: ${atual} → ${nova}`);
+    }
+  });
+  renderTable();
+  const resumo=`Eventos analisados: ${analisados}\nMotivo 10 alterados: ${alterados}\nIgnorados por motivo diferente de 10: ${semMotivo10}\nMotivo 10 sem dtDeslig: ${semData}\nMotivo 10 com dtDeslig inválido: ${dataInvalida}${semMudanca?`\nSem mudança: ${semMudanca}`:''}${exemplos.length?`\nExemplos:\n${exemplos.join('\n')}`:''}`;
+  setStatus(`Ajuste de data de desligamento concluído.\n${resumo}`,'success');
+  alert(`Ajuste concluído!\n\n${resumo}`);
+}
+const addDiaDesligMotivo10Btn=document.getElementById('addDiaDesligMotivo10Btn');
+if(addDiaDesligMotivo10Btn){
+  addDiaDesligMotivo10Btn.addEventListener('click',()=>{
+    const totalMotivo10=getEvents().filter(evt=>String(evt?.mtvDeslig?.motivo??'').trim()==='10').length;
+    if(!getEvents().length)return alert('Carregue primeiro um arquivo JSON S-2299 com eventos.');
+    if(!totalMotivo10)return alert('Nenhum evento com motivo de desligamento 10 foi encontrado.');
+    if(!confirm(`Foram encontrados ${totalMotivo10} evento(s) com motivo 10.\n\nDeseja adicionar 1 dia ao campo dtDeslig somente nesses eventos?`))return;
+    aplicarMaisUmDiaDesligamentoMotivo10();
+  });
+}
+
+document.getElementById('matriculasCsvBtn').addEventListener('click',()=>{updateMatriculaCsvStatus();openModal('matriculaCsvModal');});
+document.getElementById('matriculaCsvFileInput').addEventListener('change',async function(){
+  const file=this.files?.[0];if(!file)return;
+  try{
+    const loaded=parseMatriculaCsv(await readFileText(file));
+    matriculaCsvMapping=loaded.mapping;matriculaCsvStats=loaded.stats;matriculaCsvFileName=file.name||'';
+    updateMatriculaCsvStatus('CSV carregado.');
+  }catch(err){console.error(err);alert('Erro ao ler CSV: '+err.message);updateMatriculaCsvStatus('Falha ao carregar o CSV.');}
+  finally{this.value='';}
+});
+
+document.getElementById('applyMatriculaCsvBtn').addEventListener('click',()=>{
+  try{
+    const eventos=getEvents();
+    if(!eventos.length)return alert('Carregue primeiro um arquivo JSON S-2299 com eventos.');
+    const useHeuristic=!!document.getElementById('matriculaCsvHeuristicSuffix').checked;
+    if(!Object.keys(matriculaCsvMapping).length&&!useHeuristic)return alert('Carregue um CSV válido ou habilite a correção opcional do sufixo /N ou /NN.');
+    let contratosVisitados=0,alteradosCsv=0,alteradosHeuristica=0,jaCorretos=0,semBase=0,semCpf=0,divergenciaAtual=0,semMatricula=0;
+    const pathsAlterados=new Map();
+    eventos.forEach(evt=>forEachS2299Contrato(evt,(contrato,ctx)=>{
+      contratosVisitados++;
+      const atual=String(contrato.matricula??'').trim();
+      if(!atual||!isMeaningful(atual)){semMatricula++;return;}
+      const cpf=ctx.cpf||'';if(!cpf)semCpf++;
+      const reg=cpf?matriculaCsvMapping[cpf]:null;
+      if(reg){
+        const antiga=String(reg.matricula_antiga??'').trim();
+        const atualCsv=String(reg.matricula_atual??'').trim();
+        if(atual===atualCsv){contrato.matricula=antiga;alteradosCsv++;pathsAlterados.set(ctx.path,(pathsAlterados.get(ctx.path)||0)+1);}
+        else if(atual===antiga){jaCorretos++;}
+        else{divergenciaAtual++;}
+        return;
+      }
+      if(useHeuristic){
+        const h=tryHeuristicOldMatricula(atual);
+        if(h&&h!==atual){contrato.matricula=h;alteradosHeuristica++;pathsAlterados.set(ctx.path,(pathsAlterados.get(ctx.path)||0)+1);}
+        else semBase++;
+      }else semBase++;
+    }));
+    const totalAlterados=alteradosCsv+alteradosHeuristica;
+    renderTable();
+    const pathResumo=Array.from(pathsAlterados.entries()).sort((a,b)=>b[1]-a[1]).slice(0,8).map(([p,n])=>`${p}: ${n}`).join(' | ');
+    const resumo=`Contratos verificados: ${contratosVisitados}\nMatrículas alteradas: ${totalAlterados} (CSV: ${alteradosCsv}; heurística: ${alteradosHeuristica})\nJá estavam corretas: ${jaCorretos}\nSem base/sem ajuste heurístico: ${semBase}\nDivergência com matricula_atual do CSV: ${divergenciaAtual}\nContratos sem matrícula: ${semMatricula}\nContratos sem CPF associado: ${semCpf}${pathResumo?`\nBlocos alterados: ${pathResumo}`:''}`;
+    updateMatriculaCsvStatus(resumo);setStatus(`Alteração de matrículas concluída.\n${resumo}`,'success');
+    alert(`Análise concluída!\n\n${resumo}`);
+  }catch(err){console.error(err);alert('Erro ao analisar matrículas: '+err.message);}
+});
+
+let lastFilterPlan=null;
+function parseFilterValues(){return document.getElementById('filterTextarea').value.split(/\r?\n/).map(x=>x.trim()).filter(Boolean);}
+function analyzeFilter(){
+  const criterion=document.getElementById('filterCriterion').value,mode=document.getElementById('filterMode').value,raw=parseFilterValues();const cpfSet=new Set(),matSet=new Set();raw.forEach(v=>{if(criterion==='cpf'||criterion==='both'){const n=normalizeCpf(v);if(n)cpfSet.add(n);}if(criterion==='matric'||criterion==='both'){const n=normalizeMatric(v);if(n)matSet.add(n);}});
+  let matched=0;const keepFlags=getEvents().map(evt=>{const cpf=normalizeCpf(evt?.trabalhador?.cpfTrab??evt?.contrato?.trabalhador?.cpfTrab);const mat=normalizeMatric(evt?.contrato?.matricula);const listed=(criterion==='cpf'&&cpfSet.has(cpf))||(criterion==='matric'&&matSet.has(mat))||(criterion==='both'&&(cpfSet.has(cpf)||matSet.has(mat)));if(listed)matched++;return mode==='keep'?listed:!listed;});
+  const kept=keepFlags.filter(Boolean).length;lastFilterPlan={keepFlags,kept,removed:getEvents().length-kept,matched,rawCount:raw.length,cpfCount:cpfSet.size,matCount:matSet.size,criterion,mode};document.getElementById('filterStats').textContent=`Linhas informadas: ${raw.length}\nCPFs normalizados: ${cpfSet.size} | Matrículas normalizadas: ${matSet.size}\nEventos encontrados: ${matched}\nEventos que permanecerão: ${kept}\nEventos que serão removidos: ${getEvents().length-kept}`;return lastFilterPlan;
+}
+document.getElementById('filterBtn').addEventListener('click',()=>{document.getElementById('filterTextarea').value='';document.getElementById('filterCriterion').value='cpf';document.getElementById('filterMode').value='exclude';document.getElementById('filterStats').textContent='Informe a lista e clique em “Analisar”.';lastFilterPlan=null;openModal('filterModal');});
+document.getElementById('analyzeFilterBtn').addEventListener('click',analyzeFilter);['filterTextarea','filterCriterion','filterMode'].forEach(id=>document.getElementById(id).addEventListener('input',()=>lastFilterPlan=null));
+document.getElementById('applyFilterBtn').addEventListener('click',()=>{const plan=lastFilterPlan||analyzeFilter();if(!plan.rawCount)return alert('Informe ao menos um CPF ou matrícula.');if(!confirm(`Aplicar o filtro?\n\nManter: ${plan.kept}\nRemover: ${plan.removed}`))return;const old=getEvents().slice();const kept=old.filter((_,i)=>plan.keepFlags[i]);old.filter((_,i)=>!plan.keepFlags[i]).forEach(e=>selectedEvents.delete(e));esocialData.s2299RescisaoGroup.s2299Rescisao=kept;closeModal('filterModal');renderTable();setStatus(`Filtro aplicado. Eventos mantidos: ${plan.kept} | removidos: ${plan.removed} | correspondências: ${plan.matched}.`,'success');});
+
+renderTable();
+</script>
+</body>
+</html>
