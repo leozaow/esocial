@@ -99,7 +99,10 @@
               <li>Apenas trabalhadores com <code>evento = S-1202</code> na base de trabalhadores são processados; CPFs de S-1200 ou sem base são ignorados e listados no relatório.</li>
               <li>A chave técnica da folha é CPF + competência + número da folha + período de direito + rubrica qualificada.</li>
               <li>Rubrica da folha: <code>VANTAGENS</code> positiva vira <code>V</code> e negativa vira <code>D</code>; <code>DESCONTOS/CONSIGNATARIAS</code> positiva vira <code>D</code> e negativa vira <code>V</code>; <code>AUXILIARES</code> positiva vira <code>A</code>.</li>
-              <li>Para novos demonstrativos, o <code>ideDmDev</code> é montado como <code>MATRICULA_ATUAL-NUFOLHA-MANUAL-MMAAAA</code>, mantendo <code>MANUAL</code> para auditoria.</li>
+              <li>Para novos demonstrativos de itens do mesmo ano da apuração, o <code>ideDmDev</code> é montado como <code>MATRICULA_ATUAL-NUFOLHA-MANUAL-MMAAAA</code>, mantendo <code>MANUAL</code> para auditoria.</li>
+              <li>Itens cujo ano do direito seja anterior ao ano de apuração são tratados em família própria <code>RRA</code>: a ferramenta procura <code>NUFOLHA-RRA-MMAAAA</code> e só cria esse demonstrativo se ele não existir.</li>
+              <li>A existência de matrícula variante no <code>ideDmDev</code> (<code>850.006-8</code>, <code>850.006-8/1</code> ou <code>850.006-8/01</code>) não gera outro demonstrativo se a folha, competência e família RRA/não-RRA já existirem.</li>
+              <li>Quando houver sufixos <code>-1</code>, <code>-2</code> ou similares no <code>ideDmDev</code>, todos os demonstrativos da mesma família são considerados antes de concluir que um item está faltando.</li>
               <li>A matrícula do contrato é preenchida com a matrícula histórica da base de trabalhadores; a matrícula atual/da folha fica apenas como base de identificação do demonstrativo.</li>
               <li>Valores divergentes não são sobrescritos automaticamente. A ferramenta lista a divergência, mas só inclui itens ausentes.</li>
               <li>Se houver período de direito anterior ao período de apuração, o evento recebe <code>indPossuiPerAnt = S</code>. Se o ano do direito for anterior ao ano de apuração, o demonstrativo recebe marcação RRA conforme os dados padrão.</li>
@@ -274,11 +277,20 @@
   }
   function ideTabFromRubrica(rubrica){const s=String(rubrica||'').toUpperCase();if(s.endsWith('V'))return 'VANT';if(s.endsWith('D'))return 'DESC';if(s.endsWith('A'))return 'AUX';return ''}
   function extractIdeInfo(v){
-    const s=clean(v);const first=s.indexOf('-'),second=first>=0?s.indexOf('-',first+1):-1,third=second>=0?s.indexOf('-',second+1):-1;
+    const s=clean(v);
+    const parsed = s.match(/^(.+)-(\d{1,3})-([^-]+)-(\d{5,6})(?:-(\d+))?$/);
+    if(parsed){
+      let digits=parsed[4]; if(digits.length===5) digits='0'+digits;
+      const month=digits.slice(0,2), year=digits.slice(2);
+      const period=(Number(month)>=1&&Number(month)<=12)?`${year}-${month}-01`:'';
+      return {ok:/^\d+$/.test(parsed[2]),matricula:parsed[1],numero:parsed[2],folhaNome:clean(parsed[3]).toUpperCase(),period,suffix:parsed[5]||'',raw:s};
+    }
+    // Fallback conservador: mantém compatibilidade com Id Edm Dev fora do padrão esperado.
+    const first=s.indexOf('-'),second=first>=0?s.indexOf('-',first+1):-1,third=second>=0?s.indexOf('-',second+1):-1;
     const numero=second>=0&&third>second?clean(s.slice(second+1,third)):'';
     const periodMatch=s.match(/-(\d{5,6})(?:-(\d+))?$/);let period='';
     if(periodMatch){let digits=periodMatch[1];if(digits.length===5)digits='0'+digits;const month=digits.slice(0,2),year=digits.slice(2);if(Number(month)>=1&&Number(month)<=12)period=`${year}-${month}-01`}
-    return {ok:/^\d+$/.test(numero),numero,period,suffix:periodMatch?.[2]||'',raw:s};
+    return {ok:/^\d+$/.test(numero),matricula:'',numero,folhaNome:'',period,suffix:periodMatch?.[2]||'',raw:s};
   }
   function getEventos(){
     if(!state.jsonData) return [];
@@ -414,8 +426,65 @@
     })}));
     return contextual.size?contextual:map;
   }
-  function findPagtosByFolha(evt,numFolha){
-    const arr=[]; forEachPagto(evt,(pagto,idx)=>{const info=extractIdeInfo(pagto?.ideDmDev||''); if(info.numero===String(numFolha)) arr.push({pagto,idx,info});}); return arr;
+  function isRraTargetItem(item,perApur){
+    const anoRef=Number(periodYear(item?.perRef));
+    const anoApur=Number(periodYear(perApur));
+    return !!(anoRef && anoApur && anoRef < anoApur);
+  }
+  function targetKindForItem(item,perApur){return isRraTargetItem(item,perApur) ? 'RRA' : 'REGULAR'}
+  function targetNameForGroup(group){return group?.targetKind === 'RRA' ? 'RRA' : 'MANUAL'}
+  function targetKindLabel(kind){return kind === 'RRA' ? 'RRA / anos anteriores' : 'não RRA / ano da apuração'}
+  function splitGroupByTargetKind(group){
+    const buckets=new Map();
+    (group.items||[]).forEach(item=>{
+      const kind=targetKindForItem(item,group.perApur);
+      if(!buckets.has(kind))buckets.set(kind,[]);
+      buckets.get(kind).push(item);
+    });
+    return Array.from(buckets.entries()).map(([targetKind,items])=>({...group,targetKind,items}));
+  }
+  function isRraPagto(pagto,info){
+    const i=info || extractIdeInfo(pagto?.ideDmDev||'');
+    const nome=String(i.folhaNome||'').toUpperCase();
+    if(nome === 'RRA') return true;
+    // Só usa indRRA como fallback quando o nome da folha não pôde ser extraído.
+    return !nome && String(pagto?.indRRA||'').trim().toUpperCase() === 'S';
+  }
+  function findPagtosByTarget(evt,group){
+    const targetRra = group?.targetKind === 'RRA';
+    const arr=[];
+    forEachPagto(evt,(pagto,idx)=>{
+      const info=extractIdeInfo(pagto?.ideDmDev||'');
+      if(info.numero!==String(group.numFolha)) return;
+      if(isRraPagto(pagto,info) !== targetRra) return;
+      arr.push({pagto,idx,info});
+    });
+    return arr;
+  }
+  function chooseTargetMatch(matches,group){
+    if(!matches || !matches.length) return null;
+    const refs=new Set((group.items||[]).map(i=>normalizePeriod(i.perRef)).filter(Boolean));
+    const scored=matches.map(m=>{
+      let score=0;
+      if(!m.info.suffix) score+=4;
+      if(String(m.info.folhaNome||'').toUpperCase()===targetNameForGroup(group)) score+=3;
+      forEachPeriod(m.pagto,p=>{if(refs.has(normalizePeriod(p.perRef)))score+=2});
+      return {m,score};
+    }).sort((a,b)=>b.score-a.score || a.m.idx-b.m.idx);
+    return scored[0].m;
+  }
+  function buildExistingItemsMapFromMatches(matches){
+    const finalMap=new Map();
+    (matches||[]).forEach(match=>{
+      const local=buildExistingItemsMap(match.pagto);
+      for(const [key,rec] of local.entries()){
+        if(!finalMap.has(key)) finalMap.set(key,{valueCents:0,items:[]});
+        const target=finalMap.get(key);
+        target.valueCents += rec.valueCents;
+        target.items.push(...rec.items);
+      }
+    });
+    return finalMap;
   }
   function chooseTemplateEvent(perApur){
     const eventos=getEventos();
@@ -430,7 +499,17 @@
   function desiredContractMatricula(worker,group){return worker?.matricula || Array.from(group.matriculas)[0] || ''}
   function desiredIdeMatricula(worker,group){return worker?.matricula_atual || Array.from(group.matriculas)[0] || worker?.matricula || ''}
   function categoriaFromWorker(worker){return clean(worker?.categoria || '') || '*numerovazio*'}
-  function makeIdeDmDev(worker,group){return `${desiredIdeMatricula(worker,group)}-${group.numFolha}-MANUAL-${mmyyyy(group.perApur)}`}
+  function uniqueIdeDmDev(evt,baseIde){
+    const used=new Set((evt?.s1202RemuTrabRPPSPagtos||[]).map(p=>String(p.ideDmDev||'')));
+    if(!used.has(baseIde)) return baseIde;
+    let n=1;
+    while(used.has(`${baseIde}-${n}`)) n++;
+    return `${baseIde}-${n}`;
+  }
+  function makeIdeDmDev(worker,group,evt=null){
+    const base=`${desiredIdeMatricula(worker,group)}-${group.numFolha}-${targetNameForGroup(group)}-${mmyyyy(group.perApur)}`;
+    return evt ? uniqueIdeDmDev(evt,base) : base;
+  }
   function makeChaveIntegracao(cpf,perApur,indApuracao){const p=normalizePeriod(perApur);return `${state.settings.chavePrefix || '1'}#${onlyDigits(state.settings.empNrInsc)}#${cpf}#${p.slice(0,4)}#${ddmmyyyy(p)}#${indApuracao||state.settings.indApuracao||'1'}`}
   function nextOrdemRegistro(){let max=0; getEventos().forEach(e=>{const n=Number(String(e.ordemRegistro||'').replace(/\D/g,'')); if(Number.isFinite(n)&&n>max)max=n;}); return String(max+1)}
   function createItem(itemPlan){
@@ -463,7 +542,7 @@
   function createPagto(evt,group,worker,items){
     const template = state.settings.preferTemplate ? chooseTemplatePagto(evt) : null;
     const pagto = template ? clone(template) : {};
-    const ide = makeIdeDmDev(worker,group);
+    const ide = makeIdeDmDev(worker,group,evt);
     pagto.codCateg={categoria:categoriaFromWorker(worker)};
     pagto.ideDmDev=ide;
     pagto.remunOrgSuc='N';
@@ -535,39 +614,52 @@
 
     const eventIdx=getEventIndex(); const groups=aggregateFolha();
     for(const inv of state.folhaInvalid){state.analysis.push({action:'AVISO',cpf:inv.cpf,perApur:inv.perApur,numFolha:inv.numFolha,perRef:inv.perRef,rubrica:inv.rubrica||inv.rubricaBase,value:inv.value,detail:'Linha inválida na folha: '+inv.issue,eventLabel:'-',matriculaContrato:'-',ideDmDev:'-',pending:false});}
-    for(const group of groups){
-      const worker=workerForCpf(group.cpf);
-      if(!worker){state.analysis.push({action:'IGNORADO',cpf:group.cpf,perApur:group.perApur,numFolha:group.numFolha,perRef:'',rubrica:'',value:null,detail:'CPF não existe na base de trabalhadores S-1202. Possível S-1200 ou ausência de base.',eventLabel:'Sem base S-1202',matriculaContrato:'-',ideDmDev:'-',pending:false}); continue;}
-      const evRec=eventIdx.get(eventKey(group.cpf,group.perApur)); const contractMat=desiredContractMatricula(worker,group); const targetIde=makeIdeDmDev(worker,group);
-      if(!evRec){
-        state.analysis.push({action:'CRIAR_EVENTO',cpf:group.cpf,perApur:group.perApur,numFolha:group.numFolha,perRef:'',rubrica:'',value:null,detail:`Evento inexistente para CPF/competência. Será criado com ${group.items.length} item(ns).`,eventLabel:'Novo evento',matriculaContrato:contractMat,ideDmDev:targetIde,pending:true,group});
-        state.plan.push({type:'CREATE_EVENT',group,worker});
-        continue;
+    for(const baseGroup of groups){
+      const worker=workerForCpf(baseGroup.cpf);
+      if(!worker){state.analysis.push({action:'IGNORADO',cpf:baseGroup.cpf,perApur:baseGroup.perApur,numFolha:baseGroup.numFolha,perRef:'',rubrica:'',value:null,detail:'CPF não existe na base de trabalhadores S-1202. Possível S-1200 ou ausência de base.',eventLabel:'Sem base S-1202',matriculaContrato:'-',ideDmDev:'-',pending:false}); continue;}
+
+      for(const group of splitGroupByTargetKind(baseGroup)){
+        const evRec=eventIdx.get(eventKey(group.cpf,group.perApur));
+        const contractMat=desiredContractMatricula(worker,group);
+        const targetIde=makeIdeDmDev(worker,group);
+        const targetLabel=targetKindLabel(group.targetKind);
+
+        if(!evRec){
+          state.analysis.push({action:'CRIAR_EVENTO',cpf:group.cpf,perApur:group.perApur,numFolha:group.numFolha,perRef:'',rubrica:'',value:null,detail:`Evento inexistente para CPF/competência. Será criado/atualizado com demonstrativo ${targetLabel} contendo ${group.items.length} item(ns).`,eventLabel:'Novo evento',matriculaContrato:contractMat,ideDmDev:targetIde,pending:true,group});
+          state.plan.push({type:'CREATE_EVENT_OR_PAGTO',group,worker});
+          continue;
+        }
+
+        const evt=evRec.evt;
+        const matches=findPagtosByTarget(evt,group);
+        if(matches.length===0){
+          state.analysis.push({action:'CRIAR_DEMONSTRATIVO',cpf:group.cpf,perApur:group.perApur,numFolha:group.numFolha,perRef:'',rubrica:'',value:null,detail:`Não existe demonstrativo ${targetLabel} para a folha ${group.numFolha}. Será criado com ${group.items.length} item(ns).`,eventLabel:'Evento existente',matriculaContrato:contractMat,ideDmDev:targetIde,pending:true,group,evt});
+          state.plan.push({type:'CREATE_PAGTO',group,worker,evt});
+          continue;
+        }
+
+        const targetMatch=chooseTargetMatch(matches,group);
+        if(matches.length>1){state.analysis.push({action:'AVISO',cpf:group.cpf,perApur:group.perApur,numFolha:group.numFolha,perRef:'',rubrica:'',value:null,detail:`Existem ${matches.length} demonstrativos ${targetLabel} para a mesma folha. A ferramenta considera todos para evitar duplicidade; itens novos serão incluídos em: ${targetMatch.pagto.ideDmDev}.`,eventLabel:'Múltiplos demonstrativos',matriculaContrato:contractMat,ideDmDev:targetMatch.pagto.ideDmDev,pending:false});}
+
+        const existing=buildExistingItemsMapFromMatches(matches); let missing=0, divergent=0, ok=0;
+        for(const it of group.items){
+          const key=[it.perRef,it.rubrica].join('|'); const ex=existing.get(key);
+          if(!ex){
+            const detail=`Item ausente na família de demonstrativos ${targetLabel} da folha ${group.numFolha}.`;
+            state.analysis.push({action:'INCLUIR_ITEM',cpf:group.cpf,perApur:group.perApur,numFolha:group.numFolha,perRef:it.perRef,rubrica:it.rubrica,value:fromCents(it.valueCents),detail,eventLabel:'Evento/demonstrativo existente',matriculaContrato:contractMat,ideDmDev:targetMatch.pagto.ideDmDev,pending:true,item:it,evt,pagto:targetMatch.pagto,worker,group});
+            state.plan.push({type:'ADD_ITEM',evt,pagto:targetMatch.pagto,item:it,worker,group}); missing++;
+          }else if(ex.valueCents!==it.valueCents){
+            const detail=`Valor divergente na família ${targetLabel}. JSON: ${formatNumber(fromCents(ex.valueCents))}; folha: ${formatNumber(fromCents(it.valueCents))}. A ferramenta não sobrescreve valor existente.`;
+            state.analysis.push({action:'VALOR_DIVERGENTE',cpf:group.cpf,perApur:group.perApur,numFolha:group.numFolha,perRef:it.perRef,rubrica:it.rubrica,value:fromCents(it.valueCents),detail,eventLabel:'Divergência',matriculaContrato:contractMat,ideDmDev:targetMatch.pagto.ideDmDev,pending:false}); divergent++;
+          }else{ok++;}
+        }
+        if(missing===0 && divergent===0){state.analysis.push({action:'OK',cpf:group.cpf,perApur:group.perApur,numFolha:group.numFolha,perRef:'',rubrica:'',value:null,detail:`Folha ${group.numFolha} (${targetLabel}): ${ok} item(ns) conferem por rubrica/período/valor.`,eventLabel:'OK',matriculaContrato:contractMat,ideDmDev:targetMatch.pagto.ideDmDev,pending:false});}
       }
-      const evt=evRec.evt; const matches=findPagtosByFolha(evt,group.numFolha);
-      if(matches.length===0){
-        state.analysis.push({action:'CRIAR_DEMONSTRATIVO',cpf:group.cpf,perApur:group.perApur,numFolha:group.numFolha,perRef:'',rubrica:'',value:null,detail:`Demonstrativo da folha ${group.numFolha} inexistente no evento. Será criado com ${group.items.length} item(ns).`,eventLabel:'Evento existente',matriculaContrato:contractMat,ideDmDev:targetIde,pending:true,group,evt});
-        state.plan.push({type:'CREATE_PAGTO',group,worker,evt});
-        continue;
-      }
-      if(matches.length>1){state.analysis.push({action:'AVISO',cpf:group.cpf,perApur:group.perApur,numFolha:group.numFolha,perRef:'',rubrica:'',value:null,detail:`Existem ${matches.length} demonstrativos com a mesma folha. A análise de itens usará o primeiro: ${matches[0].pagto.ideDmDev}.`,eventLabel:'Ambiguidade',matriculaContrato:contractMat,ideDmDev:matches[0].pagto.ideDmDev,pending:false});}
-      const pagto=matches[0].pagto; const existing=buildExistingItemsMap(pagto); let missing=0, divergent=0, ok=0;
-      for(const it of group.items){
-        const key=[it.perRef,it.rubrica].join('|'); const ex=existing.get(key);
-        if(!ex){
-          const detail=`Item ausente no demonstrativo existente ${pagto.ideDmDev}.`;
-          state.analysis.push({action:'INCLUIR_ITEM',cpf:group.cpf,perApur:group.perApur,numFolha:group.numFolha,perRef:it.perRef,rubrica:it.rubrica,value:fromCents(it.valueCents),detail,eventLabel:'Evento/demonstrativo existente',matriculaContrato:contractMat,ideDmDev:pagto.ideDmDev,pending:true,item:it,evt,pagto,worker});
-          state.plan.push({type:'ADD_ITEM',evt,pagto,item:it,worker,group}); missing++;
-        }else if(ex.valueCents!==it.valueCents){
-          const detail=`Valor divergente. JSON: ${formatNumber(fromCents(ex.valueCents))}; folha: ${formatNumber(fromCents(it.valueCents))}. A ferramenta não sobrescreve valor existente.`;
-          state.analysis.push({action:'VALOR_DIVERGENTE',cpf:group.cpf,perApur:group.perApur,numFolha:group.numFolha,perRef:it.perRef,rubrica:it.rubrica,value:fromCents(it.valueCents),detail,eventLabel:'Divergência',matriculaContrato:contractMat,ideDmDev:pagto.ideDmDev,pending:false}); divergent++;
-        }else{ok++;}
-      }
-      if(missing===0 && divergent===0){state.analysis.push({action:'OK',cpf:group.cpf,perApur:group.perApur,numFolha:group.numFolha,perRef:'',rubrica:'',value:null,detail:`Folha ${group.numFolha}: ${ok} item(ns) conferem por rubrica/período/valor.`,eventLabel:'OK',matriculaContrato:contractMat,ideDmDev:pagto.ideDmDev,pending:false});}
     }
     showAnalysisMessage(); renderAnalysis();
   }
-  function showAnalysisMessage(){
+  
+function showAnalysisMessage(){
     const counts=countActions(); const pend=(counts.CRIAR_EVENTO||0)+(counts.CRIAR_DEMONSTRATIVO||0)+(counts.INCLUIR_ITEM||0);
     if(pend>0) showMessage(els.analysisMessage,'warn',`Análise concluída. Foram encontradas <strong>${pend}</strong> pendência(s) para inclusão: ${(counts.CRIAR_EVENTO||0)} evento(s), ${(counts.CRIAR_DEMONSTRATIVO||0)} demonstrativo(s) e ${(counts.INCLUIR_ITEM||0)} item(ns).`);
     else showMessage(els.analysisMessage,'ok','Análise concluída. Não há eventos, demonstrativos ou itens faltantes para incluir.');
@@ -576,8 +668,22 @@
     if(!state.plan.length){alert('Não há pendências de inclusão para aplicar.');return;}
     const eventIdx=getEventIndex(); let createdEvents=0,createdPagtos=0,addedItems=0;
     for(const p of state.plan){
-      if(p.type==='CREATE_EVENT'){
-        const evt=createEvent(p.group,p.worker); evt.s1202RemuTrabRPPSPagtos.push(createPagto(evt,p.group,p.worker,p.group.items)); recomputeEventPeriodFlag(evt); getEventos().push(evt); createdEvents++;
+      if(p.type==='CREATE_EVENT_OR_PAGTO'){
+        let rec=eventIdx.get(eventKey(p.group.cpf,p.group.perApur));
+        let evt;
+        if(!rec){
+          evt=createEvent(p.group,p.worker);
+          getEventos().push(evt);
+          rec={evt,idx:getEventos().length-1};
+          eventIdx.set(eventKey(p.group.cpf,p.group.perApur),rec);
+          createdEvents++;
+        }else{
+          evt=rec.evt;
+        }
+        evt.s1202RemuTrabRPPSPagtos = evt.s1202RemuTrabRPPSPagtos || [];
+        evt.s1202RemuTrabRPPSPagtos.push(createPagto(evt,p.group,p.worker,p.group.items));
+        recomputeEventPeriodFlag(evt);
+        createdPagtos++;
       }else if(p.type==='CREATE_PAGTO'){
         const pagto=createPagto(p.evt,p.group,p.worker,p.group.items); p.evt.s1202RemuTrabRPPSPagtos = p.evt.s1202RemuTrabRPPSPagtos || []; p.evt.s1202RemuTrabRPPSPagtos.push(pagto); recomputeEventPeriodFlag(p.evt); createdPagtos++;
       }else if(p.type==='ADD_ITEM'){
@@ -588,7 +694,8 @@
     analyze(); showMessage(els.analysisMessage,'ok',msg+' A análise foi recalculada após a alteração.'); els.btnDownload.disabled=false; els.btnExportReport.disabled=false; renderImport();
   }
 
-  function countActions(){return state.analysis.reduce((acc,r)=>{acc[r.action]=(acc[r.action]||0)+1;return acc},{})}
+  
+function countActions(){return state.analysis.reduce((acc,r)=>{acc[r.action]=(acc[r.action]||0)+1;return acc},{})}
   function statusClass(action){return String(action||'').toLowerCase()}
   function actionLabel(action){return ({CRIAR_EVENTO:'Criar evento',CRIAR_DEMONSTRATIVO:'Criar demonstrativo',INCLUIR_ITEM:'Incluir item',VALOR_DIVERGENTE:'Valor divergente',IGNORADO:'Ignorado',OK:'OK',AVISO:'Aviso'})[action] || action}
   function renderAnalysis(){
