@@ -81,7 +81,7 @@
 
   <!-- Navbar simples -->
   <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
-    <a class="navbar-brand" href="#">Editor Eventos - V1.13</a>
+    <a class="navbar-brand" href="#">Editor Eventos - V1.15</a>
   </nav>
 
   <!-- Conteúdo principal -->
@@ -94,7 +94,8 @@
       <div class="card-body">
         <div class="form-group">
           <label for="fileInput"><strong>Carregar Arquivo JSON:</strong></label>
-          <input type="file" id="fileInput" accept=".json" class="form-control-file" />
+          <input type="file" id="fileInput" accept=".json" class="form-control-file" multiple />
+          <small class="form-text text-muted">Você pode selecionar um ou mais arquivos JSON. Quando houver mais de um, o editor unifica os eventos em memória e o download gera um único arquivo.</small>
         </div>
         <div id="jsonLoadInfo" class="mt-3"></div>
         <button id="downloadBtn" class="btn btn-info">Baixar Edição</button>
@@ -845,6 +846,8 @@
     // Controle de arquivo carregado (para salvar com o mesmo nome + "_editado")
     let loadedFileName = null;
     let loadedFileMeta = null;
+    let loadedFilesMeta = [];
+    let lastImportSummary = null;
 
     function stripUtf8Bom(text) {
       if (!text) return "";
@@ -875,6 +878,205 @@
       const base = dot > 0 ? name.slice(0, dot) : name;
       const ext = dot > 0 ? name.slice(dot) : ".json";
       return base + "_editado" + ext;
+    }
+
+
+// ======================================================================
+    // IMPORTAÇÃO MÚLTIPLA / UNIFICAÇÃO DE JSON
+    // Objetivo: permitir carregar vários arquivos S-1202 e trabalhar em uma única base,
+    // preservando a estrutura original e mesclando com cautela apenas quando houver o mesmo trabalhador.
+
+    function deepCloneSafe(obj) {
+      try {
+        if (typeof structuredClone === "function") return structuredClone(obj);
+      } catch (e) {}
+      return JSON.parse(JSON.stringify(obj));
+    }
+
+    function getEventosFromData(data) {
+      return data?.s1202RemuTrabRPPSGroup?.s1202RemuTrabRPPS || [];
+    }
+
+    function ensureS1202Root(data) {
+      if (!data || typeof data !== "object") {
+        return { "s1202RemuTrabRPPSGroup": { "s1202RemuTrabRPPS": [] } };
+      }
+      if (!data.s1202RemuTrabRPPSGroup) data.s1202RemuTrabRPPSGroup = { s1202RemuTrabRPPS: [] };
+      if (!Array.isArray(data.s1202RemuTrabRPPSGroup.s1202RemuTrabRPPS)) {
+        data.s1202RemuTrabRPPSGroup.s1202RemuTrabRPPS = [];
+      }
+      return data;
+    }
+
+    function normalizeCpfForMerge(raw) {
+      const digits = String(raw || "").replace(/\D/g, "");
+      if (!digits) return "";
+      return digits.length < 11 ? digits.padStart(11, "0") : digits.slice(-11);
+    }
+
+    function isBlankOrPlaceholder(v) {
+      const s = String(v ?? "").trim();
+      return s === "" || s === "*vazio*" || s === "*numerovazio*" || s === "*datavazia*";
+    }
+
+    function mergeFillOnly(target, source) {
+      // Preenche apenas campos ausentes/vazios do target. Não sobrescreve campos já existentes.
+      if (!target || typeof target !== "object" || Array.isArray(target)) return target;
+      if (!source || typeof source !== "object" || Array.isArray(source)) return target;
+      Object.keys(source).forEach((key) => {
+        const sv = source[key];
+        const tv = target[key];
+        if (Array.isArray(sv)) {
+          if (!Array.isArray(tv) || tv.length === 0) target[key] = sv;
+          return;
+        }
+        if (sv && typeof sv === "object") {
+          if (!tv || typeof tv !== "object" || Array.isArray(tv)) target[key] = {};
+          mergeFillOnly(target[key], sv);
+          return;
+        }
+        if (isBlankOrPlaceholder(tv) && !isBlankOrPlaceholder(sv)) target[key] = sv;
+      });
+      return target;
+    }
+
+    function stableStringifyGlobal(value) {
+      const seen = new WeakSet();
+      const helper = (v) => {
+        if (v === null || typeof v !== "object") return v;
+        if (seen.has(v)) return "[Circular]";
+        seen.add(v);
+        if (Array.isArray(v)) return v.map(helper);
+        const out = {};
+        Object.keys(v).sort().forEach(k => out[k] = helper(v[k]));
+        return out;
+      };
+      return JSON.stringify(helper(value));
+    }
+
+    function pagtoSignatureForImport(pagto) {
+      // Assinatura exata do pagamento inteiro. Usada apenas para evitar duplicidade literal ao unificar arquivos.
+      return stableStringifyGlobal(pagto || {});
+    }
+
+    function getImportEventKey(evt, fileIndex, eventIndex) {
+      const cpf = normalizeCpfForMerge(evt?.trabalhador?.cpfTrab || "");
+      const empregador = String(evt?.empregador?.nrInsc || "").trim();
+      const ind = String(evt?.indApuracao || "").trim();
+      const ano = String(evt?.anoApur || "").trim();
+      const per = String(evt?.perApur || "").trim();
+      if (cpf) return `CPF|${empregador}|${cpf}|${ano}|${per}|${ind}`;
+
+      // Fallback com chaveIntegracao quando CPF estiver ausente. Só mescla se a chave for idêntica.
+      const chave = String(evt?.chaveIntegracao || "").trim();
+      if (chave) return `CHAVE|${chave}`;
+
+      // Sem chave segura, mantém evento separado para evitar mesclagem indevida.
+      return `UNICO|${fileIndex}|${eventIndex}`;
+    }
+
+    function mergeDuplicateWorkerEvent(baseEvt, incomingEvt) {
+      // Preserva o evento-base e só agrega pagamentos do evento duplicado.
+      // Campos escalares/topo: apenas preenche vazios do base, sem sobrescrever.
+      mergeFillOnly(baseEvt, incomingEvt);
+
+      if (!Array.isArray(baseEvt.s1202RemuTrabRPPSPagtos)) baseEvt.s1202RemuTrabRPPSPagtos = [];
+      const basePagtos = baseEvt.s1202RemuTrabRPPSPagtos;
+      const incomingPagtos = Array.isArray(incomingEvt.s1202RemuTrabRPPSPagtos) ? incomingEvt.s1202RemuTrabRPPSPagtos : [];
+
+      const seenExact = new Set(basePagtos.map(pagtoSignatureForImport));
+      let appended = 0;
+      let skippedExact = 0;
+
+      incomingPagtos.forEach((p) => {
+        const sig = pagtoSignatureForImport(p);
+        if (seenExact.has(sig)) {
+          skippedExact++;
+          return;
+        }
+        basePagtos.push(p);
+        seenExact.add(sig);
+        appended++;
+      });
+
+      return { appended, skippedExact };
+    }
+
+    function mergeS1202FilesData(parsedFiles) {
+      // parsedFiles: [{ name, data }]
+      const summary = {
+        files: parsedFiles.length,
+        totalEventsInput: 0,
+        totalEventsOutput: 0,
+        duplicateWorkerEvents: 0,
+        appendedPayments: 0,
+        skippedExactPayments: 0,
+        invalidFiles: 0,
+        details: []
+      };
+
+      let baseData = null;
+      const keyToEvent = new Map();
+      const outputEvents = [];
+
+      parsedFiles.forEach((pf, fileIndex) => {
+        const data = ensureS1202Root(deepCloneSafe(pf.data));
+        // Importante: capturar a lista antes de trocar o array do arquivo-base por outputEvents.
+        // Caso contrário, o primeiro arquivo ficaria com 0 eventos na unificação.
+        const eventos = getEventosFromData(data).slice();
+
+        if (!baseData) {
+          baseData = data;
+          baseData.s1202RemuTrabRPPSGroup.s1202RemuTrabRPPS = outputEvents;
+        }
+
+        summary.totalEventsInput += eventos.length;
+        summary.details.push(`${pf.name || ('Arquivo #' + (fileIndex + 1))}: ${eventos.length} evento(s)`);
+
+        eventos.forEach((evt, eventIndex) => {
+          const key = getImportEventKey(evt, fileIndex, eventIndex);
+          if (!keyToEvent.has(key)) {
+            keyToEvent.set(key, evt);
+            outputEvents.push(evt);
+            return;
+          }
+
+          const baseEvt = keyToEvent.get(key);
+          const r = mergeDuplicateWorkerEvent(baseEvt, evt);
+          summary.duplicateWorkerEvents++;
+          summary.appendedPayments += r.appended;
+          summary.skippedExactPayments += r.skippedExact;
+        });
+      });
+
+      if (!baseData) baseData = ensureS1202Root({});
+      summary.totalEventsOutput = outputEvents.length;
+      return { data: baseData, summary };
+    }
+
+    async function readJsonFilesAsUnified(files) {
+      const parsedFiles = [];
+      const errors = [];
+
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        try {
+          const text = await readFileAsText(file);
+          const parsed = parseJsonSafely(text);
+          parsedFiles.push({ name: file.name || `arquivo_${i + 1}.json`, data: parsed.data, repaired: parsed.repaired });
+        } catch (err) {
+          errors.push({ name: file.name || `arquivo_${i + 1}.json`, error: String(err) });
+        }
+      }
+
+      if (!parsedFiles.length) {
+        throw new Error("Nenhum JSON válido foi carregado." + (errors.length ? " Erros: " + errors.map(e => `${e.name}: ${e.error}`).join(" | ") : ""));
+      }
+
+      const merged = mergeS1202FilesData(parsedFiles);
+      merged.summary.errors = errors;
+      merged.summary.repairedFiles = parsedFiles.filter(f => f.repaired).map(f => f.name);
+      return merged;
     }
 
 // ======================================================================
@@ -1754,44 +1956,57 @@
     };
 
     // ----------------------------------------------------------------------
-    // 8) CARREGAR ARQUIVO
+    // 8) CARREGAR ARQUIVO(S) JSON
     const fileInput = document.getElementById("fileInput");
-    fileInput.addEventListener("change", function () {
-      const file = this.files && this.files[0];
-      if (!file) return;
+    fileInput.addEventListener("change", async function () {
+      const files = Array.from(this.files || []);
+      if (!files.length) return;
 
-      loadedFileName = file.name || null;
-      loadedFileMeta = { name: file.name || "", size: file.size || 0, lastModified: file.lastModified || 0 };
+      try {
+        loadedFilesMeta = files.map(f => ({ name: f.name || "", size: f.size || 0, lastModified: f.lastModified || 0 }));
 
-      const reader = new FileReader();
-      reader.onload = function (e) {
-        try {
-          const parsed = parseJsonSafely(e.target.result);
-          window.esocialData = parsed.data;
+        const unified = await readJsonFilesAsUnified(files);
+        window.esocialData = ensureS1202Root(unified.data);
+        lastImportSummary = unified.summary;
 
-          // Garante estrutura e marcação interna
-          getEventos().forEach((evt) => {
-            if (typeof evt._selected === "undefined") {
-              evt._selected = false;
-            }
-          });
-
-          renderEventosTable();
-          if (typeof refreshJsonLoadInfo === "function") refreshJsonLoadInfo();
-
-          if (parsed.repaired) {
-            alert("Arquivo carregado com sucesso (foi aplicado um reparo mínimo para leitura: BOM e/ou vírgula sobrando). Recomenda-se validar o conteúdo antes da transmissão.");
-          } else {
-            alert("Arquivo carregado com sucesso!");
-          }
-        } catch (err) {
-          alert("Erro ao ler JSON: " + err);
+        if (files.length === 1) {
+          loadedFileName = files[0].name || null;
+          loadedFileMeta = { name: files[0].name || "", size: files[0].size || 0, lastModified: files[0].lastModified || 0 };
+        } else {
+          loadedFileName = "S-1202_unificado.json";
+          loadedFileMeta = {
+            name: `${files.length} arquivos JSON unificados`,
+            size: files.reduce((acc, f) => acc + (f.size || 0), 0),
+            lastModified: Math.max(...files.map(f => f.lastModified || 0))
+          };
         }
-      };
-      reader.readAsText(file);
 
-      // Permite recarregar o mesmo arquivo sem precisar selecionar outro
-      this.value = "";
+        // Garante estrutura e marcação interna
+        getEventos().forEach((evt) => {
+          if (typeof evt._selected === "undefined") evt._selected = false;
+        });
+
+        renderEventosTable();
+        if (typeof refreshJsonLoadInfo === "function") refreshJsonLoadInfo();
+
+        const erros = (lastImportSummary.errors || []).length;
+        const reparados = (lastImportSummary.repairedFiles || []).length;
+        let msg = "Arquivo(s) carregado(s) com sucesso!\n\n" +
+          `Arquivos selecionados: ${files.length}\n` +
+          `Eventos de entrada: ${lastImportSummary.totalEventsInput}\n` +
+          `Eventos após unificação: ${lastImportSummary.totalEventsOutput}\n` +
+          `Eventos do mesmo trabalhador/período mesclados: ${lastImportSummary.duplicateWorkerEvents}\n` +
+          `Pagamentos agregados por mesclagem: ${lastImportSummary.appendedPayments}\n` +
+          `Pagamentos idênticos ignorados: ${lastImportSummary.skippedExactPayments}`;
+        if (reparados) msg += `\n\nAtenção: ${reparados} arquivo(s) exigiram reparo mínimo para leitura (BOM/vírgula sobrando).`;
+        if (erros) msg += `\n\nAtenção: ${erros} arquivo(s) não foram carregados por erro de leitura. Verifique o resumo na tela.`;
+        alert(msg);
+      } catch (err) {
+        alert("Erro ao ler JSON: " + err);
+      } finally {
+        // Permite recarregar os mesmos arquivos sem precisar selecionar outros
+        this.value = "";
+      }
     });
 
     // ----------------------------------------------------------------------
@@ -2958,11 +3173,32 @@ function refreshJsonLoadInfo() {
 
   const topFolhas = folhaRows.slice(0, 25);
 
+  let importDetailsHtml = "";
+  if (lastImportSummary) {
+    const s = lastImportSummary;
+    const errHtml = (s.errors || []).length
+      ? `<div class="text-danger mt-1"><strong>Erros de leitura:</strong> ${(s.errors || []).map(e => `${escapeHtml(e.name)} (${escapeHtml(e.error)})`).join("; ")}</div>`
+      : "";
+    const repairedHtml = (s.repairedFiles || []).length
+      ? `<div class="text-warning mt-1"><strong>Arquivos com reparo mínimo:</strong> ${(s.repairedFiles || []).map(escapeHtml).join(", ")}</div>`
+      : "";
+    const detailsHtml = (s.details || []).length && s.files > 1
+      ? `<details class="mt-1"><summary>Detalhe dos arquivos carregados</summary><div>${(s.details || []).map(escapeHtml).join("<br>")}</div></details>`
+      : "";
+    importDetailsHtml = `
+      <div class="mt-1"><strong>Unificação:</strong> arquivos: ${s.files} &nbsp;|&nbsp; eventos entrada: ${s.totalEventsInput} &nbsp;|&nbsp; eventos saída: ${s.totalEventsOutput} &nbsp;|&nbsp; duplicidades trabalhador/período mescladas: ${s.duplicateWorkerEvents} &nbsp;|&nbsp; pagamentos agregados: ${s.appendedPayments} &nbsp;|&nbsp; pagamentos idênticos ignorados: ${s.skippedExactPayments}</div>
+      ${repairedHtml}
+      ${errHtml}
+      ${detailsHtml}
+    `;
+  }
+
   const headerHtml = `
     <div class="alert alert-secondary p-2 mb-0">
       <div class="d-flex justify-content-between align-items-center">
         <div class="small">
           <div><strong>Arquivo:</strong> ${escapeHtml(loadedFileMeta.name)} <span class="text-muted">(${formatBytes(loadedFileMeta.size)}, modificado em ${escapeHtml(formatDate(loadedFileMeta.lastModified))})</span></div>
+          ${importDetailsHtml}
           <div><strong>Eventos:</strong> ${totalEventos} &nbsp;|&nbsp; <strong>Trabalhadores (CPFs únicos):</strong> ${cpfSetGlobal.size} &nbsp;|&nbsp; <strong>Demonstrativos (ideDmDev):</strong> ${totalDemonstrativos}</div>
           <div class="text-muted">Período apuração (mín → máx): ${escapeHtml(ymToStr(minYm) || "—")} → ${escapeHtml(ymToStr(maxYm) || "—")} &nbsp;|&nbsp; Eventos sem CPF: ${eventosSemCpf} &nbsp;|&nbsp; sem indApur: ${eventosSemInd} &nbsp;|&nbsp; sem perApur: ${eventosSemPeriodo}</div>
         </div>
@@ -3155,7 +3391,7 @@ function refreshJsonLoadInfo() {
         // Aplica no mesmo nó, preservando a estrutura do JSON, alterando apenas a lista.
         window.esocialData.s1202RemuTrabRPPSGroup.s1202RemuTrabRPPS = kept;
 
-        renderEventos();
+        renderEventosTable();
         refreshJsonLoadInfo();
         $("#cpfFilterModal").modal("hide");
 
@@ -3538,7 +3774,7 @@ function refreshJsonLoadInfo() {
         // Aplica no mesmo nó (apenas pagtos alterados são substituídos)
         window.esocialData.s1202RemuTrabRPPSGroup.s1202RemuTrabRPPS = eventos;
 
-        renderEventos();
+        renderEventosTable();
         refreshJsonLoadInfo();
         $(modalId).modal("hide");
 

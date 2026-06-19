@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Gerador de Demonstrativos S-1202</title>
+  <style>
+    :root{
+      --bg:#f4f7fb;--surface:#fff;--surface2:#f8fafc;--text:#172033;--muted:#667085;--line:#d8dee9;
+      --brand:#1d4ed8;--brand2:#173d9a;--ok:#067647;--warn:#b54708;--danger:#b42318;--purple:#6941c6;
+      --shadow:0 18px 48px rgba(16,24,40,.08);--radius:18px
+    }
+    *{box-sizing:border-box} body{margin:0;background:radial-gradient(circle at top left,#eaf1ff 0,rgba(234,241,255,0) 390px),var(--bg);color:var(--text);font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;line-height:1.45}
+    code,.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono",monospace}
+    .wrap{width:min(1580px,calc(100vw - 30px));margin:26px auto 52px}
+    header{display:grid;grid-template-columns:1fr auto;gap:18px;align-items:end;margin-bottom:20px}
+    h1{margin:0;font-size:clamp(1.7rem,3vw,2.35rem);letter-spacing:-.04em;color:#101828}.subtitle{margin:8px 0 0;color:var(--muted);max-width:1100px}
+    .badge{display:inline-flex;align-items:center;gap:8px;padding:8px 12px;border-radius:999px;background:#eaf1ff;color:#143b8f;font-size:.84rem;font-weight:850;white-space:nowrap;border:1px solid #cddcff}
+    .grid{display:grid;gap:18px}.panel{background:rgba(255,255,255,.94);border:1px solid rgba(216,222,233,.95);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden}
+    .panel-head{display:flex;gap:14px;justify-content:space-between;align-items:center;padding:17px 20px;border-bottom:1px solid var(--line);background:linear-gradient(180deg,#fff,#fbfcff)}
+    .panel-title{display:flex;align-items:center;gap:10px;font-size:1.05rem;font-weight:850;margin:0}.step{width:29px;height:29px;border-radius:50%;display:inline-grid;place-items:center;background:var(--brand);color:#fff;font-weight:850;font-size:.9rem;flex:none}.panel-body{padding:20px}
+    .import-grid{display:grid;grid-template-columns:repeat(3,minmax(260px,1fr));gap:15px}.import-card{border:1px solid var(--line);border-radius:17px;background:#fff;padding:17px;display:grid;gap:12px;align-content:start}.import-card h3{margin:0;font-size:1rem}.import-card p{margin:0}
+    button{appearance:none;border:1px solid transparent;border-radius:11px;background:var(--brand);color:#fff;font-weight:780;padding:10px 14px;cursor:pointer;transition:.14s ease;font-size:.92rem;display:inline-flex;align-items:center;justify-content:center;gap:7px}button:hover{background:var(--brand2)} button.secondary{background:#fff;color:#24324a;border-color:var(--line)} button.secondary:hover{background:#f3f6fb}button.danger{background:var(--danger)}button.danger:hover{background:#8f1d14}button.ok{background:var(--ok)}button.ok:hover{background:#045f39}button:disabled{opacity:.45;cursor:not-allowed}.toolbar,.card-actions{display:flex;flex-wrap:wrap;align-items:center;gap:9px}
+    .hint{color:var(--muted);font-size:.89rem;margin:0}.message{border-radius:14px;padding:12px 14px;margin-top:13px;border:1px solid var(--line);background:#fff;color:#344054;font-size:.92rem}.message.ok{border-color:#abefc6;background:#ecfdf3;color:#054f31}.message.warn{border-color:#fedf89;background:#fffaeb;color:#7a2e0e}.message.danger{border-color:#fecdca;background:#fef3f2;color:#7a271a}.message.info{border-color:#bfdbfe;background:#eff6ff;color:#1e3a8a}
+    .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:11px;margin-top:16px}.stat{padding:13px;border:1px solid var(--line);border-radius:14px;background:#fff;min-width:0}.stat .label{color:var(--muted);font-size:.76rem;font-weight:800;text-transform:uppercase;letter-spacing:.045em}.stat .value{margin-top:5px;font-size:1.28rem;font-weight:880;color:#101828;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.stat .sub{margin-top:2px;color:var(--muted);font-size:.79rem}
+    .dropzone{border:2px dashed #9fb7ea;border-radius:19px;background:#f8fbff;padding:22px;text-align:center;transition:.18s ease;cursor:pointer;display:grid;gap:6px;min-height:132px;place-items:center}.dropzone.dragover{border-color:var(--brand);background:#eff6ff;transform:translateY(-1px)}.dropzone strong{display:block;font-size:1.03rem}.dropzone span{color:var(--muted)}input[type="file"]{display:none}
+    .controls{display:grid;grid-template-columns:1fr 210px 210px 180px;gap:11px;align-items:end;margin-bottom:13px}.field{display:grid;gap:6px;font-weight:760;color:#344054;font-size:.88rem}input[type="text"],input[type="number"],select,textarea{width:100%;min-height:40px;border:1px solid var(--line);border-radius:10px;background:#fff;color:var(--text);padding:9px 10px;font:inherit}textarea{min-height:92px}.check-field{display:flex;gap:8px;align-items:center;min-height:40px;padding:8px 10px;border:1px solid var(--line);border-radius:10px;background:#fff;font-size:.88rem;font-weight:700;color:#344054}input[type="checkbox"]{width:18px;height:18px;accent-color:var(--brand);cursor:pointer}
+    .table-wrap{overflow:auto;border:1px solid var(--line);border-radius:15px;background:#fff;max-height:620px}table{width:100%;border-collapse:separate;border-spacing:0;min-width:1420px}th,td{padding:9px 11px;border-bottom:1px solid #eef1f6;text-align:left;vertical-align:middle;font-size:.87rem;white-space:nowrap}th{position:sticky;top:0;background:#f8fafc;color:#344054;z-index:2;font-size:.73rem;text-transform:uppercase;letter-spacing:.05em}tr:last-child td{border-bottom:0}tr:hover td{background:#fbfdff}.num{text-align:right;font-variant-numeric:tabular-nums}.empty{padding:24px;text-align:center;color:var(--muted)}
+    .status{display:inline-flex;align-items:center;padding:4px 8px;border-radius:999px;font-size:.73rem;font-weight:850;letter-spacing:.015em}.status.criar_evento{background:#eee7ff;color:var(--purple)}.status.criar_demonstrativo{background:#dbeafe;color:#1e40af}.status.incluir_item{background:#dcfae6;color:var(--ok)}.status.valor_divergente{background:#fee4e2;color:var(--danger)}.status.ignorado{background:#f2f4f7;color:#344054}.status.ok{background:#ecfdf3;color:#067647}.status.aviso{background:#fef0c7;color:#b54708}
+    .modal{position:fixed;inset:0;z-index:50;display:none;align-items:center;justify-content:center;padding:22px;background:rgba(15,23,42,.5);backdrop-filter:blur(2px)}.modal.open{display:flex}.modal-card{width:min(900px,calc(100vw - 28px));max-height:min(850px,calc(100vh - 28px));overflow:auto;background:#fff;border-radius:21px;box-shadow:0 24px 80px rgba(16,24,40,.26);border:1px solid rgba(255,255,255,.6)}.modal-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;padding:18px 20px;border-bottom:1px solid var(--line);background:linear-gradient(180deg,#fff,#fbfcff)}.modal-head h2{margin:0;font-size:1.08rem}.modal-head p{margin:4px 0 0;color:var(--muted)}.modal-body{padding:20px}.close-x{width:38px;height:38px;padding:0;border-radius:11px}.form-grid{display:grid;grid-template-columns:repeat(2,minmax(240px,1fr));gap:12px}.separator{height:1px;background:var(--line);margin:15px 0}.small{font-size:.88rem}.muted{color:var(--muted)}
+    details{border:1px solid var(--line);border-radius:14px;background:#fff;overflow:hidden;margin-top:14px}summary{cursor:pointer;padding:12px 14px;font-weight:850;background:#fbfcff}.details-body{padding:0 14px 14px;color:#344054}.details-body ul{margin:8px 0 0;padding-left:20px}
+    @media(max-width:1050px){header,.import-grid,.controls,.form-grid{grid-template-columns:1fr}.panel-head{align-items:flex-start;flex-direction:column}.toolbar{width:100%}.badge{white-space:normal}}
+  </style>
+</head>
+<body>
+<main class="wrap">
+  <header>
+    <div>
+      <h1>Gerador de Demonstrativos S-1202</h1>
+      <p class="subtitle">Complementa o JSON base criando eventos, demonstrativos e itens de rubrica faltantes a partir da base de trabalhadores e da base da folha. O objetivo é preservar o JSON original e incluir apenas o que estiver ausente.</p>
+    </div>
+    <span class="badge">S-1202 · JSON + Base Trabalhadores + Folha</span>
+  </header>
+
+  <section class="grid">
+    <div class="panel">
+      <div class="panel-head">
+        <h2 class="panel-title"><span class="step">1</span> Importar arquivos</h2>
+        <div class="toolbar">
+          <button class="secondary" id="btnSettings" type="button">Dados padrão</button>
+          <button class="secondary" id="btnClear" type="button">Limpar tudo</button>
+        </div>
+      </div>
+      <div class="panel-body">
+        <div class="import-grid">
+          <div class="import-card">
+            <h3>JSON base S-1202</h3>
+            <p class="hint">Arquivo que será complementado. A ferramenta preserva os eventos existentes e adiciona somente pendências.</p>
+            <label class="dropzone" id="jsonDrop" for="jsonInput"><div><strong>Selecionar JSON</strong><span>Preferencialmente iniciado por S-1202</span></div></label>
+            <input id="jsonInput" type="file" accept=".json,application/json" />
+            <div id="jsonStatus"></div>
+          </div>
+          <div class="import-card">
+            <h3>Base de trabalhadores</h3>
+            <p class="hint">CSV com <code>evento;cpf;matricula;categoria;exercicio;matricula_atual</code>. Somente linhas S-1202 serão usadas.</p>
+            <label class="dropzone" id="workersDrop" for="workersInput"><div><strong>Selecionar CSV</strong><span>Base de vínculo/matrícula histórica</span></div></label>
+            <input id="workersInput" type="file" accept=".csv,text/csv" />
+            <div id="workersStatus"></div>
+          </div>
+          <div class="import-card">
+            <h3>Folha e rubricas</h3>
+            <p class="hint">CSV com <code>MATRIC;CPF;TIPOVINC;MES_ANO_FOLHA;NUM_FOLHA;MES_ANO_DIREITO;RUBRICA;TIPORUBR;SUM(FR.VALOR)</code>.</p>
+            <label class="dropzone" id="folhaDrop" for="folhaInput"><div><strong>Selecionar CSV</strong><span>Base que define os itens esperados</span></div></label>
+            <input id="folhaInput" type="file" accept=".csv,text/csv" />
+            <div id="folhaStatus"></div>
+          </div>
+        </div>
+        <div class="stats" id="importStats" style="display:none"></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head">
+        <h2 class="panel-title"><span class="step">2</span> Analisar e complementar</h2>
+        <div class="toolbar">
+          <button id="btnAnalyze" type="button">Analisar pendências</button>
+          <button class="ok" id="btnApply" type="button" disabled>Aplicar complementação</button>
+          <button class="secondary" id="btnDownload" type="button" disabled>Baixar JSON editado</button>
+          <button class="secondary" id="btnExportReport" type="button" disabled>Exportar relatório CSV</button>
+        </div>
+      </div>
+      <div class="panel-body">
+        <div id="analysisMessage"></div>
+        <div class="stats" id="summaryStats"></div>
+        <details open>
+          <summary>Regras aplicadas</summary>
+          <div class="details-body small">
+            <ul>
+              <li>Apenas trabalhadores com <code>evento = S-1202</code> na base de trabalhadores são processados; CPFs de S-1200 ou sem base são ignorados e listados no relatório.</li>
+              <li>A chave técnica da folha é CPF + competência + número da folha + período de direito + rubrica qualificada.</li>
+              <li>Rubrica da folha: <code>VANTAGENS</code> positiva vira <code>V</code> e negativa vira <code>D</code>; <code>DESCONTOS/CONSIGNATARIAS</code> positiva vira <code>D</code> e negativa vira <code>V</code>; <code>AUXILIARES</code> positiva vira <code>A</code>.</li>
+              <li>Para novos demonstrativos, o <code>ideDmDev</code> é montado como <code>MATRICULA_ATUAL-NUFOLHA-MANUAL-MMAAAA</code>, mantendo <code>MANUAL</code> para auditoria.</li>
+              <li>A matrícula do contrato é preenchida com a matrícula histórica da base de trabalhadores; a matrícula atual/da folha fica apenas como base de identificação do demonstrativo.</li>
+              <li>Valores divergentes não são sobrescritos automaticamente. A ferramenta lista a divergência, mas só inclui itens ausentes.</li>
+              <li>Se houver período de direito anterior ao período de apuração, o evento recebe <code>indPossuiPerAnt = S</code>. Se o ano do direito for anterior ao ano de apuração, o demonstrativo recebe marcação RRA conforme os dados padrão.</li>
+            </ul>
+          </div>
+        </details>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head">
+        <h2 class="panel-title"><span class="step">3</span> Prévia técnica</h2>
+      </div>
+      <div class="panel-body">
+        <div class="controls">
+          <label class="field">Pesquisar
+            <input type="text" id="searchInput" placeholder="CPF, matrícula, rubrica, folha, ação..." />
+          </label>
+          <label class="field">Ação
+            <select id="actionFilter">
+              <option value="">Todas</option>
+              <option value="CRIAR_EVENTO">Criar evento</option>
+              <option value="CRIAR_DEMONSTRATIVO">Criar demonstrativo</option>
+              <option value="INCLUIR_ITEM">Incluir item</option>
+              <option value="VALOR_DIVERGENTE">Valor divergente</option>
+              <option value="OK">OK</option>
+              <option value="IGNORADO">Ignorado</option>
+              <option value="AVISO">Aviso</option>
+            </select>
+          </label>
+          <label class="check-field"><input type="checkbox" id="onlyPending" checked /> Exibir só pendências/avisos</label>
+          <div class="field"><span>&nbsp;</span><button class="secondary" id="btnRefreshView" type="button">Atualizar visualização</button></div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Ação</th><th>CPF</th><th>Competência</th><th>Folha</th><th>Período direito</th><th>Rubrica</th><th class="num">Valor folha</th><th>Evento</th><th>Matrícula contrato</th><th>ideDmDev alvo</th><th>Detalhes</th>
+              </tr>
+            </thead>
+            <tbody id="previewBody"><tr><td colspan="11" class="empty">Importe os arquivos e clique em “Analisar pendências”.</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<div class="modal" id="settingsModal" role="dialog" aria-modal="true">
+  <div class="modal-card">
+    <div class="modal-head">
+      <div><h2>Dados padrão para criação manual</h2><p>Usados apenas quando a informação não puder ser aproveitada do JSON base.</p></div>
+      <button class="secondary close-x" data-close="settingsModal" type="button">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <label class="field">Empregador — nrInsc<input id="setEmpNrInsc" type="text" value="11239018" /></label>
+        <label class="field">Empregador — tpInsc<input id="setEmpTpInsc" type="text" value="1" /></label>
+        <label class="field">Estabelecimento — nrInsc<input id="setEstabNrInsc" type="text" value="11239018000167" /></label>
+        <label class="field">Estabelecimento — tpInsc<input id="setEstabTpInsc" type="text" value="1" /></label>
+        <label class="field">Estabelecimento — iniValid<input id="setEstabIniValid" type="text" value="2021-07-01" /></label>
+        <label class="field">Ind. Apuração para novos eventos<select id="setIndApuracao"><option value="1" selected>1 - Mensal</option><option value="2">2 - Anual / 13º</option></select></label>
+        <label class="field">Prefixo da chaveIntegracao<input id="setChavePrefix" type="text" value="1" /></label>
+        <label class="field">tpRegistro — período da competência<input id="setTpRegistroAtual" type="text" value="M" /></label>
+        <label class="field">tpRegistro — período anterior<input id="setTpRegistroAnterior" type="text" value="A" /></label>
+        <label class="field">Descrição RRA<input id="setDescRRA" type="text" value="Diferencas processadas apos encerramento da folha" /></label>
+        <label class="field">Tipo Processo RRA<input id="setTpProcRRA" type="text" value="1" /></label>
+      </div>
+      <div class="separator"></div>
+      <label class="check-field"><input type="checkbox" id="setPreferTemplate" checked /> Priorizar estrutura do próprio JSON como modelo para novos eventos/demonstrativos</label>
+      <label class="check-field" style="margin-top:8px"><input type="checkbox" id="setKeepExistingTpRegistro" checked /> Ao criar novo demonstrativo em evento existente, copiar o <code>tpRegistro</code> do demonstrativo modelo quando possível</label>
+      <div class="toolbar" style="margin-top:14px">
+        <button id="btnSaveSettings" type="button">Salvar dados padrão</button>
+        <button class="secondary" data-close="settingsModal" type="button">Cancelar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+  'use strict';
+
+  const FOLHA_ALIASES = {
+    matric:['MATRIC'], cpf:['CPF'], tipovinc:['TIPOVINC'], perApur:['MES_ANO_FOLHA'], numFolha:['NUM_FOLHA'], perRef:['MES_ANO_DIREITO'], rubrica:['RUBRICA'], tiporubr:['TIPORUBR'], valor:['SUM(FR.VALOR)','SUM FR VALOR']
+  };
+  const WORKER_ALIASES = {
+    evento:['evento','EVENTO'], cpf:['cpf','CPF'], matricula:['matricula','MATRICULA'], categoria:['categoria','CATEGORIA'], exercicio:['exercicio','EXERCICIO'], matricula_atual:['matricula_atual','MATRICULA_ATUAL','matricula atual']
+  };
+  const REQUIRED_FOLHA = Object.keys(FOLHA_ALIASES);
+  const REQUIRED_WORKER = ['evento','cpf','matricula','categoria','exercicio','matricula_atual'];
+  const state = {
+    jsonData:null, loadedJsonName:'', loadedJsonMeta:null,
+    workers:new Map(), workerRows:[], ignoredWorkers:[], workerWarnings:[],
+    folhaRows:[], folhaInvalid:[], folhaWarnings:[], folhaFiles:[],
+    analysis:[], plan:[], applied:false, settings:null
+  };
+
+  const $ = s => document.querySelector(s);
+  const $$ = s => Array.from(document.querySelectorAll(s));
+  const els = {
+    jsonInput:$('#jsonInput'), workersInput:$('#workersInput'), folhaInput:$('#folhaInput'),
+    jsonStatus:$('#jsonStatus'), workersStatus:$('#workersStatus'), folhaStatus:$('#folhaStatus'), importStats:$('#importStats'),
+    analysisMessage:$('#analysisMessage'), summaryStats:$('#summaryStats'), previewBody:$('#previewBody'),
+    btnApply:$('#btnApply'), btnDownload:$('#btnDownload'), btnExportReport:$('#btnExportReport'),
+    searchInput:$('#searchInput'), actionFilter:$('#actionFilter'), onlyPending:$('#onlyPending')
+  };
+
+  function defaultSettings(){
+    return {
+      empNrInsc:'11239018', empTpInsc:'1', estabNrInsc:'11239018000167', estabTpInsc:'1', estabIniValid:'2021-07-01', indApuracao:'1', chavePrefix:'1',
+      tpRegistroAtual:'M', tpRegistroAnterior:'A', descRRA:'Diferencas processadas apos encerramento da folha', tpProcRRA:'1', preferTemplate:true, keepExistingTpRegistro:true
+    };
+  }
+  state.settings = defaultSettings();
+
+  function htmlEscape(v){return String(v ?? '').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#039;')}
+  function clean(v){return String(v ?? '').trim().replace(/\s+/g,' ')}
+  function fold(v){return String(v ?? '').replace(/^\uFEFF/,'').trim().normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]/g,'')}
+  function onlyDigits(v){return String(v ?? '').replace(/\D+/g,'')}
+  function normalizeCpf(v){const d=onlyDigits(v);return d ? (d.length<=11?d.padStart(11,'0'):d) : ''}
+  function normalizeCodeBase(v){let s=clean(v).toUpperCase().replace(/\s+/g,'');if(/^\d+\.0+$/.test(s))s=s.split('.')[0];if(/^0+\d+$/.test(s))s=String(Number(s));return s}
+  function clone(obj){return JSON.parse(JSON.stringify(obj ?? null))}
+  function showMessage(el,type,text){el.innerHTML=`<div class="message ${type}">${text}</div>`}
+  function formatBytes(bytes){const b=Number(bytes||0);if(!b)return '0 B';const units=['B','KB','MB','GB'];let i=0,v=b;while(v>=1024&&i<units.length-1){v/=1024;i++}return v.toFixed(i?2:0)+' '+units[i]}
+  function round4(n){return Math.round((Number(n)+Number.EPSILON)*10000)/10000}
+  function toCents(value){return Math.round((Number(value)+Number.EPSILON)*100)}
+  function fromCents(cents){return Number(cents||0)/100}
+  function formatNumber(value,places=2){if(value===null||value===undefined||!Number.isFinite(Number(value)))return '';return Number(value).toLocaleString('pt-BR',{minimumFractionDigits:places,maximumFractionDigits:places})}
+  function value4FromCents(cents){return (Number(cents||0)/100).toFixed(4)}
+
+  function parseMoney(v){
+    let s=String(v ?? '').trim();if(!s)return null;s=s.replace(/R\$/gi,'').replace(/\s+/g,'');const par=/^\(.*\)$/.test(s);s=s.replace(/[()]/g,'');const neg=s.startsWith('-')||par;s=s.replace(/^[-+]/,'');
+    const lc=s.lastIndexOf(','),ld=s.lastIndexOf('.');
+    if(lc>=0&&ld>=0){s=lc>ld?s.replace(/\./g,'').replace(',','.'):s.replace(/,/g,'')}
+    else if(lc>=0){s=s.replace(/\./g,'').replace(',','.')}
+    else if(ld>=0&&s.split('.').length>2){const parts=s.split('.');const dec=parts.pop();s=parts.join('')+'.'+dec}
+    s=s.replace(/[^0-9.]/g,'');if(!s)return null;const n=Number(s);if(!Number.isFinite(n))return null;return neg?-Math.abs(n):n;
+  }
+  function normalizePeriod(v){
+    const t=clean(v);if(!t)return '';
+    let m=t.match(/^(\d{4})-(\d{1,2})(?:-(\d{1,2}))?/);if(m)return `${m[1]}-${m[2].padStart(2,'0')}-01`;
+    m=t.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);if(m)return `${m[3]}-${m[2].padStart(2,'0')}-01`;
+    m=t.match(/^(\d{1,2})\/(\d{4})$/);if(m)return `${m[2]}-${m[1].padStart(2,'0')}-01`;
+    const d=t.replace(/\D/g,'');
+    if(d.length===8){const day=Number(d.slice(0,2)),month=Number(d.slice(2,4)),year=d.slice(4);if(day>=1&&day<=31&&month>=1&&month<=12)return `${year}-${String(month).padStart(2,'0')}-01`}
+    if(d.length===6){const month=Number(d.slice(0,2)),year=d.slice(2);if(month>=1&&month<=12)return `${year}-${String(month).padStart(2,'0')}-01`}
+    return '';
+  }
+  function parseYearMonth(period){const p=normalizePeriod(period);if(!p)return 0;return Number(p.slice(0,4)+p.slice(5,7))||0}
+  function periodYear(period){const p=normalizePeriod(period);return p ? p.slice(0,4) : ''}
+  function ddmmyyyy(period){const p=normalizePeriod(period);return p ? p.slice(8,10)+p.slice(5,7)+p.slice(0,4) : ''}
+  function mmyyyy(period){const p=normalizePeriod(period);return p ? p.slice(5,7)+p.slice(0,4) : ''}
+  function detectDelimiter(line){const cs=[';',',','\t'];let best=';',max=-1;for(const d of cs){let c=0,q=false;for(let i=0;i<line.length;i++){if(line[i]==='"'){if(q&&line[i+1]==='"')i++;else q=!q}else if(!q&&line[i]===d)c++}if(c>max){max=c;best=d}}return best}
+  function parseCsv(text){
+    const first=String(text).split(/\r\n|\n|\r/).find(x=>x.trim())||'';const delimiter=detectDelimiter(first);const rows=[];let row=[],cell='',q=false;
+    for(let i=0;i<text.length;i++){const ch=text[i],next=text[i+1];if(ch==='"'){if(q&&next==='"'){cell+='"';i++}else q=!q}else if(!q&&ch===delimiter){row.push(cell);cell=''}else if(!q&&(ch==='\n'||ch==='\r')){row.push(cell);cell='';if(row.some(x=>String(x).trim()!==''))rows.push(row);row=[];if(ch==='\r'&&next==='\n')i++}else cell+=ch}
+    row.push(cell);if(row.some(x=>String(x).trim()!==''))rows.push(row);if(!rows.length)return {headers:[],records:[],delimiter};
+    const headers=rows[0].map(x=>String(x).replace(/^\uFEFF/,'').trim());const records=rows.slice(1).map((values,i)=>{const o={__line:i+2};headers.forEach((h,j)=>o[h]=values[j]??'');return o});return {headers,records,delimiter};
+  }
+  function decode(buffer){try{return new TextDecoder('utf-8',{fatal:true}).decode(buffer)}catch(e){try{return new TextDecoder('windows-1252').decode(buffer)}catch(e2){return new TextDecoder('iso-8859-1').decode(buffer)}}}
+  function headerIndex(headers){const m=new Map();headers.forEach(h=>{const k=fold(h);if(k&&!m.has(k))m.set(k,h)});return m}
+  function getAlias(record,index,aliases){for(const a of aliases){const actual=index.get(fold(a));if(actual!==undefined)return record[actual]??''}return ''}
+  function missingFields(headers,aliases,required){const idx=headerIndex(headers);return required.filter(f=>!(aliases[f]||[]).some(a=>idx.has(fold(a))))}
+
+  function deriveFolhaRubrica(base,type,value){
+    const t=fold(type);let suffix='';
+    if((t==='auxiliares'||t==='auxiliar')&&value>0)suffix='A';
+    else if(t==='descontos'||t==='desconto'||t==='consignatarias'||t==='consignataria')suffix=value>0?'D':value<0?'V':'';
+    else if(t==='vantagens'||t==='vantagem')suffix=value>0?'V':value<0?'D':'';
+    return suffix?normalizeCodeBase(base)+suffix:'';
+  }
+  function ideTabFromRubrica(rubrica){const s=String(rubrica||'').toUpperCase();if(s.endsWith('V'))return 'VANT';if(s.endsWith('D'))return 'DESC';if(s.endsWith('A'))return 'AUX';return ''}
+  function extractIdeInfo(v){
+    const s=clean(v);const first=s.indexOf('-'),second=first>=0?s.indexOf('-',first+1):-1,third=second>=0?s.indexOf('-',second+1):-1;
+    const numero=second>=0&&third>second?clean(s.slice(second+1,third)):'';
+    const periodMatch=s.match(/-(\d{5,6})(?:-(\d+))?$/);let period='';
+    if(periodMatch){let digits=periodMatch[1];if(digits.length===5)digits='0'+digits;const month=digits.slice(0,2),year=digits.slice(2);if(Number(month)>=1&&Number(month)<=12)period=`${year}-${month}-01`}
+    return {ok:/^\d+$/.test(numero),numero,period,suffix:periodMatch?.[2]||'',raw:s};
+  }
+  function getEventos(){
+    if(!state.jsonData) return [];
+    if(!state.jsonData.s1202RemuTrabRPPSGroup) state.jsonData.s1202RemuTrabRPPSGroup = {s1202RemuTrabRPPS:[]};
+    if(!Array.isArray(state.jsonData.s1202RemuTrabRPPSGroup.s1202RemuTrabRPPS)) state.jsonData.s1202RemuTrabRPPSGroup.s1202RemuTrabRPPS = [];
+    return state.jsonData.s1202RemuTrabRPPSGroup.s1202RemuTrabRPPS;
+  }
+  function forEachPagto(evt,fn){(evt?.s1202RemuTrabRPPSPagtos||[]).forEach((pagto,pagtoIndex)=>fn(pagto,pagtoIndex))}
+  function forEachPeriod(pagto,fn){(pagto?.s1202RemuTrabRPPSPer||[]).forEach((per,perIndex)=>fn(per,perIndex))}
+  function forEachRemu(period,fn){(period?.s1202RemuTrabRPPSEstab||[]).forEach((estab,estabIndex)=>(estab?.s1202RemuTrabRPPSRemu||[]).forEach((remu,remuIndex)=>fn(remu,estab,remuIndex,estabIndex)))}
+  function forEachItem(pagto,fn){forEachPeriod(pagto,(per)=>forEachRemu(per,(remu,estab)=>{(remu.s1202RemuTrabRPPSItens||[]).forEach((item,itemIndex)=>fn(item,remu,estab,per,itemIndex))}))}
+
+  function inferDefaultsFromJson(){
+    const eventos=getEventos(); if(!eventos.length) return;
+    const s=state.settings;
+    const e=eventos[0];
+    if(e?.empregador?.nrInsc) s.empNrInsc = String(e.empregador.nrInsc);
+    if(e?.empregador?.tpInsc?.tipo) s.empTpInsc = String(e.empregador.tpInsc.tipo);
+    if(e?.indApuracao) s.indApuracao = String(e.indApuracao);
+    for(const evt of eventos){
+      for(const pagto of (evt.s1202RemuTrabRPPSPagtos||[])){
+        for(const per of (pagto.s1202RemuTrabRPPSPer||[])){
+          if(per?.perRef && evt?.perApur && parseYearMonth(per.perRef)===parseYearMonth(evt.perApur) && per.tpRegistro) s.tpRegistroAtual = String(per.tpRegistro);
+          if(per?.perRef && evt?.perApur && parseYearMonth(per.perRef)<parseYearMonth(evt.perApur) && per.tpRegistro) s.tpRegistroAnterior = String(per.tpRegistro);
+          for(const estab of (per.s1202RemuTrabRPPSEstab||[])){
+            if(estab?.nrInsc?.nrInsc) s.estabNrInsc = onlyDigits(estab.nrInsc.nrInsc) || String(estab.nrInsc.nrInsc);
+            if(estab?.nrInsc?.tpInsc?.tipo) s.estabTpInsc = String(estab.nrInsc.tpInsc.tipo);
+          }
+        }
+      }
+    }
+    updateSettingsForm();
+  }
+
+  async function readFileAsText(file){return decode(await file.arrayBuffer())}
+  async function loadJsonFile(file){
+    if(!file) return;
+    try{
+      const txt=await readFileAsText(file); const cleanTxt=String(txt||'').replace(/^\uFEFF/,'');
+      try{state.jsonData=JSON.parse(cleanTxt)}catch(e){state.jsonData=JSON.parse(cleanTxt.replace(/,\s*([}\]])/g,'$1'))}
+      state.loadedJsonName=file.name; state.loadedJsonMeta={name:file.name,size:file.size,lastModified:file.lastModified}; state.applied=false; state.analysis=[]; state.plan=[];
+      getEventos(); inferDefaultsFromJson(); renderImport(); renderAnalysis();
+      showMessage(els.jsonStatus,'ok',`${htmlEscape(file.name)} carregado. Eventos: ${getEventos().length.toLocaleString('pt-BR')}.`);
+    }catch(err){state.jsonData=null; showMessage(els.jsonStatus,'danger','Erro ao ler JSON: '+htmlEscape(err.message||err));}
+    finally{els.jsonInput.value=''}
+  }
+  async function loadWorkersFile(file){
+    if(!file)return; state.workers=new Map(); state.workerRows=[]; state.ignoredWorkers=[]; state.workerWarnings=[]; state.applied=false; state.analysis=[]; state.plan=[];
+    try{
+      const parsed=parseCsv(await readFileAsText(file)); const missing=missingFields(parsed.headers,WORKER_ALIASES,REQUIRED_WORKER); if(missing.length) throw new Error('Colunas obrigatórias ausentes: '+missing.join(', '));
+      const idx=headerIndex(parsed.headers); let s1202=0, ignored=0, conflicts=0;
+      for(const r of parsed.records){
+        const evento=clean(getAlias(r,idx,WORKER_ALIASES.evento)).toUpperCase().replace(/\s+/g,'');
+        const cpf=normalizeCpf(getAlias(r,idx,WORKER_ALIASES.cpf));
+        const row={line:r.__line,evento,cpf,matricula:clean(getAlias(r,idx,WORKER_ALIASES.matricula)),categoria:clean(getAlias(r,idx,WORKER_ALIASES.categoria)),exercicio:clean(getAlias(r,idx,WORKER_ALIASES.exercicio)),matricula_atual:clean(getAlias(r,idx,WORKER_ALIASES.matricula_atual)),file:file.name};
+        if(evento!=='S-1202' && evento!=='S1202'){state.ignoredWorkers.push(row); ignored++; continue;}
+        if(!cpf || !row.matricula){state.workerWarnings.push(`Linha ${row.line}: CPF ou matrícula inválido.`); continue;}
+        if(state.workers.has(cpf)){
+          const prev=state.workers.get(cpf);
+          if(prev.matricula!==row.matricula || prev.matricula_atual!==row.matricula_atual){conflicts++; state.workerWarnings.push(`CPF ${cpf}: conflito de matrícula entre linhas ${prev.line} e ${row.line}. Mantida a primeira ocorrência.`); continue;}
+        }else{state.workers.set(cpf,row); state.workerRows.push(row); s1202++;}
+      }
+      showMessage(els.workersStatus,'ok',`${s1202} trabalhador(es) S-1202 carregado(s). Ignorados por evento diferente: ${ignored}. Conflitos: ${conflicts}.`);
+      renderImport(); renderAnalysis();
+    }catch(err){showMessage(els.workersStatus,'danger','Erro ao ler base de trabalhadores: '+htmlEscape(err.message||err));}
+    finally{els.workersInput.value=''}
+  }
+  async function loadFolhaFile(file){
+    if(!file)return; state.folhaRows=[]; state.folhaInvalid=[]; state.folhaWarnings=[]; state.folhaFiles=[]; state.applied=false; state.analysis=[]; state.plan=[];
+    try{
+      const parsed=parseCsv(await readFileAsText(file)); const missing=missingFields(parsed.headers,FOLHA_ALIASES,REQUIRED_FOLHA); if(missing.length) throw new Error('Colunas obrigatórias ausentes: '+missing.join(', '));
+      const idx=headerIndex(parsed.headers); const dedupe=new Set(); let duplicates=0;
+      for(const r of parsed.records){
+        const rawValue=getAlias(r,idx,FOLHA_ALIASES.valor); const value=parseMoney(rawValue); const valueCents=value===null?null:Math.abs(toCents(value));
+        const row={line:r.__line,file:file.name,matric:clean(getAlias(r,idx,FOLHA_ALIASES.matric)),cpf:normalizeCpf(getAlias(r,idx,FOLHA_ALIASES.cpf)),tipovinc:clean(getAlias(r,idx,FOLHA_ALIASES.tipovinc)),perApur:normalizePeriod(getAlias(r,idx,FOLHA_ALIASES.perApur)),numFolha:clean(getAlias(r,idx,FOLHA_ALIASES.numFolha)).replace(/\.0+$/,''),perRef:normalizePeriod(getAlias(r,idx,FOLHA_ALIASES.perRef)),rubricaBase:normalizeCodeBase(getAlias(r,idx,FOLHA_ALIASES.rubrica)),tiporubr:clean(getAlias(r,idx,FOLHA_ALIASES.tiporubr)),valueCents,value:valueCents===null?null:fromCents(valueCents),rawValue};
+        row.rubrica=value===null?'':deriveFolhaRubrica(row.rubricaBase,row.tiporubr,value); row.ideTabRubr=ideTabFromRubrica(row.rubrica);
+        const issues=[]; if(!row.cpf)issues.push('CPF inválido'); if(!row.perApur)issues.push('MES_ANO_FOLHA inválido'); if(!/^\d+$/.test(row.numFolha))issues.push('NUM_FOLHA inválido'); if(!row.perRef)issues.push('MES_ANO_DIREITO inválido'); if(value===null)issues.push('valor inválido'); if(!row.rubrica)issues.push('rubrica não qualificada');
+        if(issues.length){row.issue=issues.join('; '); state.folhaInvalid.push(row); continue;}
+        const dk=[row.matric,row.cpf,row.tipovinc,row.perApur,row.numFolha,row.perRef,row.rubrica,row.valueCents].join('|||'); if(dedupe.has(dk)){duplicates++; continue;} dedupe.add(dk);
+        state.folhaRows.push(row);
+      }
+      state.folhaFiles=[{name:file.name,rows:parsed.records.length,duplicates}];
+      showMessage(els.folhaStatus,'ok',`${state.folhaRows.length.toLocaleString('pt-BR')} linha(s) válida(s), ${state.folhaInvalid.length} inválida(s), ${duplicates} duplicada(s).`);
+      renderImport(); renderAnalysis();
+    }catch(err){showMessage(els.folhaStatus,'danger','Erro ao ler folha: '+htmlEscape(err.message||err));}
+    finally{els.folhaInput.value=''}
+  }
+
+  function renderImport(){
+    const totalEvents=getEventos().length; const cpfJson=new Set(getEventos().map(e=>normalizeCpf(e?.trabalhador?.cpfTrab)).filter(Boolean)); const totalPagtos=getEventos().reduce((a,e)=>a+(e.s1202RemuTrabRPPSPagtos||[]).length,0);
+    const folhaCpfs=new Set(state.folhaRows.map(r=>r.cpf)); const folhaGroups=new Set(state.folhaRows.map(r=>[r.cpf,r.perApur,r.numFolha].join('|')));
+    const items=[
+      ['Eventos JSON',totalEvents,'CPFs únicos: '+cpfJson.size],
+      ['Demonstrativos JSON',totalPagtos,'pagamentos/ideDmDev'],
+      ['Trabalhadores S-1202',state.workers.size,'base auxiliar'],
+      ['Linhas folha válidas',state.folhaRows.length,'CPFs: '+folhaCpfs.size],
+      ['Grupos folha',folhaGroups.size,'CPF + competência + folha'],
+      ['Linhas inválidas',state.folhaInvalid.length+state.workerWarnings.length,'folha/base']
+    ];
+    els.importStats.innerHTML=items.map(([l,v,s])=>`<div class="stat"><div class="label">${htmlEscape(l)}</div><div class="value">${Number(v).toLocaleString('pt-BR')}</div><div class="sub">${htmlEscape(s)}</div></div>`).join('');
+    els.importStats.style.display='grid';
+  }
+
+  function eventKey(cpf,perApur){return [cpf,normalizePeriod(perApur)].join('|')}
+  function getEventIndex(){const map=new Map(); getEventos().forEach((evt,idx)=>{const cpf=normalizeCpf(evt?.trabalhador?.cpfTrab); const per=normalizePeriod(evt?.perApur); if(cpf&&per&&!map.has(eventKey(cpf,per))) map.set(eventKey(cpf,per),{evt,idx});}); return map;}
+  function aggregateFolha(){
+    const map=new Map();
+    for(const r of state.folhaRows){
+      const key=[r.cpf,r.perApur,r.numFolha].join('|');
+      if(!map.has(key))map.set(key,{cpf:r.cpf,perApur:r.perApur,numFolha:r.numFolha,rows:[],byItem:new Map(),matriculas:new Set()});
+      const g=map.get(key); g.rows.push(r); if(r.matric)g.matriculas.add(r.matric);
+      const ik=[r.perRef,r.rubrica].join('|');
+      if(!g.byItem.has(ik))g.byItem.set(ik,{perRef:r.perRef,rubrica:r.rubrica,ideTabRubr:r.ideTabRubr,valueCents:0,rows:[]});
+      const it=g.byItem.get(ik); it.valueCents += r.valueCents; it.rows.push(r);
+    }
+    for(const g of map.values()){g.items=Array.from(g.byItem.values()).sort((a,b)=>a.perRef.localeCompare(b.perRef)||a.rubrica.localeCompare(b.rubrica));}
+    return Array.from(map.values()).sort((a,b)=>a.cpf.localeCompare(b.cpf)||a.perApur.localeCompare(b.perApur)||Number(a.numFolha)-Number(b.numFolha));
+  }
+  function buildExistingItemsMap(pagto){
+    const map=new Map();
+    forEachItem(pagto,(item)=>{
+      const rub=normalizeCodeBase(item?.codRubr?.codRubr); const per=normalizePeriod(item?.codRubr?.iniValid || '');
+      const inferredPer = per || normalizePeriod(item?._perRef || '');
+      const key=[inferredPer,rub].join('|');
+      if(!map.has(key))map.set(key,{valueCents:0,items:[]});
+      const rec=map.get(key); rec.valueCents += Math.abs(toCents(parseMoney(item?.vrRubr) ?? 0)); rec.items.push(item);
+    });
+    // Rebuild with period context because item does not always carry iniValid reliably.
+    const contextual=new Map();
+    forEachPeriod(pagto,(per)=>forEachRemu(per,(remu)=>{(remu.s1202RemuTrabRPPSItens||[]).forEach(item=>{
+      const rub=normalizeCodeBase(item?.codRubr?.codRubr); const ref=normalizePeriod(per?.perRef || item?.codRubr?.iniValid || ''); if(!rub||!ref)return;
+      const key=[ref,rub].join('|'); if(!contextual.has(key))contextual.set(key,{valueCents:0,items:[]}); const rec=contextual.get(key); rec.valueCents += Math.abs(toCents(parseMoney(item?.vrRubr) ?? 0)); rec.items.push(item);
+    })}));
+    return contextual.size?contextual:map;
+  }
+  function findPagtosByFolha(evt,numFolha){
+    const arr=[]; forEachPagto(evt,(pagto,idx)=>{const info=extractIdeInfo(pagto?.ideDmDev||''); if(info.numero===String(numFolha)) arr.push({pagto,idx,info});}); return arr;
+  }
+  function chooseTemplateEvent(perApur){
+    const eventos=getEventos();
+    return eventos.find(e=>normalizePeriod(e?.perApur)===normalizePeriod(perApur)) || eventos[0] || null;
+  }
+  function chooseTemplatePagto(evt){return (evt?.s1202RemuTrabRPPSPagtos||[])[0] || (getEventos().find(e=>(e.s1202RemuTrabRPPSPagtos||[]).length)?.s1202RemuTrabRPPSPagtos||[])[0] || null}
+  function chooseTemplatePeriod(evt,pagto,perRef,perApur){
+    const candidates=[]; (pagto?.s1202RemuTrabRPPSPer||[]).forEach(p=>candidates.push(p)); (evt?.s1202RemuTrabRPPSPagtos||[]).forEach(pg=>(pg.s1202RemuTrabRPPSPer||[]).forEach(p=>candidates.push(p)));
+    return candidates.find(p=>normalizePeriod(p.perRef)===normalizePeriod(perRef)) || candidates.find(p=>parseYearMonth(p.perRef)===parseYearMonth(perApur)) || candidates[0] || null;
+  }
+  function workerForCpf(cpf){return state.workers.get(normalizeCpf(cpf)) || null}
+  function desiredContractMatricula(worker,group){return worker?.matricula || Array.from(group.matriculas)[0] || ''}
+  function desiredIdeMatricula(worker,group){return worker?.matricula_atual || Array.from(group.matriculas)[0] || worker?.matricula || ''}
+  function categoriaFromWorker(worker){return clean(worker?.categoria || '') || '*numerovazio*'}
+  function makeIdeDmDev(worker,group){return `${desiredIdeMatricula(worker,group)}-${group.numFolha}-MANUAL-${mmyyyy(group.perApur)}`}
+  function makeChaveIntegracao(cpf,perApur,indApuracao){const p=normalizePeriod(perApur);return `${state.settings.chavePrefix || '1'}#${onlyDigits(state.settings.empNrInsc)}#${cpf}#${p.slice(0,4)}#${ddmmyyyy(p)}#${indApuracao||state.settings.indApuracao||'1'}`}
+  function nextOrdemRegistro(){let max=0; getEventos().forEach(e=>{const n=Number(String(e.ordemRegistro||'').replace(/\D/g,'')); if(Number.isFinite(n)&&n>max)max=n;}); return String(max+1)}
+  function createItem(itemPlan){
+    return {
+      codRubr:{codRubr:itemPlan.rubrica,iniValid:itemPlan.perRef},
+      fatorRubr:'*numerovazio*',
+      ideTabRubr:itemPlan.ideTabRubr,
+      indApurIR:'0',
+      qtdRubr:'*numerovazio*',
+      vrRubr:value4FromCents(itemPlan.valueCents),
+      s1202RemuTrabRPPSDescFolha:[{instFinanc:'*vazio*',nrDoc:'*vazio*',observacao:'*vazio*',tpDesc:'*numerovazio*'}]
+    };
+  }
+  function createPeriod(evt,pagto,perRef,perApur,worker,items){
+    const template = state.settings.preferTemplate ? chooseTemplatePeriod(evt,pagto,perRef,perApur) : null;
+    const p = template ? clone(template) : {anoRef:'',perRef:'',tpRegistro:'',s1202RemuTrabRPPSEstab:[]};
+    p.anoRef=periodYear(perRef); p.perRef=normalizePeriod(perRef);
+    const isAnterior = parseYearMonth(perRef) < parseYearMonth(perApur);
+    if(!state.settings.keepExistingTpRegistro || !p.tpRegistro) p.tpRegistro = isAnterior ? state.settings.tpRegistroAnterior : state.settings.tpRegistroAtual;
+    const estabTemplate = (p.s1202RemuTrabRPPSEstab||[])[0] || null;
+    const estab = estabTemplate ? clone(estabTemplate) : {nrInsc:{iniValid:state.settings.estabIniValid,nrInsc:onlyDigits(state.settings.estabNrInsc),tpInsc:{tipo:state.settings.estabTpInsc}},s1202RemuTrabRPPSRemu:[]};
+    estab.nrInsc = {iniValid:state.settings.estabIniValid,nrInsc:onlyDigits(state.settings.estabNrInsc),tpInsc:{tipo:state.settings.estabTpInsc}};
+    const remuTemplate = (estab.s1202RemuTrabRPPSRemu||[])[0] || null;
+    const remu = remuTemplate ? clone(remuTemplate) : {contrato:{codCateg:{categoria:categoriaFromWorker(worker)},contratoTSV:'*vazio*',dtAdm:'*datavazia*',matricula:worker?.matricula||''},s1202RemuTrabRPPSItens:[]};
+    remu.contrato = remu.contrato || {}; remu.contrato.codCateg = {categoria: categoriaFromWorker(worker)}; remu.contrato.contratoTSV = remu.contrato.contratoTSV || '*vazio*'; remu.contrato.dtAdm = remu.contrato.dtAdm || '*datavazia*'; remu.contrato.matricula = worker?.matricula || remu.contrato.matricula || '';
+    remu.s1202RemuTrabRPPSItens = items.map(createItem);
+    estab.s1202RemuTrabRPPSRemu=[remu]; p.s1202RemuTrabRPPSEstab=[estab];
+    return p;
+  }
+  function createPagto(evt,group,worker,items){
+    const template = state.settings.preferTemplate ? chooseTemplatePagto(evt) : null;
+    const pagto = template ? clone(template) : {};
+    const ide = makeIdeDmDev(worker,group);
+    pagto.codCateg={categoria:categoriaFromWorker(worker)};
+    pagto.ideDmDev=ide;
+    pagto.remunOrgSuc='N';
+    pagto.nrProcRRA='*vazio*'; pagto.vlrDespAdvogados='*numerovazio*'; pagto.vlrDespCustas='*numerovazio*';
+    pagto.s1202RemuTrabRPPSIdeAdv=[{nrInsc:'*vazio*',tpInsc:{tipo:'*numerovazio*'},vlrAdv:'*numerovazio*'}];
+    const byPer=new Map(); items.forEach(it=>{if(!byPer.has(it.perRef))byPer.set(it.perRef,[]); byPer.get(it.perRef).push(it)});
+    pagto.s1202RemuTrabRPPSPer=Array.from(byPer.entries()).sort((a,b)=>a[0].localeCompare(b[0])).map(([perRef,arr])=>createPeriod(evt,pagto,perRef,group.perApur,worker,arr));
+    applyRraToPagto(pagto,group.perApur);
+    return pagto;
+  }
+  function createEvent(group,worker){
+    const template = state.settings.preferTemplate ? chooseTemplateEvent(group.perApur) : null;
+    const evt = template ? clone(template) : {};
+    const ind = evt.indApuracao || state.settings.indApuracao || '1';
+    evt.ordemRegistro=nextOrdemRegistro();
+    evt.chaveIntegracao=makeChaveIntegracao(group.cpf,group.perApur,ind);
+    evt.anoApur=periodYear(group.perApur);
+    evt.cnpjOrgaoAntComplem='*vazio*'; evt.dtExercicioComplem='*datavazia*'; evt.dtNasctoComplem='*datavazia*';
+    evt.empregador={nrInsc:onlyDigits(state.settings.empNrInsc),tpInsc:{tipo:state.settings.empTpInsc}};
+    evt.indApuracao=ind; evt.indPossuiPerAnt='N'; evt.matricAntComplem='*vazio*'; evt.nmTrabComplem='*vazio*'; evt.observacaoComplem='*vazio*'; evt.perApur=normalizePeriod(group.perApur); evt.trabalhador={cpfTrab:group.cpf}; evt.s1202RemuTrabRPPSPagtos=[];
+    return evt;
+  }
+  function findOrCreatePeriod(pagto,evt,perRef,perApur,worker){
+    let existing=(pagto.s1202RemuTrabRPPSPer||[]).find(p=>normalizePeriod(p.perRef)===normalizePeriod(perRef));
+    if(existing)return existing;
+    const p=createPeriod(evt,pagto,perRef,perApur,worker,[]);
+    if(!pagto.s1202RemuTrabRPPSPer)pagto.s1202RemuTrabRPPSPer=[];
+    pagto.s1202RemuTrabRPPSPer.push(p);
+    pagto.s1202RemuTrabRPPSPer.sort((a,b)=>normalizePeriod(a.perRef).localeCompare(normalizePeriod(b.perRef)));
+    return p;
+  }
+  function getTargetRemu(period,worker){
+    if(!period.s1202RemuTrabRPPSEstab || !period.s1202RemuTrabRPPSEstab.length){
+      period.s1202RemuTrabRPPSEstab=[{nrInsc:{iniValid:state.settings.estabIniValid,nrInsc:onlyDigits(state.settings.estabNrInsc),tpInsc:{tipo:state.settings.estabTpInsc}},s1202RemuTrabRPPSRemu:[]}];
+    }
+    const estab=period.s1202RemuTrabRPPSEstab[0];
+    estab.nrInsc={iniValid:state.settings.estabIniValid,nrInsc:onlyDigits(state.settings.estabNrInsc),tpInsc:{tipo:state.settings.estabTpInsc}};
+    if(!estab.s1202RemuTrabRPPSRemu || !estab.s1202RemuTrabRPPSRemu.length){
+      estab.s1202RemuTrabRPPSRemu=[{contrato:{codCateg:{categoria:categoriaFromWorker(worker)},contratoTSV:'*vazio*',dtAdm:'*datavazia*',matricula:worker?.matricula||''},s1202RemuTrabRPPSItens:[]}];
+    }
+    const remu=estab.s1202RemuTrabRPPSRemu[0];
+    remu.contrato=remu.contrato||{}; remu.contrato.codCateg={categoria:categoriaFromWorker(worker)}; if(worker?.matricula)remu.contrato.matricula=worker.matricula; if(!remu.contrato.contratoTSV)remu.contrato.contratoTSV='*vazio*'; if(!remu.contrato.dtAdm)remu.contrato.dtAdm='*datavazia*';
+    if(!remu.s1202RemuTrabRPPSItens)remu.s1202RemuTrabRPPSItens=[];
+    return remu;
+  }
+  function applyRraToPagto(pagto,perApur){
+    let existeMesAnterior=false, existeAnoAnterior=false; const anoApur=Number(periodYear(perApur)); let count=0;
+    (pagto.s1202RemuTrabRPPSPer||[]).forEach(p=>{
+      const ymRef=parseYearMonth(p.perRef),ymApur=parseYearMonth(perApur); const anoRef=Number(periodYear(p.perRef));
+      if(ymRef&&ymApur&&ymRef<ymApur) existeMesAnterior=true;
+      if(anoRef&&anoApur&&anoRef<anoApur){existeAnoAnterior=true; count++;}
+      forEachRemu(p,(remu)=>{(remu.s1202RemuTrabRPPSItens||[]).forEach(i=>{i.indApurIR='0'})});
+    });
+    if(existeAnoAnterior){pagto.indRRA='S'; pagto.descRRA=state.settings.descRRA||''; pagto.tpProcRRA=state.settings.tpProcRRA||''; pagto.qtdMesesRRA=String(count||1)}
+    else{pagto.indRRA='*vazio*'; pagto.descRRA='*vazio*'; pagto.tpProcRRA='*vazio*'; pagto.qtdMesesRRA='*numerovazio*'}
+    return existeMesAnterior;
+  }
+  function recomputeEventPeriodFlag(evt){
+    let possui=false; const apur=parseYearMonth(evt?.perApur);
+    (evt.s1202RemuTrabRPPSPagtos||[]).forEach(pagto=>{(pagto.s1202RemuTrabRPPSPer||[]).forEach(per=>{const ref=parseYearMonth(per.perRef); if(ref&&apur&&ref<apur)possui=true;}); applyRraToPagto(pagto,evt.perApur);});
+    evt.indPossuiPerAnt=possui?'S':'N';
+  }
+
+  function analyze(){
+    state.analysis=[]; state.plan=[]; state.applied=false;
+    if(!state.jsonData){showMessage(els.analysisMessage,'danger','Carregue o JSON base S-1202 antes de analisar.'); renderAnalysis(); return;}
+    if(!state.workers.size){showMessage(els.analysisMessage,'danger','Carregue a base de trabalhadores antes de analisar.'); renderAnalysis(); return;}
+    if(!state.folhaRows.length){showMessage(els.analysisMessage,'danger','Carregue a base da folha e rubricas antes de analisar.'); renderAnalysis(); return;}
+
+    const eventIdx=getEventIndex(); const groups=aggregateFolha();
+    for(const inv of state.folhaInvalid){state.analysis.push({action:'AVISO',cpf:inv.cpf,perApur:inv.perApur,numFolha:inv.numFolha,perRef:inv.perRef,rubrica:inv.rubrica||inv.rubricaBase,value:inv.value,detail:'Linha inválida na folha: '+inv.issue,eventLabel:'-',matriculaContrato:'-',ideDmDev:'-',pending:false});}
+    for(const group of groups){
+      const worker=workerForCpf(group.cpf);
+      if(!worker){state.analysis.push({action:'IGNORADO',cpf:group.cpf,perApur:group.perApur,numFolha:group.numFolha,perRef:'',rubrica:'',value:null,detail:'CPF não existe na base de trabalhadores S-1202. Possível S-1200 ou ausência de base.',eventLabel:'Sem base S-1202',matriculaContrato:'-',ideDmDev:'-',pending:false}); continue;}
+      const evRec=eventIdx.get(eventKey(group.cpf,group.perApur)); const contractMat=desiredContractMatricula(worker,group); const targetIde=makeIdeDmDev(worker,group);
+      if(!evRec){
+        state.analysis.push({action:'CRIAR_EVENTO',cpf:group.cpf,perApur:group.perApur,numFolha:group.numFolha,perRef:'',rubrica:'',value:null,detail:`Evento inexistente para CPF/competência. Será criado com ${group.items.length} item(ns).`,eventLabel:'Novo evento',matriculaContrato:contractMat,ideDmDev:targetIde,pending:true,group});
+        state.plan.push({type:'CREATE_EVENT',group,worker});
+        continue;
+      }
+      const evt=evRec.evt; const matches=findPagtosByFolha(evt,group.numFolha);
+      if(matches.length===0){
+        state.analysis.push({action:'CRIAR_DEMONSTRATIVO',cpf:group.cpf,perApur:group.perApur,numFolha:group.numFolha,perRef:'',rubrica:'',value:null,detail:`Demonstrativo da folha ${group.numFolha} inexistente no evento. Será criado com ${group.items.length} item(ns).`,eventLabel:'Evento existente',matriculaContrato:contractMat,ideDmDev:targetIde,pending:true,group,evt});
+        state.plan.push({type:'CREATE_PAGTO',group,worker,evt});
+        continue;
+      }
+      if(matches.length>1){state.analysis.push({action:'AVISO',cpf:group.cpf,perApur:group.perApur,numFolha:group.numFolha,perRef:'',rubrica:'',value:null,detail:`Existem ${matches.length} demonstrativos com a mesma folha. A análise de itens usará o primeiro: ${matches[0].pagto.ideDmDev}.`,eventLabel:'Ambiguidade',matriculaContrato:contractMat,ideDmDev:matches[0].pagto.ideDmDev,pending:false});}
+      const pagto=matches[0].pagto; const existing=buildExistingItemsMap(pagto); let missing=0, divergent=0, ok=0;
+      for(const it of group.items){
+        const key=[it.perRef,it.rubrica].join('|'); const ex=existing.get(key);
+        if(!ex){
+          const detail=`Item ausente no demonstrativo existente ${pagto.ideDmDev}.`;
+          state.analysis.push({action:'INCLUIR_ITEM',cpf:group.cpf,perApur:group.perApur,numFolha:group.numFolha,perRef:it.perRef,rubrica:it.rubrica,value:fromCents(it.valueCents),detail,eventLabel:'Evento/demonstrativo existente',matriculaContrato:contractMat,ideDmDev:pagto.ideDmDev,pending:true,item:it,evt,pagto,worker});
+          state.plan.push({type:'ADD_ITEM',evt,pagto,item:it,worker,group}); missing++;
+        }else if(ex.valueCents!==it.valueCents){
+          const detail=`Valor divergente. JSON: ${formatNumber(fromCents(ex.valueCents))}; folha: ${formatNumber(fromCents(it.valueCents))}. A ferramenta não sobrescreve valor existente.`;
+          state.analysis.push({action:'VALOR_DIVERGENTE',cpf:group.cpf,perApur:group.perApur,numFolha:group.numFolha,perRef:it.perRef,rubrica:it.rubrica,value:fromCents(it.valueCents),detail,eventLabel:'Divergência',matriculaContrato:contractMat,ideDmDev:pagto.ideDmDev,pending:false}); divergent++;
+        }else{ok++;}
+      }
+      if(missing===0 && divergent===0){state.analysis.push({action:'OK',cpf:group.cpf,perApur:group.perApur,numFolha:group.numFolha,perRef:'',rubrica:'',value:null,detail:`Folha ${group.numFolha}: ${ok} item(ns) conferem por rubrica/período/valor.`,eventLabel:'OK',matriculaContrato:contractMat,ideDmDev:pagto.ideDmDev,pending:false});}
+    }
+    showAnalysisMessage(); renderAnalysis();
+  }
+  function showAnalysisMessage(){
+    const counts=countActions(); const pend=(counts.CRIAR_EVENTO||0)+(counts.CRIAR_DEMONSTRATIVO||0)+(counts.INCLUIR_ITEM||0);
+    if(pend>0) showMessage(els.analysisMessage,'warn',`Análise concluída. Foram encontradas <strong>${pend}</strong> pendência(s) para inclusão: ${(counts.CRIAR_EVENTO||0)} evento(s), ${(counts.CRIAR_DEMONSTRATIVO||0)} demonstrativo(s) e ${(counts.INCLUIR_ITEM||0)} item(ns).`);
+    else showMessage(els.analysisMessage,'ok','Análise concluída. Não há eventos, demonstrativos ou itens faltantes para incluir.');
+  }
+  function applyPlan(){
+    if(!state.plan.length){alert('Não há pendências de inclusão para aplicar.');return;}
+    const eventIdx=getEventIndex(); let createdEvents=0,createdPagtos=0,addedItems=0;
+    for(const p of state.plan){
+      if(p.type==='CREATE_EVENT'){
+        const evt=createEvent(p.group,p.worker); evt.s1202RemuTrabRPPSPagtos.push(createPagto(evt,p.group,p.worker,p.group.items)); recomputeEventPeriodFlag(evt); getEventos().push(evt); createdEvents++;
+      }else if(p.type==='CREATE_PAGTO'){
+        const pagto=createPagto(p.evt,p.group,p.worker,p.group.items); p.evt.s1202RemuTrabRPPSPagtos = p.evt.s1202RemuTrabRPPSPagtos || []; p.evt.s1202RemuTrabRPPSPagtos.push(pagto); recomputeEventPeriodFlag(p.evt); createdPagtos++;
+      }else if(p.type==='ADD_ITEM'){
+        const period=findOrCreatePeriod(p.pagto,p.evt,p.item.perRef,p.group.perApur,p.worker); const remu=getTargetRemu(period,p.worker); remu.s1202RemuTrabRPPSItens.push(createItem(p.item)); applyRraToPagto(p.pagto,p.group.perApur); recomputeEventPeriodFlag(p.evt); addedItems++;
+      }
+    }
+    state.applied=true; const msg=`Aplicação concluída. Criados: ${createdEvents} evento(s), ${createdPagtos} demonstrativo(s), ${addedItems} item(ns).`;
+    analyze(); showMessage(els.analysisMessage,'ok',msg+' A análise foi recalculada após a alteração.'); els.btnDownload.disabled=false; els.btnExportReport.disabled=false; renderImport();
+  }
+
+  function countActions(){return state.analysis.reduce((acc,r)=>{acc[r.action]=(acc[r.action]||0)+1;return acc},{})}
+  function statusClass(action){return String(action||'').toLowerCase()}
+  function actionLabel(action){return ({CRIAR_EVENTO:'Criar evento',CRIAR_DEMONSTRATIVO:'Criar demonstrativo',INCLUIR_ITEM:'Incluir item',VALOR_DIVERGENTE:'Valor divergente',IGNORADO:'Ignorado',OK:'OK',AVISO:'Aviso'})[action] || action}
+  function renderAnalysis(){
+    const counts=countActions(); const pend=(counts.CRIAR_EVENTO||0)+(counts.CRIAR_DEMONSTRATIVO||0)+(counts.INCLUIR_ITEM||0);
+    const items=[
+      ['Pendências de inclusão',pend,'ações que alteram o JSON'],['Criar evento',counts.CRIAR_EVENTO||0,'trabalhador sem evento'],['Criar demonstrativo',counts.CRIAR_DEMONSTRATIVO||0,'folha sem ideDmDev'],['Incluir item',counts.INCLUIR_ITEM||0,'rubrica ausente'],['Valores divergentes',counts.VALOR_DIVERGENTE||0,'não alterados'],['Ignorados',counts.IGNORADO||0,'fora do escopo S-1202/base']
+    ];
+    els.summaryStats.innerHTML=items.map(([l,v,s])=>`<div class="stat"><div class="label">${htmlEscape(l)}</div><div class="value">${Number(v).toLocaleString('pt-BR')}</div><div class="sub">${htmlEscape(s)}</div></div>`).join('');
+    els.btnApply.disabled=pend===0; els.btnDownload.disabled=!state.jsonData; els.btnExportReport.disabled=!state.analysis.length;
+    renderPreview();
+  }
+  function renderPreview(){
+    let rows=state.analysis.slice(); const q=fold(els.searchInput.value); const action=els.actionFilter.value; const only=els.onlyPending.checked;
+    rows=rows.filter(r=>{if(action&&r.action!==action)return false; if(only && (r.action==='OK'||r.action==='IGNORADO'))return false; if(q){const hay=fold([r.action,r.cpf,r.perApur,r.numFolha,r.perRef,r.rubrica,r.value,r.eventLabel,r.matriculaContrato,r.ideDmDev,r.detail].join(' ')); if(!hay.includes(q))return false;} return true;});
+    if(!rows.length){els.previewBody.innerHTML='<tr><td colspan="11" class="empty">Nenhum item corresponde aos filtros atuais.</td></tr>';return;}
+    els.previewBody.innerHTML=rows.map(r=>`<tr><td><span class="status ${statusClass(r.action)}">${htmlEscape(actionLabel(r.action))}</span></td><td class="mono">${htmlEscape(r.cpf||'')}</td><td class="mono">${htmlEscape(r.perApur||'')}</td><td class="mono">${htmlEscape(r.numFolha||'')}</td><td class="mono">${htmlEscape(r.perRef||'')}</td><td class="mono"><strong>${htmlEscape(r.rubrica||'')}</strong></td><td class="num mono">${r.value===null||r.value===undefined?'—':htmlEscape(formatNumber(r.value))}</td><td>${htmlEscape(r.eventLabel||'')}</td><td class="mono">${htmlEscape(r.matriculaContrato||'')}</td><td class="mono">${htmlEscape(r.ideDmDev||'')}</td><td>${htmlEscape(r.detail||'')}</td></tr>`).join('');
+  }
+
+  function gerarArquivoEsocialFormatado(data){
+    const eventos=data?.s1202RemuTrabRPPSGroup?.s1202RemuTrabRPPS || [];
+    let resultado='{"s1202RemuTrabRPPSGroup":{"s1202RemuTrabRPPS":[';
+    for(let i=0;i<eventos.length;i++){const copia=clone(eventos[i]); delete copia._selected; resultado += (i===0?'\n':'\n,') + JSON.stringify(copia,null,0);}
+    resultado+='\n]}}'; return resultado;
+  }
+  function buildEditedFileName(){
+    const name=state.loadedJsonName||'S-1202.json'; const dot=name.lastIndexOf('.'); const base=dot>0?name.slice(0,dot):name; return `${base}_demonstrativos_MANUAL_${timestamp()}.json`;
+  }
+  function timestamp(){const d=new Date(); const pad=n=>String(n).padStart(2,'0'); return d.getFullYear()+pad(d.getMonth()+1)+pad(d.getDate())+'_'+pad(d.getHours())+pad(d.getMinutes())}
+  function downloadText(filename,text,type){const blob=new Blob([text],{type:type||'text/plain;charset=utf-8'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=filename; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url)}
+  function downloadJson(){if(!state.jsonData){alert('Carregue um JSON primeiro.');return;} downloadText(buildEditedFileName(),gerarArquivoEsocialFormatado(state.jsonData),'application/json;charset=utf-8')}
+  function exportReport(){
+    const headers=['acao','cpf','competencia','num_folha','periodo_direito','rubrica','valor_folha','evento','matricula_contrato','ideDmDev_alvo','detalhes'];
+    const lines=[headers.join(';')];
+    for(const r of state.analysis){const vals=[actionLabel(r.action),r.cpf,r.perApur,r.numFolha,r.perRef,r.rubrica,r.value===null||r.value===undefined?'':String(formatNumber(r.value)).replace(/\./g,'').replace(',',','),r.eventLabel,r.matriculaContrato,r.ideDmDev,r.detail].map(v=>'"'+String(v??'').replace(/"/g,'""')+'"'); lines.push(vals.join(';'));}
+    downloadText(`relatorio_gerador_S-1202_${timestamp()}.csv`,lines.join('\r\n'),'text/csv;charset=utf-8')
+  }
+
+  function updateSettingsForm(){
+    $('#setEmpNrInsc').value=state.settings.empNrInsc; $('#setEmpTpInsc').value=state.settings.empTpInsc; $('#setEstabNrInsc').value=state.settings.estabNrInsc; $('#setEstabTpInsc').value=state.settings.estabTpInsc; $('#setEstabIniValid').value=state.settings.estabIniValid; $('#setIndApuracao').value=state.settings.indApuracao; $('#setChavePrefix').value=state.settings.chavePrefix; $('#setTpRegistroAtual').value=state.settings.tpRegistroAtual; $('#setTpRegistroAnterior').value=state.settings.tpRegistroAnterior; $('#setDescRRA').value=state.settings.descRRA; $('#setTpProcRRA').value=state.settings.tpProcRRA; $('#setPreferTemplate').checked=!!state.settings.preferTemplate; $('#setKeepExistingTpRegistro').checked=!!state.settings.keepExistingTpRegistro;
+  }
+  function saveSettings(){
+    state.settings={empNrInsc:onlyDigits($('#setEmpNrInsc').value), empTpInsc:clean($('#setEmpTpInsc').value)||'1', estabNrInsc:onlyDigits($('#setEstabNrInsc').value), estabTpInsc:clean($('#setEstabTpInsc').value)||'1', estabIniValid:normalizePeriod($('#setEstabIniValid').value)||clean($('#setEstabIniValid').value), indApuracao:$('#setIndApuracao').value||'1', chavePrefix:clean($('#setChavePrefix').value)||'1', tpRegistroAtual:clean($('#setTpRegistroAtual').value)||'M', tpRegistroAnterior:clean($('#setTpRegistroAnterior').value)||'A', descRRA:clean($('#setDescRRA').value), tpProcRRA:clean($('#setTpProcRRA').value)||'1', preferTemplate:$('#setPreferTemplate').checked, keepExistingTpRegistro:$('#setKeepExistingTpRegistro').checked};
+    closeModal('settingsModal');
+  }
+  function openModal(id){$('#'+id).classList.add('open')}
+  function closeModal(id){$('#'+id).classList.remove('open')}
+  function setupDrop(input,drop,handler){
+    input.addEventListener('change',()=>handler(input.files[0]));
+    ['dragenter','dragover'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add('dragover')}));
+    ['dragleave','drop'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove('dragover')}));
+    drop.addEventListener('drop',e=>{const f=e.dataTransfer.files&&e.dataTransfer.files[0]; if(f)handler(f);});
+  }
+
+  setupDrop(els.jsonInput,$('#jsonDrop'),loadJsonFile); setupDrop(els.workersInput,$('#workersDrop'),loadWorkersFile); setupDrop(els.folhaInput,$('#folhaDrop'),loadFolhaFile);
+  $('#btnAnalyze').addEventListener('click',analyze); $('#btnApply').addEventListener('click',()=>{if(confirm('Aplicar as inclusões planejadas no JSON carregado?')) applyPlan();}); $('#btnDownload').addEventListener('click',downloadJson); $('#btnExportReport').addEventListener('click',exportReport); $('#btnClear').addEventListener('click',()=>{if(!confirm('Limpar todos os dados carregados?'))return; state.jsonData=null;state.loadedJsonName='';state.loadedJsonMeta=null;state.workers=new Map();state.workerRows=[];state.ignoredWorkers=[];state.workerWarnings=[];state.folhaRows=[];state.folhaInvalid=[];state.folhaWarnings=[];state.folhaFiles=[];state.analysis=[];state.plan=[];state.applied=false; els.jsonStatus.innerHTML='';els.workersStatus.innerHTML='';els.folhaStatus.innerHTML='';els.analysisMessage.innerHTML='';renderImport();renderAnalysis();});
+  $('#btnSettings').addEventListener('click',()=>{updateSettingsForm();openModal('settingsModal')}); $('#btnSaveSettings').addEventListener('click',saveSettings); $$('[data-close]').forEach(b=>b.addEventListener('click',()=>closeModal(b.dataset.close))); $('#btnRefreshView').addEventListener('click',renderPreview); els.searchInput.addEventListener('input',renderPreview); els.actionFilter.addEventListener('change',renderPreview); els.onlyPending.addEventListener('change',renderPreview);
+  updateSettingsForm(); renderImport(); renderAnalysis();
+})();
+</script>
+</body>
+</html>
